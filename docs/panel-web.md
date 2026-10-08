@@ -118,7 +118,7 @@ vistas y llama funciones del servidor, que validan el rol y dejan registro en la
 | Fuente | Campos principales |
 |---|---|
 | Vista `alertas_panel` | `id, categoria, nombre, nombre_corto, nivel (1–4), estado, titulo, descripcion, referencia, foto_path, folio_911, consentimiento, lat, lon, radio_actual_m, radio_manual_m, creada_en, publicada_en, verificada_en, cerrada_en, expira_en, motivo_cierre, autor_reputacion, autor_rol, autor_institucion, validador_nombre, validador_institucion, n_confirmo, n_ya_no_esta, n_parece_falsa, n_entregas, n_telegram` |
-| Vista `metricas` | `activas, por_validar, segundos_validacion` (promedio de 7 días), `entregas_hoy` |
+| Vista `metricas` | `activas, por_validar, segundos_validacion` (promedio de 7 días), `entregas_hoy`, `dispositivos_activos` (teléfonos registrados para recibir push; solo validadores) |
 | Tabla `bitacora` | `accion` (`reportar, emitir_oficial, verificar, descartar, resolver, ajustar_radio, corroborar_auto, publicar_auto, publicar_colmena, revision_por_votos, expirar`), `usuario_id` (null = automática), `detalle` (JSON), `creada_en` |
 | Tabla `categorias` | `clave, nombre, nombre_corto, nivel, requiere_validacion, solo_institucion, vigencia, instrucciones` |
 | Tabla `escalones_radio` | `categoria, minuto, radio_m`: cómo crece el radio de cada categoría |

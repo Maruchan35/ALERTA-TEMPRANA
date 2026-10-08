@@ -4,7 +4,8 @@ import 'package:intl/intl.dart';
 
 final _miles = NumberFormat.decimalPattern('es_MX');
 
-/// Encabezado con métricas: activas, por validar, tiempo medio de validación y entregas de hoy.
+/// Encabezado con métricas: activas, por validar, tiempo medio de validación, entregas de hoy y
+/// teléfonos registrados (si son pocos, las alertas no tienen a quién llegar).
 class FilaMetricas extends StatelessWidget {
   const FilaMetricas({super.key, required this.metricas});
 
@@ -23,6 +24,12 @@ class FilaMetricas extends StatelessWidget {
         Colores.verde,
       ),
       (m == null ? '—' : _miles.format(m.entregasHoy), 'entregas hoy', Icons.send_to_mobile_outlined, Colores.azul),
+      (
+        m?.dispositivosActivos == null ? '—' : _miles.format(m!.dispositivosActivos),
+        'teléfonos registrados',
+        Icons.smartphone,
+        Colores.marino,
+      ),
     ];
     return Wrap(
       spacing: 12,

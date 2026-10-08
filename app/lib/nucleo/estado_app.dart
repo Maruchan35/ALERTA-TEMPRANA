@@ -46,8 +46,13 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
 
   /// ¿Le pueden llegar alertas a este teléfono aunque la app esté cerrada?
   /// (Sin Firebase, como en la web, solo se avisa con la app abierta: no hay nada que revisar.)
-  bool get listoParaRecibir =>
-      servicio.esDemo || !firebaseListo || (tokenPush != null && miCelda != null && registradoEn != null);
+  bool get listoParaRecibir => servicio.esDemo || !firebaseListo || (tokenPush != null && registradoEn != null);
+
+  /// Celda con la que el servidor conoce a este teléfono (lo único que sabe de su ubicación).
+  String? get celdaRegistrada => prefs.getString(Claves.celdaRegistrada);
+
+  /// Registrado sin ubicación: con la celda de su primera zona o del centro de la ciudad.
+  bool get sinUbicacion => prefs.getBool(Claves.sinUbicacion) ?? false;
 
   ({double lat, double lon})? get miPosicion {
     final lat = prefs.getDouble(Claves.miLat);
@@ -120,11 +125,11 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
     });
   }
 
-  /// Sin push (web o Firebase sin configurar): con la app abierta se avisa igual que
-  /// haría el servidor, usando Realtime y la distancia calculada en el teléfono.
+  /// Sin push (web, Firebase sin configurar o teléfono todavía no registrado): con la app
+  /// abierta se avisa igual que haría el servidor, con Realtime y la distancia calculada aquí.
   void _alCambiarAlerta(Alerta a) {
     programarRecarga();
-    if (servicio.esDemo || firebaseListo) return;
+    if (servicio.esDemo || (firebaseListo && listoParaRecibir)) return;
     final notificadas = (prefs.getStringList(Claves.notificadas) ?? const <String>[]).toSet();
     if (a.estado.activa && a.radioActualM > 0 && !notificadas.contains(a.id)) {
       final cercana = distanciaA(a);

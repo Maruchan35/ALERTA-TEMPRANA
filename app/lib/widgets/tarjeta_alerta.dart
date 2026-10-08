@@ -19,6 +19,9 @@ class TarjetaAlerta extends StatelessWidget {
         : distancia!.zona == null
         ? formatoDistancia(distancia!.metros)
         : '${formatoDistancia(distancia!.metros)} de ${distancia!.zona}';
+    // La ves en el mapa, pero el aviso (push) solo llega dentro de su radio (+700 m de margen de celda)
+    final fueraDelRadio =
+        a.estado.activa && distancia != null && a.radioVisibleM > 0 && distancia!.metros > a.radioVisibleM + 700;
     return Card(
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
@@ -58,7 +61,11 @@ class TarjetaAlerta extends StatelessWidget {
                               runSpacing: 4,
                               children: [
                                 Text(
-                                  [?lugar, haceCuanto(a.creadaEn)].join(' · '),
+                                  [
+                                    ?lugar,
+                                    haceCuanto(a.creadaEn),
+                                    if (fueraDelRadio) 'fuera del radio de aviso',
+                                  ].join(' · '),
                                   style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
                                 ),
                                 InsigniaEstado(a.estado, compacta: true),

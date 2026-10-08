@@ -17,6 +17,12 @@ abstract final class Claves {
 
   /// Última vez que el servidor registró este teléfono (con su token de push).
   static const registradoEn = 'registrado_en';
+
+  /// Celda con la que quedó registrado (la real, o la de respaldo si no hay ubicación).
+  static const celdaRegistrada = 'celda_registrada';
+
+  /// El último registro se hizo sin ubicación (permiso negado o GPS apagado).
+  static const sinUbicacion = 'sin_ubicacion';
 }
 
 /// Una zona guardada: el servidor conoce su celda; el teléfono, su punto exacto.

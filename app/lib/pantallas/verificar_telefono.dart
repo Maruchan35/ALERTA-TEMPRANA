@@ -79,6 +79,17 @@ class _PantallaVerificarTelefonoState extends State<PantallaVerificarTelefono> {
             'personas. Para RECIBIR alertas no hace falta.',
             textAlign: TextAlign.center,
           ),
+          if (AlcanceApp.of(context).herramientasDemo && !demo)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text(
+                'Pruebas: usa un número de 55 1111 1111 a 55 8888 8888 (código 123456), uno distinto en cada '
+                'teléfono. Cada número es una persona: con el mismo número, todos los teléfonos serían "el autor" '
+                'y nadie podría confirmar.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colores.morado, fontWeight: FontWeight.w600),
+              ),
+            ),
           const SizedBox(height: 24),
           TextField(
             controller: _telefono,

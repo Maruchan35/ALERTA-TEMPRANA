@@ -295,18 +295,18 @@ void main() {
       app.cerrar();
     });
 
-    test('P11: límite de 3 reportes por hora', () async {
+    test('P11: límite de reportes por hora (10)', () async {
       final app = ServicioDemo(reloj: () => ahora, iniciarReloj: false, sembrar: false);
       await app.iniciarSesionAnonima();
       await app.verificarCodigo('5511111111', '123456');
-      for (var i = 0; i < 3; i++) {
+      for (var i = 0; i < reglasColmena.reportesPorHora; i++) {
         await app.crearReporte(
           NuevoReporte(categoria: 'otro', titulo: 'Reporte $i de prueba', lat: 17.9 + i, lon: -102.19),
         );
       }
       expect(
         () =>
-            app.crearReporte(const NuevoReporte(categoria: 'otro', titulo: 'Cuarto reporte', lat: 19.9, lon: -102.19)),
+            app.crearReporte(const NuevoReporte(categoria: 'otro', titulo: 'Un reporte más', lat: 29.9, lon: -102.19)),
         throwsA(isA<ErrorServicio>()),
       );
       app.cerrar();

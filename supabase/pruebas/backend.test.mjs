@@ -448,14 +448,23 @@ test('para reportar, confirmar o subir fotos hace falta un teléfono verificado:
 
 // ─── P11: límite de reportes ───────────────────────────────────────────────
 
-test('P11: el cuarto reporte en una hora se rechaza con un mensaje claro', async () => {
+test('P11: al pasar el límite de reportes por hora (config, 10 por defecto) se rechaza con un mensaje claro', async () => {
+  assert.equal((await env.sql(`select reportes_por_hora from config`))[0].reportes_por_hora, 10);
+  await env.sql(`update config set reportes_por_hora = 3`);
   const u = await env.crearUsuario();
   const lugares = [PUNTOS.A, PUNTOS.B, PUNTOS.C, PUNTOS.D];
   for (let i = 0; i < 3; i++) {
     await env.reportar(u, { categoria: 'otro', titulo: `Reporte de prueba ${i + 1}`, punto: lugares[i] });
   }
-  await assert.rejects(env.reportar(u, { categoria: 'otro', titulo: 'Reporte de prueba 4', punto: lugares[3] }),
-    /Alcanzaste el límite de reportes/);
+  await assert.rejects(env.reportar(u, { categoria: 'accidente', titulo: 'Reporte de prueba 4', punto: lugares[3] }),
+    /Alcanzaste el límite de reportes \(3 por hora\)/);
+
+  // Sumarse a un reporte que ya existe no choca con el límite: cuenta como confirmación
+  const vecino = await env.crearUsuario();
+  const incendio = await env.reportar(vecino, { categoria: 'incendio', titulo: 'Humo en la bodega', punto: PUNTOS.D });
+  const dup = await env.reportar(u, { categoria: 'incendio', titulo: 'Sí, sale humo de la bodega', punto: PUNTOS.D });
+  assert.equal(dup.duplicada_de, incendio.alerta_id);
+  assert.equal((await env.sql(`select count(*)::int as n from confirmaciones where usuario_id = $1`, [u.id]))[0].n, 1);
 
   const pc = await env.crearUsuario({ rol: 'institucion' });
   for (let i = 0; i < 4; i++) {
@@ -745,10 +754,15 @@ test('métricas y vista del panel para validadores', async () => {
   await env.sql(`update alertas set creada_en = now() - interval '3 minutes' where id = $1`, [pendiente.alerta_id]);
   await env.rpc(validador, 'validar_alerta', { p_alerta: pendiente.alerta_id, p_accion: 'verificar' });
 
+  await env.telefonoEn(PUNTOS.A, 'A');
+  await env.telefonoEn(PUNTOS.B, 'B');
   const [m] = await env.como(validador, async (tx) => (await tx.query(`select * from metricas`)).rows);
   assert.equal(m.activas, 2);
   assert.equal(m.por_validar, 0);
   assert.ok(m.segundos_validacion >= 179 && m.segundos_validacion <= 190, `segundos: ${m.segundos_validacion}`);
+  assert.equal(m.dispositivos_activos, 2, 'teléfonos registrados para recibir push');
+  const [delAutor] = await env.como(autor, async (tx) => (await tx.query(`select * from metricas`)).rows);
+  assert.equal(delAutor.dispositivos_activos, null, 'el conteo de teléfonos es solo para validadores');
 
   const panel = await env.como(validador, async (tx) =>
     (await tx.query(`select titulo, folio_911, autor_reputacion, validador_institucion from alertas_panel order by titulo`)).rows);

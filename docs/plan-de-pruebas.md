@@ -15,7 +15,7 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 | P08 | Duplicado | *P08* | Segundo reporte igual a 200 m → no crea alerta, suma una confirmación |
 | P09 | Corroboración | *P09* | Tres cuentas confirman → corroborada; llega “AHORA CORROBORADA” |
 | P10 | Votos de falsa | *P10* | Tres “parece falsa” → regresa a revisión |
-| P11 | Límite de reportes | *P11* | Cuatro reportes en una hora → el cuarto se rechaza con mensaje claro |
+| P11 | Límite de reportes | *P11* | Más de 10 reportes nuevos en una hora (`config.reportes_por_hora`) → se rechaza con mensaje claro; sumarse a un reporte que ya existe no cuenta |
 | P12 | Cierre | *P12* | El validador la resuelve → todos ven “RESUELTA”; la foto deja de mostrarse |
 | P13 | Expiración | *P13* | Forzar `expira_en` en el pasado → al minuto queda expirada y sale del mapa |
 | P14 | Seguridad | *P14* (anon key y sesión: tokens, funciones internas, escrituras directas) | `curl` a `/rest/v1/rpc/dispositivos_objetivo` con la anon key → *permission denied* |

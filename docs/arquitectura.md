@@ -83,7 +83,11 @@ Los validadores aceleran y corrigen, pero no son un cuello de botella
 | **Teléfono verificado** | Necesario para reportar, confirmar y subir fotos (una cuenta de correo sola no basta) |
 
 Los umbrales viven en la tabla `config` (`minutos_espera_validador`, `confirmaciones_corroborar`,
-`confirmaciones_colmena`, `radio_max_corroborada_m`, `radio_max_colmena_m`): se ajustan sin programar.
+`confirmaciones_colmena`, `radio_max_corroborada_m`, `radio_max_colmena_m` y `reportes_por_hora`): se ajustan sin
+programar.
+
+Quien reporta no puede confirmar su propio reporte: en su detalle la app le muestra cuántas confirmaciones de vecinos
+lleva y cuántas faltan para el siguiente radio.
 
 ## Privacidad: qué se guarda y qué no
 

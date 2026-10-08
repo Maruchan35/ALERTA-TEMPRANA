@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config.dart';
 import 'preferencias.dart';
 
 enum PermisoUbicacion { concedido, siempre, denegado, denegadoParaSiempre, servicioApagado }
@@ -67,8 +68,17 @@ abstract final class Ubicacion {
     return lat == null || lon == null ? null : (lat: lat, lon: lon);
   }
 
-  /// Lee la posición, la guarda SOLO en el teléfono y sube la celda si cambió (o si se fuerza,
-  /// por ejemplo cuando cambia el token de push). Devuelve la celda actual.
+  /// Sin ubicación (permiso negado o GPS apagado) el teléfono igual se registra, con la celda de
+  /// su primera zona o la del centro de la ciudad: así de todos modos le llegan las alertas de ahí
+  /// y las de mayor radio (verificadas). En cuanto haya ubicación, se cambia por la real.
+  static String celdaSinUbicacion(SharedPreferences prefs) {
+    final zonas = prefs.getStringList(Claves.zonas) ?? const <String>[];
+    if (zonas.isNotEmpty) return ZonaLocal.desdeJson(zonas.first).celda;
+    return geohash(Config.latInicial, Config.lonInicial, 6);
+  }
+
+  /// Lee la posición, la guarda SOLO en el teléfono y registra la celda en el servidor si cambió
+  /// (o si se fuerza, por ejemplo al abrir la app o cuando cambia el token de push).
   static Future<String?> actualizarMiCelda({
     required ServicioAlertas servicio,
     required String? token,
@@ -76,12 +86,18 @@ abstract final class Ubicacion {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final pos = await posicionActual(prefs);
-    if (pos == null) return prefs.getString(Claves.miCelda);
-    await prefs.setDouble(Claves.miLat, pos.lat);
-    await prefs.setDouble(Claves.miLon, pos.lon);
-    final celda = geohash(pos.lat, pos.lon, 6);
-    final anterior = prefs.getString(Claves.miCelda);
-    if (!forzar && anterior == celda) return celda; // no cambió: no se envía nada
+    final String celda;
+    if (pos != null) {
+      await prefs.setDouble(Claves.miLat, pos.lat);
+      await prefs.setDouble(Claves.miLon, pos.lon);
+      celda = geohash(pos.lat, pos.lon, 6);
+      await prefs.setString(Claves.miCelda, celda);
+    } else {
+      celda = celdaSinUbicacion(prefs);
+    }
+    await prefs.setBool(Claves.sinUbicacion, pos == null);
+    // La celda registrada no cambió: no se envía nada
+    if (!forzar && prefs.getString(Claves.celdaRegistrada) == celda) return celda;
     // Sin token de push no hay a dónde mandar alertas: la app las consulta abierta (Realtime)
     if (token != null || servicio.esDemo) {
       await servicio.registrarDispositivo(
@@ -89,9 +105,11 @@ abstract final class Ubicacion {
         plataforma: kIsWeb ? 'web' : (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android'),
         celda: celda,
       );
-      if (token != null) await prefs.setString(Claves.registradoEn, DateTime.now().toIso8601String());
+      if (token != null) {
+        await prefs.setString(Claves.celdaRegistrada, celda);
+        await prefs.setString(Claves.registradoEn, DateTime.now().toIso8601String());
+      }
     }
-    await prefs.setString(Claves.miCelda, celda);
     return celda;
   }
 

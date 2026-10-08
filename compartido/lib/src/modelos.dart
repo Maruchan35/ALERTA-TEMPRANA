@@ -398,19 +398,29 @@ class Zona {
 }
 
 class Metricas {
-  const Metricas({this.activas = 0, this.porValidar = 0, this.segundosValidacion, this.entregasHoy = 0});
+  const Metricas({
+    this.activas = 0,
+    this.porValidar = 0,
+    this.segundosValidacion,
+    this.entregasHoy = 0,
+    this.dispositivosActivos,
+  });
 
   factory Metricas.desdeMapa(Map<String, dynamic> m) => Metricas(
     activas: (m['activas'] as num?)?.toInt() ?? 0,
     porValidar: (m['por_validar'] as num?)?.toInt() ?? 0,
     segundosValidacion: (m['segundos_validacion'] as num?)?.toInt(),
     entregasHoy: (m['entregas_hoy'] as num?)?.toInt() ?? 0,
+    dispositivosActivos: (m['dispositivos_activos'] as num?)?.toInt(),
   );
 
   final int activas;
   final int porValidar;
   final int? segundosValidacion;
   final int entregasHoy;
+
+  /// Teléfonos registrados para recibir push: si son pocos, las alertas no tienen a quién llegar.
+  final int? dispositivosActivos;
 }
 
 class EntradaBitacora {

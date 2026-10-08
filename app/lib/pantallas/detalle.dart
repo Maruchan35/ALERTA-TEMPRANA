@@ -64,6 +64,21 @@ class _PantallaDetalleState extends State<PantallaDetalle> {
     }
   }
 
+  /// Lo que ve quien reportó: su reporte lo hacen crecer los vecinos, no el administrador.
+  static String _textoColmena(Alerta a) {
+    const r = reglasColmena;
+    if (a.estado == EstadoAlerta.verificada) {
+      return 'Es tu reporte y una institución ya lo verificó: llega a todos los escalones de radio.';
+    }
+    final avance = a.nConfirmo < r.confirmacionesCorroborar
+        ? '${a.nConfirmo} de ${r.confirmacionesCorroborar} para llegar a ${formatoRadio(r.radioMaxCorroboradaM)}'
+        : a.nConfirmo < r.confirmacionesColmena
+        ? '${a.nConfirmo} de ${r.confirmacionesColmena} para llegar a ${formatoRadio(r.radioMaxColmenaM)}'
+        : '${a.nConfirmo}: ya llega hasta ${formatoRadio(r.radioMaxColmenaM)}';
+    return 'Es tu reporte, así que tú no lo confirmas: lo confirman las personas cercanas con '
+        '"Yo también lo vi" ($avance), sin esperar al administrador. Compártelo con quien esté cerca.';
+  }
+
   /// Confirmar requiere cuenta verificada: si es anónima, primero se verifica el número.
   Future<void> _votar(TipoConfirmacion tipo) async {
     final estado = AlcanceApp.leer(context);
@@ -242,6 +257,8 @@ class _PantallaDetalleState extends State<PantallaDetalle> {
                     'Tu reporte está en revisión. Si ningún validador lo revisa en 5 minutos, o si alguien '
                     'más reporta lo mismo cerca, la comunidad lo recibirá como NO CONFIRMADO a 1 km.',
               ),
+            if (a.estado.activa && a.esMia)
+              _Aviso(icono: Icons.groups_outlined, color: Colores.marino, texto: _textoColmena(a)),
             if (_foto != null)
               FutureBuilder<ImageProvider?>(
                 future: _foto,

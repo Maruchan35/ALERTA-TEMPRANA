@@ -9,6 +9,7 @@ class ReglasColmena {
     this.confirmacionesColmena = 6,
     this.radioMaxCorroboradaM = 3000,
     this.radioMaxColmenaM = 10000,
+    this.reportesPorHora = 10,
   });
 
   /// Sin revisión de un validador en este tiempo, el reporte en revisión se publica solo.
@@ -21,6 +22,9 @@ class ReglasColmena {
   final int confirmacionesColmena;
   final int radioMaxCorroboradaM;
   final int radioMaxColmenaM;
+
+  /// Reportes nuevos por persona y por hora (sumarse a uno que ya existe no cuenta).
+  final int reportesPorHora;
 
   /// Tope del radio según la confianza: no confirmada → tope de la categoría (1 km);
   /// corroborada → 3 km, o 10 km con 6 o más confirmaciones; verificada → sin tope.

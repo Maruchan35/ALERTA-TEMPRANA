@@ -583,10 +583,7 @@ class ServicioDemo implements ServicioAlertas {
     }
     final t = ahora;
     if (!inst) {
-      final recientes = _registros.values
-          .where((r) => r.creadaPor == p.id && t.difference(r.alerta.creadaEn) < const Duration(hours: 1))
-          .length;
-      if (recientes >= 3) throw const ErrorServicio('Alcanzaste el límite de reportes. Intenta más tarde');
+      // Duplicado antes del límite: sumarse a un reporte que ya existe nunca se bloquea
       for (final r in _registros.values) {
         final a = r.alerta;
         if (a.categoria == n.categoria &&
@@ -599,6 +596,13 @@ class ServicioDemo implements ServicioAlertas {
           }
           return ResultadoReporte(duplicadaDe: a.id, estado: r.alerta.estado);
         }
+      }
+      final recientes = _registros.values
+          .where((r) => r.creadaPor == p.id && t.difference(r.alerta.creadaEn) < const Duration(hours: 1))
+          .length;
+      final limite = reglasColmena.reportesPorHora;
+      if (recientes >= limite) {
+        throw ErrorServicio('Alcanzaste el límite de reportes ($limite por hora). Intenta más tarde');
       }
     }
     final estado = inst
@@ -777,6 +781,7 @@ class ServicioDemo implements ServicioAlertas {
       porValidar: todas.where((a) => a.estado == EstadoAlerta.pendiente).length,
       segundosValidacion: tiempos.isEmpty ? null : tiempos.reduce((a, b) => a + b) ~/ tiempos.length,
       entregasHoy: _registros.values.fold(0, (s, r) => s + r.entregas.length),
+      dispositivosActivos: _celdasPorDispositivo.length,
     );
   }
 

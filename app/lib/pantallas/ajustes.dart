@@ -200,18 +200,24 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
             ListTile(
               leading: Icon(
                 estado.listoParaRecibir ? Icons.verified_user_outlined : Icons.wifi_off,
-                color: estado.listoParaRecibir ? Colores.verde : Colores.rojo,
+                color: !estado.listoParaRecibir
+                    ? Colores.rojo
+                    : estado.sinUbicacion
+                    ? Colores.ambar
+                    : Colores.verde,
               ),
               title: const Text('Registro para recibir alertas'),
               subtitle: Text(
-                estado.listoParaRecibir
-                    ? 'Listo: te avisamos aunque la app esté cerrada'
-                          '${estado.registradoEn != null ? ' · actualizado ${haceCuanto(estado.registradoEn!)}' : ''}'
-                    : estado.tokenPush == null
-                    ? 'Falta la conexión con Google (Firebase). Revisa tu internet y toca para reintentar'
-                    : estado.miCelda == null
-                    ? 'Falta tu ubicación: permite la ubicación para saber qué alertas te tocan'
-                    : 'Todavía no se registra en el servidor: toca para reintentar',
+                !estado.listoParaRecibir
+                    ? (estado.tokenPush == null
+                          ? 'Falta la conexión con Google (Firebase). Revisa tu internet y toca para reintentar'
+                          : 'Todavía no se registra en el servidor: toca para reintentar')
+                    : estado.sinUbicacion
+                    ? 'Listo, pero sin tu ubicación: te avisamos de lo que pase cerca de '
+                          '${estado.zonas.isEmpty ? 'el centro de la ciudad' : '"${estado.zonas.first.nombre}"'}. '
+                          'Permite la ubicación para que te avisemos de lo que pase donde estés.'
+                    : 'Listo: te avisamos aunque la app esté cerrada'
+                          '${estado.registradoEn != null ? ' · actualizado ${haceCuanto(estado.registradoEn!)}' : ''}',
               ),
               onTap: () async {
                 await estado.actualizarUbicacion(forzar: true);
@@ -257,11 +263,11 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
               value: segundoPlano,
               onChanged: (v) => _segundoPlano(estado, v),
             ),
-          if (estado.miCelda != null)
+          if ((estado.celdaRegistrada ?? estado.miCelda) != null)
             ListTile(
               leading: const Icon(Icons.grid_on),
               title: const Text('Lo único que el servidor sabe de tu ubicación'),
-              subtitle: Text('Celda ${estado.miCelda} (~1.2 × 0.6 km)'),
+              subtitle: Text('Celda ${estado.celdaRegistrada ?? estado.miCelda} (~1.2 × 0.6 km)'),
             ),
           const Seccion('Privacidad'),
           ListTile(
