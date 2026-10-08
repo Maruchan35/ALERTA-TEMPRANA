@@ -1,0 +1,21 @@
+name: alerta_compartido
+description: "ALERTA CERCA: modelos, geohash, catálogo, servicios (Supabase y demostración) y estilo compartidos por la app y el panel."
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.5
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_map: ^8.3.2
+  intl: ^0.20.3
+  latlong2: ^0.10.1
+  supabase_flutter: ^2.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,0 +1,38 @@
+# Crea una versión (Release) con el APK de demostración al subir una etiqueta, p. ej.:
+#   git tag v1.0.0 && git push origin v1.0.0
+name: Versión
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+      - name: APK de demostración
+        working-directory: app
+        run: |
+          flutter build apk --release --dart-define=DEMO=true
+          cp build/app/outputs/flutter-apk/app-release.apk ../alerta-cerca-demo-${{ github.ref_name }}.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: alerta-cerca-demo-${{ github.ref_name }}.apk
+          generate_release_notes: true
+          body: |
+            APK de **demostración** de ALERTA CERCA (funciona sin backend: validador, vecinos y puntos A/B/C/D simulados).
+            Para la versión conectada a Supabase y con notificaciones push, compila con tu configuración
+            siguiendo `docs/despliegue.md`.

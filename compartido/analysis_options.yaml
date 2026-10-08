@@ -1,0 +1,19 @@
+# Reglas de análisis de ALERTA CERCA (las recomendadas de Flutter).
+# `dart format .` usa líneas de 120 caracteres; el CI revisa que todo esté formateado.
+include: package:flutter_lints/flutter.yaml
+
+formatter:
+  page_width: 120
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+
+linter:
+  rules:
+    - prefer_single_quotes
+    - always_declare_return_types
+

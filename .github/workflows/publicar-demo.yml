@@ -1,0 +1,55 @@
+# Publica la DEMOSTRACIÓN web (app + panel, sin backend) en GitHub Pages.
+#
+# Una sola vez: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# Después: Actions → "Publicar demo web" → Run workflow.
+# Queda en https://<usuario>.github.io/<repositorio>/
+name: Publicar demo web
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+      - name: App (modo demostración)
+        working-directory: app
+        run: flutter build web --release --dart-define=DEMO=true --base-href "/${{ github.event.repository.name }}/app/"
+      - name: Panel de validadores (modo demostración)
+        working-directory: panel
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/panel/"
+      - name: Armar el sitio
+        run: |
+          mkdir -p sitio
+          cp .github/pages/index.html sitio/index.html
+          cp -r app/build/web sitio/app
+          cp -r panel/build/web sitio/panel
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sitio
+
+  desplegar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - id: despliegue
+        uses: actions/deploy-pages@v4

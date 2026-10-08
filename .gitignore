@@ -1,0 +1,36 @@
+# ─── Secretos: NUNCA al repositorio ────────────────────────────────────────
+.env
+*.env
+.env.*
+!.env.ejemplo
+**/cuenta-servicio*.json
+**/service-account*.json
+**/*-firebase-adminsdk-*.json
+app/config.json
+panel/config.json
+supabase/functions/.env
+supabase/.env
+
+# ─── Supabase CLI ──────────────────────────────────────────────────────────
+supabase/.temp/
+supabase/.branches/
+
+# ─── Flutter / Dart ────────────────────────────────────────────────────────
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+*.iml
+
+# ─── Node (pruebas de SQL) ────────────────────────────────────────────────
+**/node_modules/
+
+# ─── IDE y sistema ─────────────────────────────────────────────────────────
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ─── Configuración local de Claude Code ─────────────────────────────────────
+.claude/

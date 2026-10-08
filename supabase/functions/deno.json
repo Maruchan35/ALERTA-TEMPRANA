@@ -1,0 +1,16 @@
+{
+  "fmt": {
+    "lineWidth": 120,
+    "indentWidth": 2,
+    "singleQuote": true
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  },
+  "tasks": {
+    "probar": "deno test --allow-env _compartido/",
+    "revisar": "deno check notificar/index.ts telegram-webhook/index.ts cap/index.ts mantenimiento/index.ts && deno lint && deno fmt --check"
+  }
+}

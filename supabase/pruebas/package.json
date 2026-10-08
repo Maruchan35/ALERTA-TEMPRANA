@@ -1,0 +1,16 @@
+{
+  "name": "alerta-cerca-pruebas-sql",
+  "private": true,
+  "description": "Pruebas automáticas del backend de ALERTA CERCA (esquema, RLS, funciones y reglas de confianza) sobre PostgreSQL + PostGIS reales (PGlite), sin Docker ni cuenta de Supabase.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite-postgis": "0.2.8"
+  }
+}
