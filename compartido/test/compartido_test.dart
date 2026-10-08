@@ -69,6 +69,29 @@ void main() {
       expect(radio(menor, EstadoAlerta.resuelta, 30), 0);
     });
 
+    test('colmena: con 6 confirmaciones el tope de corroborada sube de 3 a 10 km', () {
+      int corroborada(int n) => radioPermitido(
+        categoria: robo,
+        estado: EstadoAlerta.corroborada,
+        publicadaEn: t0,
+        ahora: t0.add(const Duration(minutes: 70)),
+        nConfirmo: n,
+      );
+      expect(corroborada(3), 3000);
+      expect(corroborada(5), 3000);
+      expect(corroborada(6), 10000);
+      expect(radio(menor, EstadoAlerta.noConfirmada, 30), 1000, reason: 'personas publicadas por la colmena: 1 km');
+    });
+
+    test('colmena: la foto de una persona solo se muestra confirmada', () {
+      expect(fotoPublica(EstadoAlerta.noConfirmada, dePersonas: true), isFalse);
+      expect(fotoPublica(EstadoAlerta.noConfirmada, dePersonas: false), isTrue);
+      expect(fotoPublica(EstadoAlerta.corroborada, dePersonas: true), isTrue);
+      expect(fotoPublica(EstadoAlerta.verificada, dePersonas: true), isTrue);
+      expect(fotoPublica(EstadoAlerta.pendiente, dePersonas: false), isFalse);
+      expect(fotoPublica(EstadoAlerta.resuelta, dePersonas: false), isFalse);
+    });
+
     test('modo demo (factor 30) y radio manual', () {
       final t = t0.add(const Duration(seconds: 31));
       expect(
@@ -196,6 +219,39 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(recibidos.where((a) => a.tipo == 'nueva').map((a) => a.dispositivo), ['A']);
       panel.cerrar();
+    });
+
+    test('colmena: sin validador en 5 min, el reporte en revisión se publica solo a 1 km', () async {
+      final r = await s.simularReporteCiudadano(categoria: 'menor_desaparecido', titulo: 'Niño de 8 años');
+      expect(r.estado, EstadoAlerta.pendiente);
+      ahora = ahora.add(const Duration(minutes: 4));
+      await tic();
+      expect(recibieron('nueva'), isEmpty);
+
+      ahora = ahora.add(const Duration(minutes: 1));
+      await tic();
+      final a = await s.obtenerAlerta(r.alertaId!);
+      expect(a!.estado, EstadoAlerta.noConfirmada);
+      expect(recibieron('nueva'), ['A']);
+      expect((await s.bitacora(r.alertaId!)).map((b) => b.accion), ['reportar', 'publicar_auto']);
+
+      ahora = ahora.add(const Duration(minutes: 30)); // 15 h de demo: sin confirmar no pasa de 1 km
+      await tic();
+      expect(recibieron('nueva'), ['A']);
+    });
+
+    test('colmena: un segundo testigo publica al instante el reporte en revisión', () async {
+      final r = await s.simularReporteCiudadano(categoria: 'persona_desaparecida', titulo: 'Joven de 17 años');
+      expect(r.estado, EstadoAlerta.pendiente);
+      final dup = await s.simularReporteCiudadano(categoria: 'persona_desaparecida', titulo: 'Joven de sudadera gris');
+      expect(dup.duplicadaDe, r.alertaId);
+      expect(dup.estado, EstadoAlerta.noConfirmada);
+      await tic();
+      expect(recibieron('nueva'), ['A']);
+      expect(
+        (await s.bitacora(r.alertaId!)).last.descripcion,
+        'Publicada por la colmena: otra persona reportó lo mismo',
+      );
     });
 
     test('P08/P09: duplicado suma confirmación y 3 votos la corroboran', () async {

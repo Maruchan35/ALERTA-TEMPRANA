@@ -26,6 +26,9 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
   List<ZonaLocal> zonas = const [];
   bool iniciado = false;
   bool cargando = false;
+
+  /// Ya se intentó leer la ubicación y registrar el teléfono al menos una vez.
+  bool ubicacionRevisada = false;
   String? error;
   final _suscripciones = <StreamSubscription<Object?>>[];
   StreamSubscription<({double lat, double lon})>? _seguimiento;
@@ -37,6 +40,14 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
   String? get puntoDemo => prefs.getString(Claves.puntoDemo);
   String? get miCelda => prefs.getString(Claves.miCelda);
   bool get herramientasDemo => servicio.esDemo || kDebugMode || Config.herramientasDemo;
+
+  /// Última vez que el servidor registró este teléfono para recibir push (null = nunca).
+  DateTime? get registradoEn => DateTime.tryParse(prefs.getString(Claves.registradoEn) ?? '');
+
+  /// ¿Le pueden llegar alertas a este teléfono aunque la app esté cerrada?
+  /// (Sin Firebase, como en la web, solo se avisa con la app abierta: no hay nada que revisar.)
+  bool get listoParaRecibir =>
+      servicio.esDemo || !firebaseListo || (tokenPush != null && miCelda != null && registradoEn != null);
 
   ({double lat, double lon})? get miPosicion {
     final lat = prefs.getDouble(Claves.miLat);
@@ -150,6 +161,7 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('No se pudo actualizar la celda: $e');
     }
+    ubicacionRevisada = true;
     await cargarAlertas();
   }
 

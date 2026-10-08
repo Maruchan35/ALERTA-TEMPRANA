@@ -51,6 +51,12 @@ class ServicioSupabase implements ServicioAlertas {
     }
     if (t.contains('rate limit') || t.contains('too many')) return 'Demasiados intentos. Espera un momento.';
     if (t.contains('phone') && t.contains('invalid')) return 'Número de teléfono inválido.';
+    if (t.contains('email logins are disabled') || t.contains('email_provider_disabled')) {
+      return 'El acceso con correo está apagado en el servidor (Supabase → Authentication → Sign In / Providers → Email).';
+    }
+    if (t.contains('email not confirmed')) {
+      return 'Esta cuenta todavía no confirma su correo. En Supabase: Authentication → Users → la cuenta → Confirm email.';
+    }
     if (t.contains('anonymous sign-ins are disabled')) {
       return 'El proyecto no tiene activados los usuarios anónimos (Authentication → Sign In / Providers).';
     }

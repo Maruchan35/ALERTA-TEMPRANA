@@ -1,4 +1,5 @@
 import 'package:alerta_compartido/alerta_compartido.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../nucleo/estado_app.dart';
@@ -195,6 +196,59 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
               await estado.actualizarUbicacion(forzar: true);
             },
           ),
+          if (estado.firebaseListo) ...[
+            ListTile(
+              leading: Icon(
+                estado.listoParaRecibir ? Icons.verified_user_outlined : Icons.wifi_off,
+                color: estado.listoParaRecibir ? Colores.verde : Colores.rojo,
+              ),
+              title: const Text('Registro para recibir alertas'),
+              subtitle: Text(
+                estado.listoParaRecibir
+                    ? 'Listo: te avisamos aunque la app esté cerrada'
+                          '${estado.registradoEn != null ? ' · actualizado ${haceCuanto(estado.registradoEn!)}' : ''}'
+                    : estado.tokenPush == null
+                    ? 'Falta la conexión con Google (Firebase). Revisa tu internet y toca para reintentar'
+                    : estado.miCelda == null
+                    ? 'Falta tu ubicación: permite la ubicación para saber qué alertas te tocan'
+                    : 'Todavía no se registra en el servidor: toca para reintentar',
+              ),
+              onTap: () async {
+                await estado.actualizarUbicacion(forzar: true);
+                if (!context.mounted) return;
+                mostrarMensaje(
+                  estado.listoParaRecibir
+                      ? 'Teléfono registrado para recibir alertas'
+                      : (estado.error ?? 'Aún no se pudo registrar: revisa permisos e internet'),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.notifications_active_outlined),
+              title: const Text('Probar una notificación'),
+              subtitle: const Text('Así se verá una alerta (no se envía a nadie)'),
+              onTap: () async {
+                if (!(_notificaciones ?? true)) {
+                  await Notificaciones.pedirPermiso(conFirebase: true);
+                  await _revisarPermisos();
+                }
+                await Notificaciones.probar();
+              },
+            ),
+            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+              ListTile(
+                leading: const Icon(Icons.tips_and_updates_outlined),
+                title: const Text('Avisos con la app cerrada'),
+                subtitle: const Text(
+                  'En Xiaomi, Redmi, POCO, Huawei, Oppo, Vivo o Samsung: en los ajustes de la app activa '
+                  '"Inicio automático" y en Batería elige "Sin restricciones". Si no, el teléfono puede '
+                  'bloquear las alertas cuando cierras la app.',
+                ),
+                isThreeLine: true,
+                trailing: const Icon(Icons.chevron_right),
+                onTap: Ubicacion.abrirAjustes,
+              ),
+          ],
           if (SegundoPlano.disponible)
             SwitchListTile(
               secondary: const Icon(Icons.update),

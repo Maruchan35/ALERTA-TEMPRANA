@@ -14,7 +14,7 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 
 | Carpeta | Qué es | Estado |
 |---|---|---|
-| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), pg_cron, Vault | **41 pruebas automáticas** (PGlite + PostGIS reales) |
+| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, pg_cron, Vault | **48 pruebas automáticas** (PGlite + PostGIS reales) |
 | [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento` | **17 pruebas** Deno, tipos y lint |
 | [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push | Compila; analizada sin errores |
 | [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **simulador de 4 teléfonos** | Compila; analizado sin errores |
@@ -25,6 +25,7 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 | Documento | Para qué |
 |---|---|
 | [docs/despliegue.md](docs/despliegue.md) | Puesta en marcha paso a paso (Supabase, Firebase, funciones, Vault, validadores, Telegram, CAP) y problemas frecuentes |
+| [docs/panel-web.md](docs/panel-web.md) | Conectar el panel web de administración (el incluido o uno propio con `supabase-js`): cuentas, datos, acciones y publicación |
 | [docs/guion-demo.md](docs/guion-demo.md) | Pitch de 7 minutos, teléfonos A/B/C/D, preguntas difíciles y lista de verificación del día |
 | [docs/arquitectura.md](docs/arquitectura.md) | Diagramas, flujo del reto en el código, estados de una alerta y qué datos se guardan |
 | [docs/cumplimiento-del-reto.md](docs/cumplimiento-del-reto.md) | Cada objetivo y restricción del reto con su implementación |
@@ -78,6 +79,11 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 
 ## Mejoras sobre la propuesta (detectadas al implementarla y cubiertas por pruebas)
 
+- **Colmena** ([007_colmena.sql](supabase/migrations/007_colmena.sql)): la comunidad no depende de un administrador. Un
+  reporte en revisión se publica solo si nadie lo revisa en 5 minutos (o al instante con un segundo testigo); 3
+  confirmaciones lo llevan a 3 km y 6 a 10 km; la foto de una persona solo se muestra cuando ya está confirmada. Para
+  reportar, confirmar o subir fotos hace falta un teléfono verificado.
+
 - **Fotos**: cualquier sesión podía listar *todas* las fotos (incluidas las de reportes en revisión). Ahora solo el autor,
   los validadores y las alertas activas; al resolverse deja de mostrarse. Solo cuentas verificadas suben fotos y solo con
   ruta propia; las fotos de personas exigen consentimiento.
@@ -92,7 +98,7 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 ## Pruebas
 
 ```bash
-cd supabase/pruebas && npm install && npm test        # 41 pruebas: P01–P14, P19, RLS, scripts de operación
+cd supabase/pruebas && npm install && npm test        # 48 pruebas: P01–P14, P19, colmena, RLS, scripts de operación
 cd supabase/functions && deno task probar             # 17 pruebas de las Edge Functions
 cd compartido && flutter test                         # motor de demo, geohash, radio, mensajes
 ```

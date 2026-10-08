@@ -1,0 +1,148 @@
+# Panel web de administración: guía para conectarlo
+
+Para quien hace el **panel web** (validadores, Protección Civil, CCE). El backend ya está desplegado en Supabase:
+no hace falta crear tablas ni correr migraciones. Solo hay que **conectarse**.
+
+> El repositorio es público: **nunca** subas a git la URL con llaves, contraseñas ni la `service_role`/`secret` key.
+> La web solo usa la **publishable key** (es pública por diseño; las reglas RLS del servidor deciden qué se puede hacer).
+
+## 1. Traer la versión más reciente
+
+```bash
+git clone https://github.com/Maruchan35/ALERTA-TEMPRANA.git   # la primera vez
+cd ALERTA-TEMPRANA
+git pull                                                        # cada vez que el equipo suba cambios
+```
+
+Para trabajar sin pisar a nadie: `git checkout -b panel-web`, haz tus cambios, `git push -u origin panel-web` y abre un
+*Pull Request*. GitHub Actions corre todas las pruebas antes de unirlo a `main`.
+
+## 2. Los dos datos de conexión
+
+En [supabase.com](https://supabase.com/dashboard) → proyecto **ALERTA-TEMPRANA** → **Project Settings → API Keys**:
+
+- **Project URL**: `https://<REF>.supabase.co`
+- **Publishable key**: empieza con `sb_publishable_…`
+
+## 3. Cuenta para entrar
+
+Solo entran cuentas con rol `validador`, `institucion` o `admin`:
+
+1. **Authentication → Users → Add user → Create new user**: correo, contraseña y **Auto Confirm User** marcado (si no,
+   la cuenta no puede entrar hasta confirmar su correo).
+2. **SQL Editor**:
+
+   ```sql
+   update perfiles set rol = 'admin', nombre = 'Tu nombre', institucion = 'Protección Civil (demo)'
+   where id = (select id from auth.users where email = 'correo@ejemplo.com');
+   ```
+
+   Roles: `validador` (verifica, descarta, resuelve, ajusta radio), `institucion` (además, sus alertas salen
+   VERIFICADAS al emitirlas) y `admin` (igual que institución). Plantilla:
+   [`supabase/demo/cuentas_validadores.sql`](../supabase/demo/cuentas_validadores.sql).
+
+## 4A. Usar el panel que ya está hecho (Flutter Web)
+
+[`panel/`](../panel) ya tiene métricas, mapa, cola *Por validar / Activas / Cerradas*, detalle con bitácora y las
+acciones **Verificar, Ajustar radio, Resolver, Descartar** y **Emitir alerta oficial**. Requiere Flutter 3.47+.
+
+```bash
+cd panel
+cp config.ejemplo.json config.json      # pon ahí SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY (config.json no se sube a git)
+flutter pub get
+flutter run -d chrome --dart-define-from-file=config.json
+```
+
+Para publicarlo en internet: `flutter build web --release --dart-define-from-file=config.json` y sube la carpeta
+`panel/build/web` a cualquier hosting estático. Con el proyecto de Firebase del equipo (`alerta-cerca-18e22`):
+
+```bash
+npm install -g firebase-tools   # una sola vez
+firebase login
+firebase init hosting        # carpeta pública: panel/build/web · single-page app: sí · GitHub: no
+firebase deploy --only hosting
+```
+
+Queda en `https://alerta-cerca-18e22.web.app`. El panel también sirve en el celular desde el navegador.
+
+## 4B. Hacer tu propio panel (HTML/JS, React, Vue…)
+
+Todo pasa por la librería oficial `@supabase/supabase-js` v2. El panel **nunca** escribe directo en las tablas: lee
+vistas y llama funciones del servidor, que validan el rol y dejan registro en la bitácora.
+
+```html
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+  const supabase = createClient('https://<REF>.supabase.co', 'sb_publishable_...');
+
+  // 1. Entrar y comprobar el rol
+  const { data: sesion, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  const { data: perfil } = await supabase.from('perfiles')
+    .select('rol, nombre, institucion').eq('id', sesion.user.id).single();
+  if (!['validador', 'institucion', 'admin'].includes(perfil?.rol)) {
+    await supabase.auth.signOut();
+    throw new Error('Esta cuenta no tiene permisos de validador');
+  }
+
+  // 2. Leer: alertas (todas, con datos solo para validadores), métricas y bitácora
+  const { data: alertas } = await supabase.from('alertas_panel')
+    .select('*').order('creada_en', { ascending: false }).limit(300);
+  const { data: metricas } = await supabase.from('metricas').select('*').single();
+  const { data: historial } = await supabase.from('bitacora')
+    .select('*').eq('alerta_id', alertaId).order('creada_en');
+
+  // 3. Actuar (verificar · descartar · resolver · ajustar_radio)
+  await supabase.rpc('validar_alerta', { p_alerta: alertaId, p_accion: 'verificar' });
+  await supabase.rpc('validar_alerta', { p_alerta: alertaId, p_accion: 'descartar', p_motivo: 'No se pudo confirmar' });
+  await supabase.rpc('validar_alerta', { p_alerta: alertaId, p_accion: 'resolver', p_motivo: 'Menor localizado' });
+  await supabase.rpc('validar_alerta', { p_alerta: alertaId, p_accion: 'ajustar_radio', p_radio_m: 5000 });
+
+  // 4. Emitir una alerta oficial (con rol institucion/admin sale VERIFICADA)
+  await supabase.rpc('crear_reporte', {
+    p_categoria: 'incendio', p_titulo: 'Incendio en bodega', p_descripcion: 'Eviten la zona',
+    p_referencia: 'Frente al mercado', p_lat: 17.9581, p_lon: -102.1942,
+  });
+
+  // 5. Tiempo real: recargar cuando cambie cualquier alerta (respeta RLS)
+  supabase.channel('panel').on('postgres_changes', { event: '*', schema: 'public', table: 'alertas' },
+    () => recargar()).subscribe();
+
+  // 6. Foto (bucket privado): URL firmada por 10 minutos
+  const { data: foto } = await supabase.storage.from('fotos').createSignedUrl(alerta.foto_path, 600);
+</script>
+```
+
+### Qué trae cada fuente
+
+| Fuente | Campos principales |
+|---|---|
+| Vista `alertas_panel` | `id, categoria, nombre, nombre_corto, nivel (1–4), estado, titulo, descripcion, referencia, foto_path, folio_911, consentimiento, lat, lon, radio_actual_m, radio_manual_m, creada_en, publicada_en, verificada_en, cerrada_en, expira_en, motivo_cierre, autor_reputacion, autor_rol, autor_institucion, validador_nombre, validador_institucion, n_confirmo, n_ya_no_esta, n_parece_falsa, n_entregas, n_telegram` |
+| Vista `metricas` | `activas, por_validar, segundos_validacion` (promedio de 7 días), `entregas_hoy` |
+| Tabla `bitacora` | `accion` (`reportar, emitir_oficial, verificar, descartar, resolver, ajustar_radio, corroborar_auto, publicar_auto, publicar_colmena, revision_por_votos, expirar`), `usuario_id` (null = automática), `detalle` (JSON), `creada_en` |
+| Tabla `categorias` | `clave, nombre, nombre_corto, nivel, requiere_validacion, solo_institucion, vigencia, instrucciones` |
+| Tabla `escalones_radio` | `categoria, minuto, radio_m`: cómo crece el radio de cada categoría |
+
+### Estados y colores sugeridos
+
+| `estado` | Significado | Color |
+|---|---|---|
+| `pendiente` | En revisión (personas, o autor con reputación baja) | morado |
+| `no_confirmada` | Reporte ciudadano, máximo 1 km | ámbar |
+| `corroborada` | 3+ vecinos la confirmaron (3 km; con 6+, 10 km) | azul |
+| `verificada` | Validada por una institución: todos los escalones | verde |
+| `resuelta` · `descartada` · `expirada` | Cerrada | gris |
+
+**Colmena**: el panel ya no es un cuello de botella. Un reporte `pendiente` que nunca se publicó sale solo como
+`no_confirmada` si nadie lo revisa en 5 minutos, o al instante si otra persona reporta lo mismo cerca. El validador
+puede verificarlo, descartarlo o resolverlo antes o después. Umbrales en la tabla `config` (solo SQL Editor).
+
+## Problemas frecuentes
+
+| Mensaje | Solución |
+|---|---|
+| `Email logins are disabled` | El proveedor Email está apagado. Ya quedó encendido (`supabase/config.toml` → `[auth.email] enable_signup = true`). |
+| `Email not confirmed` | Authentication → Users → la cuenta → *Confirm email*, o el `update` de `cuentas_validadores.sql`. |
+| `Invalid login credentials` | Correo o contraseña incorrectos. |
+| Entra pero no ve nada / “no tiene permisos de validador” | Falta el `update perfiles set rol = ...` del paso 3. |
+| `permission denied for function …` | Esa función es interna del servidor (no la llama la web). Usa solo las de esta guía. |

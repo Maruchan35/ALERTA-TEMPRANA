@@ -107,6 +107,34 @@ abstract final class Notificaciones {
     return await ios?.requestPermissions(alert: true, badge: true, sound: true) ?? false;
   }
 
+  /// Notificación de prueba en el canal de alertas altas: confirma permiso, canal y sonido
+  /// sin pasar por el servidor (no abre ninguna alerta al tocarla).
+  static Future<void> probar() async {
+    const titulo = 'PRUEBA · ALERTA CERCA';
+    const cuerpo = 'Así se verá una alerta cerca de ti. No es real.';
+    if (kIsWeb) {
+      enPantalla.add(const AvisoVisible(alertaId: '', titulo: titulo, cuerpo: cuerpo, nivel: 3));
+      return;
+    }
+    final canal = canales[3]!;
+    await _plugin.show(
+      id: 7,
+      title: titulo,
+      body: cuerpo,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          canal.id,
+          canal.name,
+          channelDescription: canal.description,
+          importance: canal.importance,
+          priority: Priority.max,
+          color: colorNivel(3),
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+    );
+  }
+
   static Future<bool> permitidas() async {
     if (kIsWeb) return true;
     final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();

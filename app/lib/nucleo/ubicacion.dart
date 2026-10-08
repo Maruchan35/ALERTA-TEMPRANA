@@ -89,6 +89,7 @@ abstract final class Ubicacion {
         plataforma: kIsWeb ? 'web' : (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android'),
         celda: celda,
       );
+      if (token != null) await prefs.setString(Claves.registradoEn, DateTime.now().toIso8601String());
     }
     await prefs.setString(Claves.miCelda, celda);
     return celda;

@@ -51,7 +51,8 @@ stateDiagram-v2
   [*] --> pendiente: ciudadano + categoría de personas, o reputación < −2
   [*] --> no_confirmada: ciudadano, otra categoría (≤ 1 km)
   [*] --> verificada: institución o validador
-  no_confirmada --> corroborada: 3 vecinos confirman (≤ 3 km)
+  pendiente --> no_confirmada: colmena · 2.º testigo o 5 min sin revisión (≤ 1 km)
+  no_confirmada --> corroborada: 3 vecinos confirman (≤ 3 km · con 6, ≤ 10 km)
   pendiente --> verificada: validador verifica
   no_confirmada --> verificada: validador verifica
   corroborada --> verificada: validador verifica
@@ -65,6 +66,24 @@ stateDiagram-v2
     cualquier estado activo o en revisión.
   end note
 ```
+
+## Colmena: la comunidad no depende de un administrador
+
+Los validadores aceleran y corrigen, pero no son un cuello de botella
+([007_colmena.sql](../supabase/migrations/007_colmena.sql)):
+
+| Regla | Efecto |
+|---|---|
+| Un reporte en revisión que nunca se publicó y **nadie revisa en 5 min** | `publicar_pendientes()` (pg_cron, cada 15 s) lo publica como NO CONFIRMADO (≤ 1 km). No aplica a autores con reputación < −2 ni a lo que regresó a revisión por votos |
+| **Otra persona verificada reporta lo mismo** (misma categoría, < 500 m, < 30 min) | Cuenta como segundo testigo: se publica al instante |
+| **3 “lo confirmo”** | CORROBORADA: tope de 3 km |
+| **6 o más “lo confirmo”** | Alcance de colmena: tope de 10 km |
+| **3 “parece falsa”** | Regresa a revisión; ya no sale sola |
+| Foto de una **persona** (menor, desaparecida, vulnerable) | Solo se muestra cuando la alerta está corroborada o verificada: la colmena difunde el aviso, la foto llega con la confianza |
+| **Teléfono verificado** | Necesario para reportar, confirmar y subir fotos (una cuenta de correo sola no basta) |
+
+Los umbrales viven en la tabla `config` (`minutos_espera_validador`, `confirmaciones_corroborar`,
+`confirmaciones_colmena`, `radio_max_corroborada_m`, `radio_max_colmena_m`): se ajustan sin programar.
 
 ## Privacidad: qué se guarda y qué no
 

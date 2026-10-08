@@ -46,13 +46,14 @@ test('el seed es idempotente (se puede volver a ejecutar)', async () => {
   assert.equal(n, 25);
 });
 
-test('pg_cron: las cuatro tareas quedan programadas', async () => {
+test('pg_cron: las cinco tareas quedan programadas', async () => {
   const tareas = await env.sql(`select jobname, schedule from cron.job order by jobname`);
   assert.deepEqual(tareas, [
     { jobname: 'ampliar-radios', schedule: '15 seconds' },
     { jobname: 'expirar-alertas', schedule: '* * * * *' },
     { jobname: 'limpieza-diaria', schedule: '0 4 * * *' },
     { jobname: 'mantenimiento-fotos', schedule: '30 4 * * *' },
+    { jobname: 'publicar-pendientes', schedule: '15 seconds' },
   ]);
 });
 
@@ -303,6 +304,148 @@ test('una persona puede cambiar su voto, pero solo cuenta una vez', async () => 
   assert.equal(vista.mi_confirmacion, 'ya_no_esta');
 });
 
+// ─── Colmena: la comunidad avanza las alertas sin depender de un validador ──
+
+test('colmena: si ningún validador lo revisa en 5 min, el reporte en revisión se publica solo a 1 km', async () => {
+  const t = await telefonosDemo();
+  const autor = await env.crearUsuario();
+  const r = await env.reportar(autor, { categoria: 'menor_desaparecido', titulo: 'Niño de 8 años, playera roja' });
+  assert.equal(r.estado, 'pendiente');
+  assert.equal((await env.sql(`select publicar_pendientes() as n`))[0].n, 0, 'todavía hay tiempo para un validador');
+
+  await env.sql(`update alertas set creada_en = now() - interval '6 minutes' where id = $1`, [r.alerta_id]);
+  assert.equal((await env.sql(`select publicar_pendientes() as n`))[0].n, 1);
+  const a = await env.alerta(r.alerta_id);
+  assert.equal(a.estado, 'no_confirmada');
+  assert.ok(a.publicada_en, 'arranca el reloj del radio dinámico');
+  assert.equal(await env.radio(r.alerta_id), 1000);
+  assert.deepEqual(await env.enviarAnillo(r.alerta_id, 1000, Object.values(t)), ['A']);
+  await env.retrocederPublicacion(r.alerta_id, 20);
+  assert.equal(await env.radio(r.alerta_id), 1000, 'sin confirmar no pasa de 1 km');
+
+  const [bit] = await env.sql(`select usuario_id, detalle from bitacora where accion = 'publicar_auto'`);
+  assert.deepEqual(bit, { usuario_id: null, detalle: { minutos_sin_revision: 5 } });
+  const llamada = (await env.llamadasANotificar()).at(-1);
+  assert.deepEqual(llamada.body, { alerta_id: r.alerta_id, evento: 'estado', anterior: 'pendiente' });
+  assert.equal((await env.sql(`select publicar_pendientes() as n`))[0].n, 0, 'una sola vez');
+
+  // Y la comunidad puede seguir: 3 vecinos la corroboran
+  for (let i = 0; i < 3; i++) {
+    await env.rpc(await env.crearUsuario(), 'confirmar_alerta', { p_alerta: r.alerta_id, p_tipo: 'confirmo' });
+  }
+  assert.equal((await env.alerta(r.alerta_id)).estado, 'corroborada');
+  assert.equal(await env.radio(r.alerta_id), 3000);
+});
+
+test('colmena: un segundo testigo publica al instante el reporte en revisión', async () => {
+  const autor = await env.crearUsuario();
+  const testigo = await env.crearUsuario();
+  const r = await env.reportar(autor, { categoria: 'persona_desaparecida', titulo: 'Joven de 17 años, sudadera gris' });
+  assert.equal(r.estado, 'pendiente');
+  const cerca = { lat: PUNTOS.suceso.lat + 0.0018, lon: PUNTOS.suceso.lon }; // ~200 m
+  const segundo = await env.reportar(testigo, {
+    categoria: 'persona_desaparecida', titulo: 'Buscamos a un joven de sudadera gris', punto: cerca,
+  });
+  assert.deepEqual(segundo, { duplicada_de: r.alerta_id, estado: 'no_confirmada' });
+  const a = await env.alerta(r.alerta_id);
+  assert.equal(a.estado, 'no_confirmada');
+  assert.ok(a.publicada_en);
+  const [bit] = await env.sql(`select detalle from bitacora where accion = 'publicar_colmena'`);
+  assert.deepEqual(bit.detalle, { confirmaciones: 1 });
+});
+
+test('colmena: no se publican solos los de autores con reputación baja ni los regresados por votos', async () => {
+  const dudoso = await env.crearUsuario();
+  await env.sql(`update perfiles set reputacion = -3 where id = $1`, [dudoso.id]);
+  const r1 = await env.reportar(dudoso, { categoria: 'incendio', titulo: 'Incendio en la esquina' });
+  assert.equal(r1.estado, 'pendiente');
+
+  const autor = await env.crearUsuario();
+  const r2 = await env.reportar(autor, { categoria: 'asalto', titulo: 'Asalto en la parada', punto: PUNTOS.C });
+  for (let i = 0; i < 3; i++) {
+    await env.rpc(await env.crearUsuario(), 'confirmar_alerta', { p_alerta: r2.alerta_id, p_tipo: 'parece_falsa' });
+  }
+  assert.equal((await env.alerta(r2.alerta_id)).estado, 'pendiente');
+
+  await env.sql(`update alertas set creada_en = now() - interval '1 hour'`);
+  assert.equal((await env.sql(`select publicar_pendientes() as n`))[0].n, 0);
+  assert.equal((await env.alerta(r1.alerta_id)).estado, 'pendiente');
+  assert.equal((await env.alerta(r2.alerta_id)).estado, 'pendiente');
+});
+
+test('colmena: con 6 confirmaciones el tope de CORROBORADA sube de 3 a 10 km', async () => {
+  const autor = await env.crearUsuario();
+  const r = await env.reportar(autor, { categoria: 'robo_vehiculo', titulo: 'Robo de camioneta gris' });
+  await env.retrocederPublicacion(r.alerta_id, 70); // escalones: 3 km → 10 km (20 min) → 25 km (60 min)
+  assert.equal(await env.radio(r.alerta_id), 1000);
+  const confirmar = async (n) => {
+    for (let i = 0; i < n; i++) {
+      await env.rpc(await env.crearUsuario(), 'confirmar_alerta', { p_alerta: r.alerta_id, p_tipo: 'confirmo' });
+    }
+  };
+  await confirmar(3);
+  assert.equal(await env.radio(r.alerta_id), 3000);
+  await confirmar(2);
+  assert.equal(await env.radio(r.alerta_id), 3000);
+  await confirmar(1);
+  assert.equal(await env.radio(r.alerta_id), 10000, '6 vecinos: alcance de colmena');
+  const validador = await env.crearUsuario({ rol: 'validador' });
+  await env.rpc(validador, 'validar_alerta', { p_alerta: r.alerta_id, p_accion: 'verificar' });
+  assert.equal(await env.radio(r.alerta_id), 25000, 'más allá, solo verificada');
+});
+
+test('colmena: los umbrales viven en config y se ajustan sin programar', async () => {
+  await env.sql(`update config set minutos_espera_validador = 1, confirmaciones_corroborar = 2`);
+  const autor = await env.crearUsuario();
+  const r = await env.reportar(autor, { categoria: 'persona_vulnerable', titulo: 'Señora de 80 años desorientada' });
+  await env.sql(`update alertas set creada_en = now() - interval '90 seconds' where id = $1`, [r.alerta_id]);
+  assert.equal((await env.sql(`select publicar_pendientes() as n`))[0].n, 1);
+  for (let i = 0; i < 2; i++) {
+    await env.rpc(await env.crearUsuario(), 'confirmar_alerta', { p_alerta: r.alerta_id, p_tipo: 'confirmo' });
+  }
+  assert.equal((await env.alerta(r.alerta_id)).estado, 'corroborada');
+});
+
+test('colmena: la foto de una persona solo se muestra cuando la alerta ya está confirmada', async () => {
+  const autor = await env.crearUsuario();
+  const vecino = await env.crearUsuario({ anonimo: true });
+  const foto = `${autor.id}/menor.jpg`;
+  await env.sql(`insert into storage.objects (bucket_id, name, owner) values ('fotos', $1, $2)`, [foto, autor.id]);
+  const r = await env.reportar(autor, {
+    categoria: 'menor_desaparecido', titulo: 'Niña de 6 años, vestido azul', foto, consentimiento: true,
+  });
+  await env.sql(`update alertas set creada_en = now() - interval '6 minutes' where id = $1`, [r.alerta_id]);
+  await env.sql(`select publicar_pendientes()`);
+
+  const ver = async () => ({
+    vista: (await env.rpc(vecino, 'obtener_alerta', { p_alerta: r.alerta_id }))[0].foto_path,
+    archivos: await env.como(vecino, async (tx) => (await tx.query(`select name from storage.objects`)).rows.length),
+  });
+  assert.deepEqual(await ver(), { vista: null, archivos: 0 }, 'no confirmada: el aviso sí, la foto no');
+  assert.equal((await env.rpc(autor, 'obtener_alerta', { p_alerta: r.alerta_id }))[0].foto_path, foto);
+
+  for (let i = 0; i < 3; i++) {
+    await env.rpc(await env.crearUsuario(), 'confirmar_alerta', { p_alerta: r.alerta_id, p_tipo: 'confirmo' });
+  }
+  assert.deepEqual(await ver(), { vista: foto, archivos: 1 }, 'corroborada: ya se muestra');
+});
+
+test('para reportar, confirmar o subir fotos hace falta un teléfono verificado: el correo solo no basta', async () => {
+  const correo = await env.crearUsuario({ soloCorreo: true });
+  const autor = await env.crearUsuario();
+  const r = await env.reportar(autor, { categoria: 'incendio', titulo: 'Incendio en lote baldío' });
+  await assert.rejects(env.reportar(correo, { punto: PUNTOS.C }), /Verifica tu número de teléfono/);
+  await assert.rejects(env.rpc(correo, 'confirmar_alerta', { p_alerta: r.alerta_id, p_tipo: 'confirmo' }),
+    /Verifica tu número/);
+  await assert.rejects(env.como(correo, (tx) => tx.query(
+    `insert into storage.objects (bucket_id, name, owner) values ('fotos', $1, $2)`, [`${correo.id}/x.jpg`, correo.id])),
+  /row-level security/);
+
+  // Las cuentas de institución (correo, sin teléfono) sí emiten alertas oficiales
+  const pc = await env.crearUsuario({ rol: 'institucion', soloCorreo: true });
+  assert.equal((await env.reportar(pc, { titulo: 'Incendio en bodega', punto: PUNTOS.D })).estado, 'verificada');
+});
+
 // ─── P11: límite de reportes ───────────────────────────────────────────────
 
 test('P11: el cuarto reporte en una hora se rechaza con un mensaje claro', async () => {
@@ -393,6 +536,7 @@ test('P14: con la anon key no se pueden leer tokens ni llamar funciones internas
     `select radio_permitido('${r.alerta_id}')`,
     `select llamar_funcion('notificar', '{}'::jsonb)`,
     `select ampliar_radios()`,
+    `select publicar_pendientes()`,
     `select expirar_alertas()`,
     `select limpieza_diaria()`,
     `select * from fotos_por_borrar()`,
@@ -619,7 +763,8 @@ test('métricas y vista del panel para validadores', async () => {
 
 test('borrar mi cuenta elimina perfil, dispositivos y zonas; sus alertas quedan sin autor', async () => {
   const u = await env.telefonoEn(PUNTOS.A, 'A');
-  await env.sql(`update auth.users set is_anonymous = false where id = $1`, [u.id]);
+  await env.sql(`update auth.users set is_anonymous = false, phone = '525599990000', phone_confirmed_at = now()
+                 where id = $1`, [u.id]);
   const verificado = { ...u, anonimo: false };
   await env.como(verificado, (tx) =>
     tx.query(`insert into zonas_usuario (usuario_id, nombre, celda) values ($1, 'Casa', '9epq4t')`, [u.id]));

@@ -176,6 +176,7 @@ class _PantallaDetalleState extends State<PantallaDetalle> {
       ahora: DateTime.now(),
       radioManualM: a.radioManualM,
       factorTiempo: demo?.factorTiempo ?? 1,
+      nConfirmo: a.nConfirmo,
     );
 
     return Scaffold(
@@ -238,8 +239,8 @@ class _PantallaDetalleState extends State<PantallaDetalle> {
                 icono: Icons.hourglass_top,
                 color: Colores.morado,
                 texto:
-                    'Tu reporte está en revisión. Un validador lo revisará en minutos. '
-                    'Mientras tanto no se difunde a nadie.',
+                    'Tu reporte está en revisión. Si ningún validador lo revisa en 5 minutos, o si alguien '
+                    'más reporta lo mismo cerca, la comunidad lo recibirá como NO CONFIRMADO a 1 km.',
               ),
             if (_foto != null)
               FutureBuilder<ImageProvider?>(

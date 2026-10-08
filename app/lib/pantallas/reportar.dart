@@ -498,10 +498,12 @@ class _NotaCategoria extends StatelessWidget {
         ? 'Como institución, tu alerta sale VERIFICADA y usa todos los escalones de radio '
               '(hasta ${formatoRadio(categoria.radioMaximo)}).'
         : categoria.requiereValidacion
-        ? 'Por seguridad, los casos de personas se revisan antes de difundirse (suele tomar minutos). '
-              'Así evitamos que alguien use la app para encontrar a quien huyó de una situación de violencia.'
-        : 'Se publicará como NO CONFIRMADO y llegará a 1 km a la redonda. Si 3 vecinos lo confirman o '
-              'un validador lo verifica, llegará más lejos.';
+        ? 'Los casos de personas pasan primero por revisión. Si ningún validador lo revisa en 5 minutos, o '
+              'si alguien más lo reporta, se publica a 1 km SIN la foto; la foto se muestra cuando 3 vecinos lo '
+              'confirman o un validador lo verifica. Así nadie puede usar la app para encontrar a quien huyó '
+              'de una situación de violencia.'
+        : 'Se publicará como NO CONFIRMADO y llegará a 1 km a la redonda. Con 3 vecinos que lo confirmen '
+              'llega a 3 km, con 6 a 10 km, y si un validador lo verifica, más lejos.';
     return Card(
       color: Colores.marino.withAlpha(16),
       child: Padding(

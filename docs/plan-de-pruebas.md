@@ -11,7 +11,7 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 | P04 | Alerta lejana | *P03/P04* | D (Zihuatanejo) no la recibe |
 | P05 | Radio dinámico | *P05* (SQL) y *P05: anillos A → B → C* (motor de demo) | Menor verificado con `factor_tiempo = 30`: B a los ~30 s, C a los ~2 min |
 | P06 | Reporte ciudadano | *P06* | Cuenta verificada reporta un asalto → no confirmada, ≤ 1 km, insignia ámbar |
-| P07 | Categoría sensible | *P07* | Ciudadano reporta un menor → pendiente; solo le llega al validador |
+| P07 | Categoría sensible | *P07* y *colmena* | Ciudadano reporta un menor → pendiente; solo le llega al validador. Sin revisión en 5 min (o con un segundo testigo) → no confirmada a 1 km, sin la foto |
 | P08 | Duplicado | *P08* | Segundo reporte igual a 200 m → no crea alerta, suma una confirmación |
 | P09 | Corroboración | *P09* | Tres cuentas confirman → corroborada; llega “AHORA CORROBORADA” |
 | P10 | Votos de falsa | *P10* | Tres “parece falsa” → regresa a revisión |
@@ -27,12 +27,16 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 
 ## Además de la propuesta
 
+- **Colmena** (`007_colmena.sql`): publicación automática a los 5 min sin revisión, segundo testigo que publica al
+  instante, sin publicación automática para autores con reputación baja ni para lo regresado por votos, tope de 10 km
+  con 6 confirmaciones, umbrales configurables en `config`, foto de personas oculta hasta confirmarse y teléfono
+  verificado obligatorio para reportar, confirmar y subir fotos. Igual en el motor de demostración (`compartido`).
 - **Reglas de confianza**: cuenta verificada para reportar; evacuación y fenómeno natural solo instituciones; título
   5–80 caracteres; foto ajena rechazada; consentimiento obligatorio para fotos de personas; reputación (+1 / −2),
   revisión con < −2 y suspensión en −6; bitácora con el autor de cada acción.
 - **Privacidad**: quién confirmó qué no es público; perfiles privados; fotos de reportes en revisión invisibles para
   otros; borrar la cuenta elimina perfil, dispositivos y zonas.
-- **Operación**: el seed es idempotente; las 4 tareas de pg_cron quedan programadas; sin secretos en Vault la alerta
+- **Operación**: el seed es idempotente; las 5 tareas de pg_cron quedan programadas; sin secretos en Vault la alerta
   se guarda igual; `ampliar_radios()` y el ajuste manual de radio; retención (limpieza diaria y fotos por borrar);
   los scripts de `supabase/demo/` corren sin errores.
 - **Edge Functions**: JWT de Google firmado con WebCrypto y verificado; un solo token de acceso para envíos en
@@ -43,7 +47,7 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 ## Cómo ejecutarlas
 
 ```bash
-cd supabase/pruebas && npm install && npm test     # 41 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
+cd supabase/pruebas && npm install && npm test     # 48 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
 cd supabase/functions && deno task probar          # 17 pruebas
 cd supabase/functions && deno task revisar         # tipos, lint y formato
 cd compartido && flutter test                      # geohash, radio, mensajes y motor de demostración

@@ -11,6 +11,7 @@ flutter build web --release --dart-define-from-file=config.json
 ```
 
 - Solo entran cuentas con rol `validador`, `institucion` o `admin` (ver `supabase/demo/cuentas_validadores.sql`).
+- Guía para conectarlo (o para hacer un panel propio con `supabase-js`): [docs/panel-web.md](../docs/panel-web.md).
 - La lista se actualiza sola con Realtime (respeta RLS).
 - **Simulador** (solo en modo demostración): botones para que “un ciudadano” reporte un menor o un incendio, y los
   teléfonos A, B, C y D mostrando las notificaciones con la distancia calculada como en la app. Es el plan B del pitch.

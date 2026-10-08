@@ -114,6 +114,19 @@ class _PantallaInicioState extends State<PantallaInicio> {
               leading: const Icon(Icons.wifi_off, color: Colores.rojo),
               actions: [TextButton(onPressed: estado.actualizarUbicacion, child: const Text('Reintentar'))],
             ),
+          if (estado.error == null && estado.ubicacionRevisada && !estado.listoParaRecibir)
+            MaterialBanner(
+              backgroundColor: const Color(0xFFFFF4E5),
+              leading: const Icon(Icons.notifications_off_outlined, color: Colores.naranja),
+              content: const Text('Este teléfono aún no está registrado para recibir alertas con la app cerrada.'),
+              actions: [
+                TextButton(
+                  onPressed: () =>
+                      Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const PantallaAjustes())),
+                  child: const Text('Revisar'),
+                ),
+              ],
+            ),
           Expanded(
             flex: 5,
             child: Stack(

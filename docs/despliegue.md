@@ -88,9 +88,13 @@ local (`supabase start`); para desplegar a la nube no.
 ## 4. Validadores (R5)
 
 1. **Authentication → Users → Add user → Create new user**: `validador1@example.com` (o correos reales de las
-   instituciones), contraseña y *Auto Confirm User*.
+   instituciones), contraseña y *Auto Confirm User* (sin confirmar, la cuenta no puede entrar). El proveedor **Email**
+   debe quedar encendido: en `config.toml`, `[auth.email] enable_signup = true` (en la nube ese valor es el interruptor
+   del proveedor; con `false` nadie entra con correo, ni en la app ni en el panel).
 2. Ejecuta [`supabase/demo/cuentas_validadores.sql`](../supabase/demo/cuentas_validadores.sql) (ajusta correos,
    nombres e institución).
+
+Guía completa para quien hace el panel web: [panel-web.md](panel-web.md).
 
 ## 5. App y panel (R3, R4, R5)
 
@@ -144,7 +148,9 @@ se abre. No hay que volver a compartir la APK.
    scripts\publicar-actualizacion.cmd      # = shorebird patch android --dart-define-from-file=config.json
    ```
 
-Los parches solo cambian código Dart. Si cambias permisos, plugins, el `AndroidManifest` o Firebase, sube `version:` en
+Los parches solo cambian código Dart: tampoco llevan **íconos de Material nuevos** (la fuente de íconos se recorta al
+compilar y es un archivo, no código). Si `shorebird patch` avisa *“Your app contains asset changes”*, usa un ícono que la
+app ya tenga en otra pantalla. Si cambias permisos, plugins, el `AndroidManifest` o Firebase, sube `version:` en
 `app/pubspec.yaml` y crea una versión nueva con `shorebird release` (esa sí se vuelve a instalar). Los cambios del
 servidor (tablas, categorías, radios, Edge Functions) nunca requieren actualizar la app, y el panel web se actualiza
 con solo recargar la página.
@@ -188,4 +194,9 @@ Para una versión (Release) con el APK de demostración: `git tag v1.0.0 && git 
 | El emulador no recibe push | La imagen del emulador debe decir “Google Play”. |
 | Los canales de notificación no cambian | Android los crea una sola vez: desinstala la app del emulador. |
 | El proyecto de Supabase “se pausó” | Los proyectos Free se pausan tras 7 días sin actividad: entra al panel el día anterior y el de la final. |
+| `Email logins are disabled` al entrar como validador | El proveedor Email está apagado: `[auth.email] enable_signup = true` en `config.toml` y `npx supabase config push`. |
+| `Email not confirmed` | Authentication → Users → la cuenta → *Confirm email* (o el `update` de `cuentas_validadores.sql`). |
+| Un reporte de persona sigue “en revisión” | Normal los primeros 5 minutos. Después la colmena lo publica sola (`publicar-pendientes` en *Cron Jobs*); no se publica sola si el autor tiene reputación < −2 o si regresó a revisión por votos. Para la demo: `update config set minutos_espera_validador = 1;` |
+| Con la app cerrada no llega nada (Xiaomi, Redmi, POCO, Huawei, Oppo, Vivo) | El fabricante bloquea la app en segundo plano: en la app, *Ajustes → Avisos con la app cerrada*, y en los ajustes del teléfono activa **Inicio automático** y batería **Sin restricciones**. *Ajustes → Probar una notificación* confirma que el teléfono las muestra. |
+| Solo me llegan mis propias alertas | Cada teléfono debe abrir la app una vez con permisos de notificaciones y ubicación: en *Table Editor → dispositivos* debe aparecer una fila por teléfono (en la app: *Ajustes → Registro para recibir alertas*). |
 | `permission denied for function …` desde la app | Es correcto para las funciones internas (prueba P14). La app solo llama `registrar_dispositivo`, `alertas_cercanas`, `obtener_alerta`, `crear_reporte`, `confirmar_alerta`, `validar_alerta` y `borrar_mi_cuenta`. |

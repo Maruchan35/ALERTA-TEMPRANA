@@ -53,14 +53,20 @@ enable_anonymous_sign_ins = true
 minimum_password_length = 8
 
 [auth.rate_limit]
-anonymous_users = 30
+# Por hora y por IP: en un evento muchas personas comparten la misma red Wi-Fi
+anonymous_users = 150
 sms_sent = 30
 token_verifications = 30
 
 [auth.email]
-# Las cuentas de validadores las crea un administrador (Authentication → Add user).
-enable_signup = false
-enable_confirmations = false
+# ¡Ojo! En un proyecto en la nube, `enable_signup` es el interruptor del PROVEEDOR Email:
+# con false nadie puede iniciar sesión con correo (ni los validadores en la app ni el panel).
+# El registro público queda cerrado de otra forma: toda cuenta nueva debe confirmar su
+# correo, y las de los validadores las crea un administrador ya confirmadas
+# (Authentication → Add user → Auto Confirm User). Además, una cuenta de correo sin
+# teléfono verificado no puede reportar ni confirmar (007_colmena.sql).
+enable_signup = true
+enable_confirmations = true
 double_confirm_changes = true
 
 [auth.sms]

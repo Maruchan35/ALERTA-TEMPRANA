@@ -5,18 +5,21 @@
 -- También se puede pegar en el SQL Editor. Es idempotente: se puede ejecutar varias veces
 -- y actualiza los valores. Valores iniciales propuestos para la demo: deben revisarse con
 -- el CCE y Protección Civil.
+--
+-- `radio_max_no_conf_m` es el tope mientras nadie la confirma. Personas y menores empiezan en
+-- revisión, pero si la colmena los publica (007_colmena.sql) llegan al primer anillo (1 km).
 -- =============================================================================
 
 insert into categorias (clave, nombre, nombre_corto, nivel, requiere_validacion, solo_institucion,
                         radio_max_no_conf_m, vigencia, categoria_cap, instrucciones) values
  ('menor_desaparecido', 'Menor desaparecido o posible sustracción', 'Menor desaparecido',
-  4, true, false, 0, '72 hours', 'Rescue',
+  4, true, false, 1000, '72 hours', 'Rescue',
   'Si lo ves, no lo pierdas de vista y llama al 911 de inmediato. No intervengas por tu cuenta.'),
  ('persona_desaparecida', 'Persona desaparecida', 'Persona desaparecida',
-  3, true, false, 0, '72 hours', 'Rescue',
+  3, true, false, 1000, '72 hours', 'Rescue',
   'Si la ves, llama al 911 e indica dónde y a qué hora. No difundas datos personales adicionales.'),
  ('persona_vulnerable', 'Adulto mayor o persona vulnerable extraviada', 'Persona vulnerable extraviada',
-  3, true, false, 0, '48 hours', 'Rescue',
+  3, true, false, 1000, '48 hours', 'Rescue',
   'Si la ves, acércate con calma, procura que esté segura y llama al 911.'),
  ('robo_vehiculo', 'Robo de vehículo', 'Robo de vehículo',
   3, false, false, 1000, '24 hours', 'Security',

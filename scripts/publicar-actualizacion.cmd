@@ -7,7 +7,8 @@ rem abrir la app y lo aplican la siguiente vez que la abren. No hay que comparti
 rem
 rem Uso (desde cualquier carpeta):   scripts\publicar-actualizacion.cmd
 rem
-rem Solo sirve para cambios en el codigo Dart (pantallas, textos, logica). Si cambias permisos,
+rem Solo sirve para cambios en el codigo Dart (pantallas, textos, logica), sin iconos de Material
+rem nuevos (si avisa "asset changes", usa un icono que la app ya tenga). Si cambias permisos,
 rem plugins, el AndroidManifest o la configuracion de Firebase, hace falta una version nueva:
 rem sube "version:" en app\pubspec.yaml y crea un release (ver docs\despliegue.md, paso 5b).
 rem =============================================================================

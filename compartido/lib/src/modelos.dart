@@ -32,7 +32,7 @@ enum EstadoAlerta {
 
   /// Descripción de confianza para la insignia y el detalle.
   String get explicacion => switch (this) {
-    pendiente => 'Un validador está revisando este reporte',
+    pendiente => 'En revisión: lo publica un validador, un segundo testigo o la colmena a los 5 min',
     noConfirmada => 'Reporte ciudadano sin confirmar',
     corroborada => 'Confirmada por 3 o más vecinos',
     verificada => 'Validada por una institución',
@@ -86,6 +86,13 @@ class Categoria {
 
   int get radioMaximo => escalones.map((e) => e.radioM).reduce((a, b) => a > b ? a : b);
 }
+
+/// Espejo de `foto_publica()` (007_colmena.sql): la foto de una PERSONA solo se muestra a
+/// todos cuando la alerta ya está confirmada (corroborada o verificada).
+bool fotoPublica(EstadoAlerta estado, {required bool dePersonas}) =>
+    estado == EstadoAlerta.corroborada ||
+    estado == EstadoAlerta.verificada ||
+    (estado == EstadoAlerta.noConfirmada && !dePersonas);
 
 class Alerta {
   const Alerta({
@@ -287,7 +294,9 @@ class ResultadoReporte {
   String get mensaje {
     if (esDuplicado) return 'Ya había un reporte igual cerca. Sumamos tu confirmación.';
     return switch (estado) {
-      EstadoAlerta.pendiente => 'Tu reporte está en revisión. Un validador lo revisará en minutos.',
+      EstadoAlerta.pendiente =>
+        'Tu reporte está en revisión. Si ningún validador lo revisa en 5 minutos, o si alguien más '
+            'reporta lo mismo cerca, se publicará solo a 1 km a la redonda.',
       EstadoAlerta.verificada => 'Alerta oficial publicada. Avisamos a las personas cercanas.',
       _ => 'Reporte publicado. Avisamos a las personas cercanas.',
     };
@@ -426,7 +435,9 @@ class EntradaBitacora {
     'descartar' => 'Descartada${_motivo()}',
     'resolver' => 'Resuelta${_motivo()}',
     'ajustar_radio' => 'Radio ajustado a ${detalle['radio_m']} m',
-    'corroborar_auto' => 'Corroborada automáticamente (3 vecinos)',
+    'corroborar_auto' => 'Corroborada por la colmena (${detalle['confirmaciones'] ?? 3} vecinos)',
+    'publicar_auto' => 'Publicada por la colmena: nadie la revisó en ${detalle['minutos_sin_revision'] ?? 5} min',
+    'publicar_colmena' => 'Publicada por la colmena: otra persona reportó lo mismo',
     'revision_por_votos' => 'Regresó a revisión por votos de "parece falsa"',
     'expirar' => 'Expiró',
     _ => accion,

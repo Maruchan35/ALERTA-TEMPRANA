@@ -62,19 +62,27 @@ export class Entorno {
                suscriptores_telegram, entregas_telegram, bitacora, storage.objects,
                net.solicitudes restart identity cascade;
       delete from auth.users;
-      update config set factor_tiempo = 1;
+      update config set factor_tiempo = 1, minutos_espera_validador = 5, confirmaciones_corroborar = 3,
+                        confirmaciones_colmena = 6, radio_max_corroborada_m = 3000, radio_max_colmena_m = 10000;
       delete from vault.secrets;
       select vault.create_secret('https://prueba.supabase.co/functions/v1', 'url_funciones');
       select vault.create_secret('secreto-de-prueba', 'secreto_funciones');
     `);
   }
 
-  /** Crea un usuario de Auth (el trigger le crea su perfil) y opcionalmente le da un rol. */
-  async crearUsuario({ anonimo = false, rol = 'ciudadano', institucion = null, nombre = null } = {}) {
+  /**
+   * Crea un usuario de Auth (el trigger le crea su perfil) y opcionalmente le da un rol.
+   * Por defecto tiene teléfono verificado; `soloCorreo` crea una cuenta de correo sin teléfono.
+   */
+  async crearUsuario({ anonimo = false, rol = 'ciudadano', institucion = null, nombre = null, soloCorreo = false } = {}) {
     this.contador += 1;
+    const correo = anonimo ? null : `u${this.contador}@prueba.mx`;
+    const telefono = anonimo || soloCorreo ? null : `52551111${String(this.contador).padStart(4, '0')}`;
     const [u] = await this.sql(
-      `insert into auth.users (email, phone, is_anonymous) values ($1, $2, $3) returning id`,
-      [anonimo ? null : `u${this.contador}@prueba.mx`, anonimo ? null : `52551111${String(this.contador).padStart(4, '0')}`, anonimo],
+      `insert into auth.users (email, phone, is_anonymous, email_confirmed_at, phone_confirmed_at)
+       values ($1::text, $2::text, $3, case when $1::text is not null then now() end,
+               case when $2::text is not null then now() end) returning id`,
+      [correo, telefono, anonimo],
     );
     if (rol !== 'ciudadano' || institucion || nombre) {
       await this.sql(`update perfiles set rol = $2, institucion = $3, nombre = $4 where id = $1`,

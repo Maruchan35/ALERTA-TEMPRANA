@@ -10,6 +10,7 @@ Roles R1 (base de datos) y R2 (funciones y notificaciones). Despliegue: [docs/de
 | `migrations/004_funciones.sql` | RPC de la app y el panel, radio dinámico, destinatarios, confirmaciones, validación, métricas, retención y permisos |
 | `migrations/005_disparadores.sql` | `llamar_funcion()` con pg_net + Vault y los triggers que llaman a `notificar` |
 | `migrations/006_tareas.sql` | pg_cron: ampliar radios (15 s), expirar (1 min), limpieza diaria, fotos |
+| `migrations/007_colmena.sql` | Colmena: publicación sin validador (5 min o segundo testigo), tope de 10 km con 6 confirmaciones, foto de personas hasta confirmarse, teléfono verificado obligatorio, umbrales en `config` |
 | `seed.sql` | Catálogo: 12 categorías, niveles, vigencias, instrucciones y escalones de radio (idempotente) |
 | `functions/` | Edge Functions `notificar`, `telegram-webhook`, `cap`, `mantenimiento` y el código compartido con sus pruebas |
 | `configurar_vault.sql` | Guarda en Vault la URL de las funciones y el secreto compartido |

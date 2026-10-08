@@ -14,6 +14,9 @@ abstract final class Claves {
   static const zonas = 'zonas_locales';
   static const notificadas = 'alertas_notificadas';
   static const segundoPlano = 'segundo_plano';
+
+  /// Última vez que el servidor registró este teléfono (con su token de push).
+  static const registradoEn = 'registrado_en';
 }
 
 /// Una zona guardada: el servidor conoce su celda; el teléfono, su punto exacto.

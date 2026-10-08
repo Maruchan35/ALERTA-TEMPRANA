@@ -45,6 +45,7 @@ class _AlertaCercaAppState extends State<AlertaCercaApp> {
   }
 
   void abrirAlerta(String id) {
+    if (id.isEmpty) return; // p. ej. la notificación de prueba
     navegador.currentState?.push(MaterialPageRoute<void>(builder: (_) => PantallaDetalle(alertaId: id)));
   }
 

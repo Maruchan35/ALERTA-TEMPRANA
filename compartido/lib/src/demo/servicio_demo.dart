@@ -74,9 +74,9 @@ const _yo = 'usuario-demo';
 const _validador = 'validador-demo';
 const _institucionDemo = 'Protección Civil (demo)';
 
-/// Motor en memoria que reproduce las reglas del backend (004_funciones.sql y la Edge
-/// Function `notificar`): estados de confianza, radio dinámico en anillos con el margen
-/// de celda, duplicados, límite de reportes, votos, cierre y expiración.
+/// Motor en memoria que reproduce las reglas del backend (004_funciones.sql, 007_colmena.sql
+/// y la Edge Function `notificar`): estados de confianza, radio dinámico en anillos con el
+/// margen de celda, duplicados, límite de reportes, votos y colmena, cierre y expiración.
 class ServicioDemo implements ServicioAlertas {
   ServicioDemo({
     this.escenario = EscenarioDemo.app,
@@ -234,7 +234,7 @@ class ServicioDemo implements ServicioAlertas {
         descripcion: 'Mide 1.20 m. Visto por última vez frente al mercado municipal. Datos ficticios.',
         referencia: 'Mercado municipal, Col. Centro',
       );
-      agregar(menor, autor: 'ciudadano-reporta', reputacion: 3, votos: 2);
+      agregar(menor, autor: 'ciudadano-reporta', reputacion: 3);
       _registros[menor.id]!
         ..folio = '911-2026-04817'
         ..consentimiento = true;
@@ -284,6 +284,23 @@ class ServicioDemo implements ServicioAlertas {
           hubo = true;
         }
       }
+      // Colmena: nadie lo revisó a tiempo → se publica como NO CONFIRMADO (publicar_pendientes)
+      final espera = Duration(minutes: reglasColmena.minutosEsperaValidador);
+      if (r.alerta.estado == EstadoAlerta.pendiente &&
+          r.alerta.publicadaEn == null &&
+          r.autorReputacion >= -2 &&
+          !t.isBefore(r.alerta.creadaEn.add(espera))) {
+        r.alerta = r.alerta.copiar(estado: EstadoAlerta.noConfirmada, publicadaEn: t);
+        r.bitacora.add(
+          EntradaBitacora(
+            accion: 'publicar_auto',
+            creadaEn: t,
+            detalle: {'minutos_sin_revision': reglasColmena.minutosEsperaValidador},
+          ),
+        );
+        _alCambiarEstado(r, EstadoAlerta.pendiente);
+        hubo = true;
+      }
       while (r.votosSimulados.isNotEmpty && !t.isBefore(r.votosSimulados.first)) {
         r.votosSimulados.removeAt(0);
         if (r.alerta.estado.activa) {
@@ -312,6 +329,7 @@ class ServicioDemo implements ServicioAlertas {
     ahora: ahora,
     radioManualM: r.alerta.radioManualM,
     factorTiempo: factorTiempo,
+    nConfirmo: r.votos.values.where((v) => v == 'confirmo').length,
   );
 
   /// Celdas de cada teléfono simulado (y de "mis zonas" para el mío).
@@ -385,7 +403,10 @@ class ServicioDemo implements ServicioAlertas {
   Alerta _vista(_Registro r, {bool panel = false}) {
     final a = r.alerta;
     final yo = _perfil.value?.id;
-    final mostrarFoto = a.estado.activa || r.creadaPor == yo || _soyValidador;
+    final mostrarFoto =
+        fotoPublica(a.estado, dePersonas: categoriaPorClave(a.categoria).esDePersonas) ||
+        r.creadaPor == yo ||
+        _soyValidador;
     int conteo(String tipo) => r.votos.values.where((v) => v == tipo).length;
     return Alerta(
       id: a.id,
@@ -627,7 +648,13 @@ class ServicioDemo implements ServicioAlertas {
     final si = r.votos.values.where((v) => v == 'confirmo').length;
     final falsa = r.votos.values.where((v) => v == 'parece_falsa').length;
     final antes = r.alerta.estado;
-    if (si >= 3 && antes == EstadoAlerta.noConfirmada) {
+    if (antes == EstadoAlerta.pendiente && r.alerta.publicadaEn == null && si >= 1) {
+      // Colmena: un segundo testigo publica el reporte en revisión
+      final nuevo = si >= reglasColmena.confirmacionesCorroborar ? EstadoAlerta.corroborada : EstadoAlerta.noConfirmada;
+      r.alerta = r.alerta.copiar(estado: nuevo, publicadaEn: ahora);
+      r.bitacora.add(EntradaBitacora(accion: 'publicar_colmena', creadaEn: ahora, detalle: {'confirmaciones': si}));
+      _alCambiarEstado(r, antes);
+    } else if (si >= reglasColmena.confirmacionesCorroborar && antes == EstadoAlerta.noConfirmada) {
       r.alerta = r.alerta.copiar(estado: EstadoAlerta.corroborada);
       r.bitacora.add(EntradaBitacora(accion: 'corroborar_auto', creadaEn: ahora, detalle: {'confirmaciones': si}));
       _alCambiarEstado(r, antes);

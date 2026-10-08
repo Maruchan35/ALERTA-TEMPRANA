@@ -214,6 +214,16 @@ class _DetallePanelState extends State<DetallePanel> {
               ),
               _Fila('Ubicación', '${a.lat.toStringAsFixed(5)}, ${a.lon.toStringAsFixed(5)}'),
               _Fila('Vigencia', 'vence ${fechaHora(a.expiraEn)}'),
+              if (a.estado == EstadoAlerta.pendiente)
+                _Fila(
+                  'Colmena',
+                  a.publicadaEn != null
+                      ? 'regresó a revisión por votos de "parece falsa": solo un validador puede publicarla de nuevo'
+                      : (a.autorReputacion ?? 0) < -2
+                      ? 'autor con reputación baja: espera a un validador o a que otra persona reporte lo mismo'
+                      : 'si nadie la revisa, se publica sola a 1 km (sin la foto de personas) el '
+                            '${fechaHora(a.creadaEn.add(Duration(minutes: reglasColmena.minutosEsperaValidador)))}',
+                ),
               if (a.motivoCierre != null) _Fila('Motivo de cierre', a.motivoCierre!),
               if (cat.esDePersonas && a.estado == EstadoAlerta.pendiente)
                 Container(
