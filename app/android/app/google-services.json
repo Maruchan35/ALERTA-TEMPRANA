@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "373990605340",
+    "project_id": "alerta-cerca-18e22",
+    "storage_bucket": "alerta-cerca-18e22.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:373990605340:android:147662d22b5d30f46915d9",
+        "android_client_info": {
+          "package_name": "mx.alertacerca.alerta_cerca"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwDPYENuSZGi6UixT_v69RKAP4yFtXBEo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
