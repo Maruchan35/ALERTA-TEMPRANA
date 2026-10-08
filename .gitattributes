@@ -1,0 +1,11 @@
+# Saltos de línea LF en todo el repositorio (también al clonar en Windows): el formato de Dart,
+# los scripts SQL y los de shell dependen de ello.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.jar binary
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
