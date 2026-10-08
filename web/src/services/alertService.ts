@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, ensureAuthSession } from './supabase';
 import {
   AlertUI,
   SupabaseAlertaRow,
@@ -34,6 +34,17 @@ export function resolvePhotoUrl(path?: string | null): string | undefined {
   if (!path || typeof path !== 'string' || rutaEnBucket(path)) return undefined;
   const limpio = path.trim();
   return /^(https?:|data:|blob:)/i.test(limpio) ? limpio : undefined;
+}
+
+/** URL firmada de una sola foto (1 h). Para listas, el servicio las firma en lote en fetchAll. */
+export async function resolveSignedPhotoUrl(path?: string | null): Promise<string | undefined> {
+  const ruta = rutaEnBucket(path);
+  if (!ruta) return resolvePhotoUrl(path);
+  if (!supabase || !isSupabaseConfigured) return undefined;
+  await ensureAuthSession();
+  const { data, error } = await supabase.storage.from('fotos').createSignedUrl(ruta, 3600);
+  if (error) console.warn('Foto', ruta, error.message);
+  return data?.signedUrl;
 }
 
 /** Mensajes del servidor en palabras de la persona que usa el portal. */
@@ -194,28 +205,13 @@ class AlertService {
     });
   }
 
-  private sesionAnonima?: Promise<unknown>;
-
-  /**
-   * Como la app: quien no inició sesión entra con una sesión anónima. Sin sesión el servidor no
-   * firma ninguna foto; con ella, solo las de alertas confirmadas (las de validador ven todas).
-   */
-  private async asegurarSesion() {
-    if (!supabase) return null;
-    const { data } = await supabase.auth.getSession();
-    if (data.session) return data.session;
-    this.sesionAnonima ??= supabase.auth.signInAnonymously().finally(() => {
-      this.sesionAnonima = undefined;
-    });
-    await this.sesionAnonima;
-    return (await supabase.auth.getSession()).data.session;
-  }
-
   // Obtener todas las alertas reales desde Supabase
   public async fetchAll(): Promise<AlertUI[]> {
     if (!supabase || !isSupabaseConfigured) return this.alertsCache;
     try {
-      const sesion = await this.asegurarSesion();
+      // Como la app: sin sesión el servidor no firma ninguna foto; con una anónima, solo las de
+      // alertas confirmadas (las cuentas de validador ven todas)
+      const sesion = await ensureAuthSession();
       const conCuenta = Boolean(sesion && !sesion.user.is_anonymous);
       // Con cuenta de validador: la vista del panel (todas, con conteos y folio). Sin cuenta: lo que RLS deja ver.
       const consultar = (fuente: string) =>
