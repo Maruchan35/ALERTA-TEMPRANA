@@ -20,6 +20,17 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 | [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **simulador de 4 teléfonos** | Compila; analizado sin errores |
 | [`compartido/`](compartido) | Paquete Dart común: modelos, geohash, catálogo, servicio Supabase y **motor de demostración** con las mismas reglas del backend | Pruebas unitarias |
 
+## Documentación
+
+| Documento | Para qué |
+|---|---|
+| [docs/despliegue.md](docs/despliegue.md) | Puesta en marcha paso a paso (Supabase, Firebase, funciones, Vault, validadores, Telegram, CAP) y problemas frecuentes |
+| [docs/guion-demo.md](docs/guion-demo.md) | Pitch de 7 minutos, teléfonos A/B/C/D, preguntas difíciles y lista de verificación del día |
+| [docs/arquitectura.md](docs/arquitectura.md) | Diagramas, flujo del reto en el código, estados de una alerta y qué datos se guardan |
+| [docs/cumplimiento-del-reto.md](docs/cumplimiento-del-reto.md) | Cada objetivo y restricción del reto con su implementación |
+| [docs/plan-de-pruebas.md](docs/plan-de-pruebas.md) | P01–P19: prueba automática y manual de cada caso |
+| [docs/aviso-de-privacidad.md](docs/aviso-de-privacidad.md) | Borrador del aviso de privacidad |
+
 ## Probarlo ya (sin cuentas ni backend)
 
 Sin configuración, la app y el panel arrancan en **MODO DEMOSTRACIÓN** (todo en memoria; validador y vecinos simulados;

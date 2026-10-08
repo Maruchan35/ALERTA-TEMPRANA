@@ -1,39 +1,19 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# alerta_compartido
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+Paquete Dart común de la app y el panel (la propuesta pide “mismo lenguaje y modelos que la app”).
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
+| Archivo | Contenido |
+|---|---|
+| `src/modelos.dart` | `Alerta`, `EstadoAlerta`, `Categoria`, `Perfil`, `ResultadoReporte`, `Metricas`, `EntradaBitacora`… |
+| `src/geohash.dart` | Mismo algoritmo que PostGIS y las Edge Functions (`geohash(17.9581, -102.1942) == '9epq4t'`) |
+| `src/catalogo.dart` | Copia local de las 12 categorías y sus escalones (`supabase/seed.sql`) |
+| `src/radio.dart` | Espejo de `radio_permitido()` y siguiente escalón |
+| `src/mensajes.dart` | Espejo de los textos del push (contrato de la sección 7.2) |
+| `src/servicio.dart` | Interfaz `ServicioAlertas` |
+| `src/servicio_supabase.dart` | Implementación real (RPC, Storage, Realtime, Auth) |
+| `src/demo/servicio_demo.dart` | Motor en memoria con las mismas reglas del backend (radio dinámico con margen de celda, estados, duplicados, límites, votos, cierre, expiración), validador y vecinos simulados y los teléfonos A, B, C y D |
+| `src/estilo.dart`, `src/widgets/mapa_alertas.dart` | Colores por nivel y estado, insignias, íconos y el mapa de OpenStreetMap |
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
-
-## Features
-
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
-
-## Usage
-
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
-
-```dart
-const like = 'sample';
+```bash
+flutter test
 ```
-
-## Additional information
-
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.

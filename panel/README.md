@@ -1,17 +1,17 @@
-# panel_validadores
+# Panel de validadores ALERTA CERCA (Flutter Web)
 
-ALERTA CERCA: panel de validadores
+Para CCE, Protección Civil y escuelas: métricas, mapa con el radio de cada alerta coloreado por estado, pestañas
+*Por validar / Activas / Cerradas*, detalle con reputación del autor, confirmaciones, folio del 911 y bitácora;
+acciones **Verificar, Ajustar radio, Resolver, Descartar** y **Emitir alerta oficial**. Rol R5 de la propuesta.
 
-## Getting Started
+```bash
+flutter run -d chrome                                       # modo demostración + simulador de 4 teléfonos
+flutter run -d chrome --dart-define-from-file=config.json   # conectado a Supabase (copia config.ejemplo.json)
+flutter build web --release --dart-define-from-file=config.json
+```
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Solo entran cuentas con rol `validador`, `institucion` o `admin` (ver `supabase/demo/cuentas_validadores.sql`).
+- La lista se actualiza sola con Realtime (respeta RLS).
+- **Simulador** (solo en modo demostración): botones para que “un ciudadano” reporte un menor o un incendio, y los
+  teléfonos A, B, C y D mostrando las notificaciones con la distancia calculada como en la app. Es el plan B del pitch.
+- `?a11y` en la URL activa el árbol de accesibilidad desde el inicio (lectores de pantalla y pruebas automáticas).
