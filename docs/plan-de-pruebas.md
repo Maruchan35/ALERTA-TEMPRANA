@@ -27,6 +27,10 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 
 ## Además de la propuesta
 
+- **Puente de WhatsApp** (`010_whatsapp_puente.sql`): el código queda en cola y la app ya no lo ve; cada mensaje se
+  toma una sola vez; se reintenta lo atascado y se descarta lo vencido; el latido registra el número y activa el
+  modo; sin el secreto de Vault nadie toma la cola. `puente-whatsapp/lib.test.mjs` prueba la configuración, los
+  números de México (52 / 521) y las llamadas al servidor.
 - **Verificación por WhatsApp** (`009_whatsapp.sql`): el hook guarda el código y solo se “recibe” en los 10 minutos
   siguientes y en modo simulado; sin modo simulado llama a la Edge Function `whatsapp` y no guarda el código; rechaza
   números inválidos; nadie más puede llamarlo ni leer los mensajes; retención de 1 día. La plantilla de WhatsApp
@@ -51,7 +55,8 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 ## Cómo ejecutarlas
 
 ```bash
-cd supabase/pruebas && npm install && npm test     # 51 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
+cd supabase/pruebas && npm install && npm test     # 54 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
+cd puente-whatsapp && npm install && npm test      # puente de WhatsApp
 cd supabase/functions && deno task probar          # 20 pruebas
 cd supabase/functions && deno task revisar         # tipos, lint y formato
 cd compartido && flutter test                      # geohash, radio, mensajes y motor de demostración

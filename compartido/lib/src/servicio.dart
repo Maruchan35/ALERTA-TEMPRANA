@@ -37,6 +37,9 @@ abstract class ServicioAlertas {
   /// 10 minutos (null si no hay, o si el envío ya es por WhatsApp de verdad).
   Future<MensajeWhatsapp?> whatsappSimulado(String telefono);
 
+  /// Cómo llega el código hoy: simulado, por el puente de WhatsApp (y desde qué número) o Business.
+  Future<EstadoWhatsapp> estadoWhatsapp();
+
   /// Acceso con correo y contraseña (validadores e instituciones).
   Future<void> iniciarSesionCorreo(String correo, String contrasena);
   Future<void> cerrarSesion();

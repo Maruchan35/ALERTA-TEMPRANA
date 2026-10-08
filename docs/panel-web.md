@@ -120,13 +120,43 @@ vistas y llama funciones del servidor, que validan el rol y dejan registro en la
 
 ### Fotos
 
-El bucket `fotos` es **privado**: cada foto se pide con `createSignedUrl` (o `createSignedUrls` para varias) y la URL
-dura 10 minutos. Un validador, institución o administrador ve todas; otras cuentas solo las de alertas confirmadas.
-Si no aparecen:
+El bucket se llama **`fotos`** (no `alertas`, `evidencias` ni otro) y es **privado a propósito**: guarda fotos de menores
+y de personas desaparecidas que solo deben verse mientras la alerta está activa y confirmada, y dejar de verse al
+resolverse. **No lo hagan público**: cualquiera con el enlace vería todas las fotos para siempre, incluidas las de
+reportes falsos o descartados.
+
+`foto_path` ya trae la ruta dentro del bucket (`<id del usuario>/<milisegundos>.jpg`; la app sube la foto con
+`storage.from('fotos').upload` antes de crear el reporte). Para mostrarla hay que **iniciar sesión con una cuenta de
+validador, institución o administrador** y pedir una URL firmada:
+
+```js
+// Reemplazo directo de resolvePhotoUrl para ALERTA CERCA
+const cacheFotos = new Map(); // foto_path → { url, vence }
+
+export async function resolvePhotoUrl(supabase, fotoPath) {
+  if (!fotoPath) return null;
+  if (/^https?:\/\//.test(fotoPath)) return fotoPath;              // ya es una URL
+  const ruta = fotoPath.replace(/^\/?(fotos\/)?/, '');               // por si viene con el bucket adelante
+  const guardada = cacheFotos.get(ruta);
+  if (guardada && guardada.vence > Date.now()) return guardada.url;
+  const { data, error } = await supabase.storage.from('fotos').createSignedUrl(ruta, 3600);
+  if (error) {
+    console.error('Foto', ruta, error.message); // "Object not found" = la cuenta no es validadora o la ruta no existe
+    return null;
+  }
+  cacheFotos.set(ruta, { url: data.signedUrl, vence: Date.now() + 3500 * 1000 });
+  return data.signedUrl;
+}
+```
+
+Cada URL dura 1 hora (aquí se guarda en memoria para no pedirla de nuevo). Para una lista, `createSignedUrls(rutas,
+3600)` las pide todas de una vez. Un validador, institución o administrador ve todas; otras cuentas, solo las de
+alertas confirmadas. Si no aparecen:
 
 | Síntoma | Causa |
 |---|---|
-| `getPublicUrl` devuelve una URL que da 400/404 | El bucket es privado: usa `createSignedUrl`. |
+| `getPublicUrl` (o armar `.../object/public/...`) da 400/404 | El bucket es privado: usa `createSignedUrl`. |
+| `createSignedUrl` responde 400 sin haber iniciado sesión | Las fotos solo se firman para cuentas con sesión: entra primero con `signInWithPassword`. |
 | `createSignedUrl` responde *Object not found* | La cuenta no tiene rol de validador/institución/admin (paso 3), o la ruta no es la de `foto_path`. |
 | La URL firmada abre en el navegador pero la página no la muestra | Pasaron más de 10 minutos: pide otra. |
 

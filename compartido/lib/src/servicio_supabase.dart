@@ -136,6 +136,16 @@ class ServicioSupabase implements ServicioAlertas {
   }
 
   @override
+  Future<EstadoWhatsapp> estadoWhatsapp() async {
+    try {
+      final r = await cliente.rpc('estado_whatsapp');
+      return r is Map<String, dynamic> ? EstadoWhatsapp.desdeMapa(r) : const EstadoWhatsapp();
+    } catch (_) {
+      return const EstadoWhatsapp(); // servidor sin 010: como antes
+    }
+  }
+
+  @override
   Future<void> iniciarSesionCorreo(String correo, String contrasena) => _intentar(() async {
     await cliente.auth.signInWithPassword(email: correo.trim(), password: contrasena);
     final p = await recargarPerfil();

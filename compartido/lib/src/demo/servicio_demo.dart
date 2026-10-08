@@ -488,6 +488,9 @@ class ServicioDemo implements ServicioAlertas {
   }
 
   @override
+  Future<EstadoWhatsapp> estadoWhatsapp() async => const EstadoWhatsapp();
+
+  @override
   Future<MensajeWhatsapp?> whatsappSimulado(String telefono) async => telefono != _whatsappPara
       ? null
       : MensajeWhatsapp(

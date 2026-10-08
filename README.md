@@ -14,10 +14,11 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 
 | Carpeta | Qué es | Estado |
 |---|---|---|
-| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, verificación por WhatsApp, pg_cron, Vault | **51 pruebas automáticas** (PGlite + PostGIS reales) |
+| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, verificación por WhatsApp, pg_cron, Vault | **54 pruebas automáticas** (PGlite + PostGIS reales) |
 | [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento`, `whatsapp` | **20 pruebas** Deno, tipos y lint |
 | [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push | Compila; analizada sin errores |
 | [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **simulador de 4 teléfonos** | Compila; analizado sin errores |
+| [`puente-whatsapp/`](puente-whatsapp) | Envía los códigos de verificación desde un WhatsApp normal vinculado como dispositivo (sin WhatsApp Business) | Pruebas de Node |
 | [`compartido/`](compartido) | Paquete Dart común: modelos, geohash, catálogo, servicio Supabase y **motor de demostración** con las mismas reglas del backend | Pruebas unitarias |
 
 ## Documentación
@@ -99,7 +100,8 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 ## Pruebas
 
 ```bash
-cd supabase/pruebas && npm install && npm test        # 51 pruebas: P01–P14, P19, colmena, WhatsApp, RLS, scripts
+cd supabase/pruebas && npm install && npm test        # 54 pruebas: P01–P14, P19, colmena, WhatsApp, RLS, scripts
+cd puente-whatsapp && npm install && npm test         # puente de WhatsApp
 cd supabase/functions && deno task probar             # 20 pruebas de las Edge Functions
 cd compartido && flutter test                         # motor de demo, geohash, radio, mensajes
 ```

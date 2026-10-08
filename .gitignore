@@ -37,3 +37,8 @@ Thumbs.db
 
 # ─── APK compilados localmente ──────────────────────────────────────────────
 apk/
+
+# Puente de WhatsApp: la sesión equivale a tener la cuenta abierta. NUNCA a git.
+puente-whatsapp/sesion/
+puente-whatsapp/.env
+puente-whatsapp/node_modules/

@@ -35,6 +35,23 @@ jobs:
       - name: Migraciones, RLS, reglas de confianza y radio dinámico (P01–P19)
         run: npm test
 
+  puente-whatsapp:
+    name: Puente de WhatsApp (Node)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: puente-whatsapp
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: puente-whatsapp/package-lock.json
+      - run: npm ci
+      - name: Configuración, números de México y llamadas al servidor
+        run: npm test
+
   edge-functions:
     name: Backend · Edge Functions (Deno)
     runs-on: ubuntu-latest

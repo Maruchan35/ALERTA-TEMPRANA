@@ -39,6 +39,17 @@ class _PantallaVerificarTelefonoState extends State<PantallaVerificarTelefono> {
   MensajeWhatsapp? _mensaje;
   Timer? _consulta;
 
+  /// Cómo llega hoy el código (simulado, puente de WhatsApp o Business).
+  EstadoWhatsapp? _whatsapp;
+
+  @override
+  void initState() {
+    super.initState();
+    AlcanceApp.leer(context).servicio.estadoWhatsapp().then((e) {
+      if (mounted) setState(() => _whatsapp = e);
+    });
+  }
+
   @override
   void dispose() {
     _consulta?.cancel();
@@ -62,7 +73,8 @@ class _PantallaVerificarTelefonoState extends State<PantallaVerificarTelefono> {
       _ocupado = false;
       _codigoEnviado = ok;
     });
-    if (ok) _esperarWhatsapp(servicio, telefono, desde: anterior?.enviadoEn);
+    // Solo el simulado se "recibe" aquí; con WhatsApp de verdad el código llega al teléfono
+    if (ok && (_whatsapp?.simulado ?? true)) _esperarWhatsapp(servicio, telefono, desde: anterior?.enviadoEn);
   }
 
   /// WhatsApp simulado: se pregunta unos segundos hasta que "llega" el mensaje con el código.
@@ -128,6 +140,15 @@ class _PantallaVerificarTelefonoState extends State<PantallaVerificarTelefono> {
             'nunca se muestra a otras personas. Para RECIBIR alertas no hace falta.',
             textAlign: TextAlign.center,
           ),
+          if (_whatsapp != null && !_whatsapp!.simulado && !_whatsapp!.conectado)
+            const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: Text(
+                'El servicio de WhatsApp está desconectado en este momento: el código puede tardar en llegar.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colores.rojo, fontWeight: FontWeight.w700),
+              ),
+            ),
           const SizedBox(height: 24),
           TextField(
             controller: _telefono,
@@ -156,7 +177,18 @@ class _PantallaVerificarTelefonoState extends State<PantallaVerificarTelefono> {
                   ],
                 ),
               ),
-            if (!_esperando && _mensaje == null)
+            if (_whatsapp != null && !_whatsapp!.simulado)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Te enviamos el código por WhatsApp'
+                  '${_whatsapp!.numeroLegible == null ? '' : ' desde el número ${_whatsapp!.numeroLegible} (ALERTA CERCA)'}. '
+                  'Ábrelo y escribe aquí el código de 6 dígitos.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              )
+            else if (!_esperando && _mensaje == null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(

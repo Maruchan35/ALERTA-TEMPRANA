@@ -5,6 +5,8 @@ import { test, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { crearEntorno, PUNTOS } from './entorno.mjs';
 
+const SECRETO_PUENTE = 'secreto-del-puente-de-prueba-0123456789abcdef';
+
 let env;
 before(async () => { env = await crearEntorno(); });
 beforeEach(async () => { await env.limpiar(); });
@@ -470,7 +472,7 @@ test('WhatsApp simulado: Auth entrega el código al hook y la app que lo pidió 
   await env.sql(`update privado.mensajes_whatsapp set enviado_en = now() - interval '11 minutes'
                  where telefono = '525533333333'`);
   assert.deepEqual(await env.rpc(u, 'whatsapp_simulado', { p_telefono: '525533333333' }), []);
-  await env.sql(`update config set whatsapp_simulado = false`);
+  await env.sql(`update config set whatsapp_modo = 'meta'`);
   assert.deepEqual(await env.rpc(u, 'whatsapp_simulado', { p_telefono: '525522222222' }), []);
 
   // Retención: a los 1 día se borran
@@ -479,8 +481,8 @@ test('WhatsApp simulado: Auth entrega el código al hook y la app que lo pidió 
   assert.equal((await env.sql(`select count(*)::int as n from privado.mensajes_whatsapp`))[0].n, 0);
 });
 
-test('WhatsApp real: sin modo simulado el hook llama a la Edge Function y no guarda el código', async () => {
-  await env.sql(`update config set whatsapp_simulado = false`);
+test('WhatsApp Business (modo meta): el hook llama a la Edge Function y no guarda el código', async () => {
+  await env.sql(`update config set whatsapp_modo = 'meta'`);
   const evento = { user: { id: '00000000-0000-4000-8000-000000000001', phone: '', new_phone: '525544444444' },
     sms: { otp: '654321' } };
   assert.deepEqual(await hookWhatsapp(evento), {});
@@ -488,7 +490,8 @@ test('WhatsApp real: sin modo simulado el hook llama a la Edge Function y no gua
   assert.equal(llamadas.length, 1);
   assert.deepEqual(llamadas[0].body, { telefono: '525544444444', codigo: '654321' });
   assert.equal(llamadas[0].headers['x-alerta-secreto'], 'secreto-de-prueba');
-  assert.deepEqual(await env.sql(`select codigo, simulado from privado.mensajes_whatsapp`), [{ codigo: null, simulado: false }]);
+  assert.deepEqual(await env.sql(`select codigo, modo, estado from privado.mensajes_whatsapp`),
+    [{ codigo: null, modo: 'meta', estado: 'enviado' }]);
 });
 
 test('WhatsApp: el hook rechaza números inválidos y nadie más puede llamarlo ni leer los mensajes', async () => {
@@ -502,6 +505,74 @@ test('WhatsApp: el hook rechaza números inválidos y nadie más puede llamarlo 
       /permission denied/);
   }
   await assert.rejects(env.rpc(null, 'whatsapp_simulado', { p_telefono: '525522222222' }), /permission denied/);
+});
+
+test('WhatsApp por el puente: el código queda en cola, el puente lo toma una sola vez y reporta el envío', async () => {
+  await env.sql(`update config set whatsapp_modo = 'puente'`);
+  const u = await env.crearUsuario({ anonimo: true });
+  assert.deepEqual(await hookWhatsapp({ user: { id: u.id }, sms: { otp: '246810', phone: '525577777777' } }), {});
+  assert.deepEqual(await env.rpc(u, 'whatsapp_simulado', { p_telefono: '525577777777' }), [],
+    'la app ya no ve el código: le llega por WhatsApp');
+
+  const tomar = () => env.rpc(null, 'whatsapp_pendientes', { p_secreto: SECRETO_PUENTE, p_limite: 5 });
+  const [m] = await tomar();
+  assert.equal(m.telefono, '525577777777');
+  assert.match(m.texto, /tu código de verificación es 246810/);
+  assert.deepEqual(await tomar(), [], 'un mensaje se toma una sola vez');
+
+  await env.rpc(null, 'whatsapp_resultado', { p_secreto: SECRETO_PUENTE, p_id: m.id, p_ok: true });
+  assert.deepEqual(await env.sql(`select estado, intentos, error from privado.mensajes_whatsapp`),
+    [{ estado: 'enviado', intentos: 1, error: null }]);
+
+  // Sin el secreto correcto nadie toma la cola ni reporta
+  await assert.rejects(env.rpc(null, 'whatsapp_pendientes', { p_secreto: 'otro-secreto-de-mas-de-32-caracteres-xx' }),
+    /No autorizado/);
+  await assert.rejects(env.rpc(u, 'whatsapp_resultado', { p_secreto: null, p_id: m.id, p_ok: false }), /No autorizado/);
+});
+
+test('puente: reintenta lo que se quedó "enviando" y descarta los códigos vencidos', async () => {
+  await env.sql(`update config set whatsapp_modo = 'puente'`);
+  await hookWhatsapp({ user: {}, sms: { otp: '111111', phone: '525511112222' } });
+  await hookWhatsapp({ user: {}, sms: { otp: '222222', phone: '525533334444' } });
+  const tomar = () => env.rpc(null, 'whatsapp_pendientes', { p_secreto: SECRETO_PUENTE });
+  assert.equal((await tomar()).length, 2);
+  // El puente se cayó a medio envío: al minuto se reintenta; el de hace 11 min ya venció
+  await env.sql(`update privado.mensajes_whatsapp set actualizado_en = now() - interval '2 minutes'`);
+  await env.sql(`update privado.mensajes_whatsapp set enviado_en = now() - interval '11 minutes'
+                 where telefono = '525533334444'`);
+  const reintento = await tomar();
+  assert.deepEqual(reintento.map((r) => r.telefono), ['525511112222']);
+  const estados = await env.sql(
+    `select telefono, estado, intentos, error from privado.mensajes_whatsapp order by telefono`);
+  assert.deepEqual(estados, [
+    { telefono: '525511112222', estado: 'enviando', intentos: 2, error: null },
+    { telefono: '525533334444', estado: 'error', intentos: 1, error: 'El código venció antes de enviarse' },
+  ]);
+  await env.rpc(null, 'whatsapp_resultado', {
+    p_secreto: SECRETO_PUENTE, p_id: reintento[0].id, p_ok: false, p_error: 'El número no tiene WhatsApp',
+  });
+  assert.equal((await env.sql(`select error from privado.mensajes_whatsapp where telefono = '525511112222'`))[0].error,
+    'El número no tiene WhatsApp');
+});
+
+test('puente: el latido registra su número y activa el modo; la app ve desde dónde llega el código', async () => {
+  const u = await env.crearUsuario({ anonimo: true });
+  const estado = async () => (await env.rpc(u, 'estado_whatsapp'))[0].estado_whatsapp;
+  assert.deepEqual(await estado(), { modo: 'simulado', conectado: true, numero: null });
+
+  const latido = (activar) => env.rpc(null, 'whatsapp_latido', {
+    p_secreto: SECRETO_PUENTE, p_numero: '+52 755 000 0000', p_conectado: true, p_activar: activar,
+  });
+  assert.equal((await latido(false))[0].whatsapp_latido, 'simulado', 'sin p_activar no cambia el modo');
+  assert.equal((await latido(true))[0].whatsapp_latido, 'puente');
+  assert.deepEqual(await estado(), { modo: 'puente', conectado: true, numero: '527550000000' });
+
+  await env.sql(`update privado.puente_whatsapp set latido_en = now() - interval '2 minutes'`);
+  assert.equal((await estado()).conectado, false, 'sin señales de vida en 1 minuto: desconectado');
+
+  await assert.rejects(env.rpc(null, 'whatsapp_latido', { p_secreto: 'x', p_numero: '1', p_conectado: true }),
+    /No autorizado/);
+  await assert.rejects(env.rpc(null, 'estado_whatsapp'), /permission denied/);
 });
 
 // ─── P11: límite de reportes ───────────────────────────────────────────────
@@ -609,6 +680,7 @@ test('P14: con la anon key no se pueden leer tokens ni llamar funciones internas
     `select * from fotos_por_borrar()`,
     `select * from alertas_publicas`,
     `select enviar_codigo_whatsapp('{}'::jsonb)`,
+    `select secreto_puente_valido('x')`,
     `select * from privado.mensajes_whatsapp`,
   ];
   for (const usuario of [null, t.A]) {

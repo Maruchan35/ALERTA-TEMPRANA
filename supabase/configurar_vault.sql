@@ -17,6 +17,10 @@ select vault.create_secret('https://TU_REF.supabase.co/functions/v1', 'url_funci
 select vault.create_secret('CAMBIA_ESTE_SECRETO', 'secreto_funciones',
                            'Secreto compartido con la variable SECRETO_FUNCIONES de las Edge Functions');
 
+-- Solo si usan el puente de WhatsApp (puente-whatsapp/): OTRA cadena larga, la misma que va en
+-- SECRETO_PUENTE de puente-whatsapp/.env
+--   select vault.create_secret('OTRA_CADENA_LARGA', 'secreto_puente', 'Secreto del puente de WhatsApp');
+
 -- ¿Quedaron guardados? (no muestra el valor)
 select name, description, created_at from vault.secrets order by created_at;
 

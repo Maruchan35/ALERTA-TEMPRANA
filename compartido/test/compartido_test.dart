@@ -309,6 +309,13 @@ void main() {
       app.cerrar();
     });
 
+    test('estado de WhatsApp: número legible y modo', () {
+      const e = EstadoWhatsapp(modo: 'puente', conectado: false, numero: '527551234567');
+      expect(e.numeroLegible, '+52 755 123 4567');
+      expect(e.simulado, isFalse);
+      expect(EstadoWhatsapp.desdeMapa(const {'modo': 'simulado', 'conectado': true}).simulado, isTrue);
+    });
+
     test('P11: límite de reportes por hora (10)', () async {
       final app = ServicioDemo(reloj: () => ahora, iniciarReloj: false, sembrar: false);
       await app.iniciarSesionAnonima();

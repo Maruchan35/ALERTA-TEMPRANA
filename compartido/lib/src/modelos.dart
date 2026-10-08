@@ -402,6 +402,35 @@ class MensajeWhatsapp {
   final DateTime enviadoEn;
 }
 
+/// Cómo llega hoy el código de verificación (010_whatsapp_puente.sql).
+class EstadoWhatsapp {
+  const EstadoWhatsapp({this.modo = 'simulado', this.conectado = true, this.numero});
+
+  factory EstadoWhatsapp.desdeMapa(Map<String, dynamic> m) => EstadoWhatsapp(
+    modo: (m['modo'] as String?) ?? 'simulado',
+    conectado: (m['conectado'] as bool?) ?? true,
+    numero: m['numero'] as String?,
+  );
+
+  /// 'simulado' (la app muestra el código), 'puente' (WhatsApp normal vinculado) o 'meta' (Business).
+  final String modo;
+
+  /// En modo puente: el programa que envía los mensajes dio señales de vida en el último minuto.
+  final bool conectado;
+
+  /// Número que envía los códigos (modo puente), p. ej. 527551234567.
+  final String? numero;
+
+  bool get simulado => modo == 'simulado';
+
+  /// "+52 755 123 4567"
+  String? get numeroLegible {
+    final n = numero;
+    if (n == null || n.length != 12 || !n.startsWith('52')) return n == null ? null : '+$n';
+    return '+52 ${n.substring(2, 5)} ${n.substring(5, 8)} ${n.substring(8)}';
+  }
+}
+
 class Zona {
   const Zona({required this.id, required this.nombre, required this.celda});
 

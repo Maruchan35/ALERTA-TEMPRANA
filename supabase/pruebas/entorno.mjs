@@ -64,10 +64,12 @@ export class Entorno {
       delete from auth.users;
       update config set factor_tiempo = 1, minutos_espera_validador = 5, confirmaciones_corroborar = 3,
                         confirmaciones_colmena = 6, radio_max_corroborada_m = 3000, radio_max_colmena_m = 10000,
-                        reportes_por_hora = 10, whatsapp_simulado = true;
+                        reportes_por_hora = 10, whatsapp_modo = 'simulado';
+      update privado.puente_whatsapp set numero = null, conectado = false, latido_en = null;
       delete from vault.secrets;
       select vault.create_secret('https://prueba.supabase.co/functions/v1', 'url_funciones');
       select vault.create_secret('secreto-de-prueba', 'secreto_funciones');
+      select vault.create_secret('secreto-del-puente-de-prueba-0123456789abcdef', 'secreto_puente');
     `);
   }
 

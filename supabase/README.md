@@ -11,6 +11,7 @@ Roles R1 (base de datos) y R2 (funciones y notificaciones). Despliegue: [docs/de
 | `migrations/005_disparadores.sql` | `llamar_funcion()` con pg_net + Vault y los triggers que llaman a `notificar` |
 | `migrations/006_tareas.sql` | pg_cron: ampliar radios (15 s), expirar (1 min), limpieza diaria, fotos |
 | `migrations/007_colmena.sql` | Colmena: publicación sin validador (5 min o segundo testigo), tope de 10 km con 6 confirmaciones, foto de personas hasta confirmarse, teléfono verificado obligatorio, umbrales en `config` |
+| `migrations/010_whatsapp_puente.sql` | Modo de envío del código (`config.whatsapp_modo`: simulado, puente o meta) y la cola que atiende `puente-whatsapp/` con su secreto de Vault |
 | `migrations/009_whatsapp.sql` | Verificación por WhatsApp: Auth Hook `enviar_codigo_whatsapp`, WhatsApp simulado (`whatsapp_simulado()`) y bandeja privada `privado.mensajes_whatsapp` (1 día) |
 | `migrations/008_colmena_ajustes.sql` | Límite de reportes configurable (10 por hora; los duplicados no cuentan) y teléfonos registrados en las métricas del panel |
 | `seed.sql` | Catálogo: 12 categorías, niveles, vigencias, instrucciones y escalones de radio (idempotente) |

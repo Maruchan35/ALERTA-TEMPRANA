@@ -1,0 +1,18 @@
+{
+  "name": "alerta-cerca-puente-whatsapp",
+  "private": true,
+  "description": "Envía los códigos de verificación de ALERTA CERCA desde un número de WhatsApp normal (vinculado como en WhatsApp Web), sin WhatsApp Business.",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "baileys": "7.0.0-rc14",
+    "pino": "9.14.0",
+    "qrcode-terminal": "0.12.0"
+  }
+}
