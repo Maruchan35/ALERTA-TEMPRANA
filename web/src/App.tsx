@@ -76,67 +76,72 @@ export default function App() {
     requestRealGPS();
   }, [requestRealGPS]);
 
+  // Solo entran cuentas REALES de Supabase con rol de validador, institución o administrador.
+  // (Nada de contraseñas escritas en el código: el repositorio y la página son públicos.)
+  const entrarComoModerador = async (email: string, password: string): Promise<string | null> => {
+    if (!supabase) return 'El portal no está conectado a Supabase (revisa VITE_SUPABASE_URL y la llave).';
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data?.user) {
+      const mensaje = error?.message ?? '';
+      if (/invalid login credentials/i.test(mensaje)) return 'Correo o contraseña incorrectos.';
+      if (/email not confirmed/i.test(mensaje)) {
+        return 'Esta cuenta todavía no confirma su correo (Supabase → Authentication → Users → Confirm email).';
+      }
+      return mensaje || 'No se pudo iniciar sesión.';
+    }
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('rol, nombre, institucion')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    if (!perfil || !['validador', 'institucion', 'admin'].includes(perfil.rol)) {
+      await supabase.auth.signOut();
+      return 'Esta cuenta no tiene permisos de validador. Pide que te asignen el rol en Supabase (docs/panel-web.md, paso 3).';
+    }
+    const user: ModeratorUser = {
+      username: data.user.email ?? email,
+      fullName: perfil.nombre || data.user.email || 'Validador',
+      roleTitle: perfil.rol === 'validador' ? 'Validador de Alertas' : 'Validador y Administrador de Alertas',
+      entity: perfil.institucion || 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
+    };
+    setIsModerator(true);
+    setModeratorUser(user);
+    localStorage.setItem(STORAGE_MOD_KEY, JSON.stringify(user));
+    return null;
+  };
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUser = loginUsername.trim().toLowerCase();
-    const cleanPass = loginPassword.trim();
     setIsLoggingIn(true);
     setLoginError(null);
-
+    let error: string | null;
     try {
-      // 1. Intentar inicio de sesión real contra Supabase Auth
-      if (supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanUser,
-          password: cleanPass,
-        });
-
-        if (!error && data?.user) {
-          const user: ModeratorUser = {
-            username: data.user.email || cleanUser,
-            fullName: data.user.user_metadata?.full_name || 'Validador Oficial CCE',
-            roleTitle: 'Validador y Administrador de Alertas',
-            entity: 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
-          };
-          setIsModerator(true);
-          setModeratorUser(user);
-          localStorage.setItem(STORAGE_MOD_KEY, JSON.stringify(user));
-          setShowModLoginModal(false);
-          setLoginUsername('');
-          setLoginPassword('');
-          setIsLoggingIn(false);
-          return;
-        }
-      }
+      error = await entrarComoModerador(loginUsername.trim().toLowerCase(), loginPassword);
     } catch (err) {
       console.warn('Fallo en autenticación remota Supabase:', err);
+      error = 'Sin conexión con el servidor. Intenta de nuevo.';
     }
-
-    // 2. Validación directa con la cuenta oficial configurada por Maruchan
-    if (
-      (cleanUser === 'admin123@gmail.com' && cleanPass === 'admin123') ||
-      ((cleanUser === 'moderador' || cleanUser === 'admin' || cleanUser === 'cce' || cleanUser === 'cce.lazarocardenas@gmail.com') &&
-        (cleanPass === 'cce2026' || cleanPass === 'alerta2026'))
-    ) {
-      const user: ModeratorUser = {
-        username: cleanUser,
-        fullName: cleanUser === 'admin123@gmail.com' ? 'Validador Principal (admin123)' : 'Lic. Julio César Cortés (Operador CCE)',
-        roleTitle: 'Coordinador de Alertas y Verificación',
-        entity: 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
-      };
-      setIsModerator(true);
-      setModeratorUser(user);
-      localStorage.setItem(STORAGE_MOD_KEY, JSON.stringify(user));
-      setShowModLoginModal(false);
-      setLoginUsername('');
-      setLoginPassword('');
-      setIsLoggingIn(false);
+    setIsLoggingIn(false);
+    if (error) {
+      setLoginError(error);
       return;
     }
-
-    setIsLoggingIn(false);
-    setLoginError('Credenciales no válidas. Usa: admin123@gmail.com / admin123');
+    setShowModLoginModal(false);
+    setLoginUsername('');
+    setLoginPassword('');
   };
+
+  // La consola de moderador depende de una sesión REAL de Supabase, no de lo guardado en el navegador
+  useEffect(() => {
+    if (!supabase || !isModerator) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session || data.session.user.is_anonymous) {
+        setIsModerator(false);
+        setModeratorUser(null);
+        localStorage.removeItem(STORAGE_MOD_KEY);
+      }
+    });
+  }, [isModerator]);
 
   const handleLogoutModerator = async () => {
     if (supabase) {
@@ -379,29 +384,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Hint de credenciales para evaluadores y validadores */}
-            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold text-amber-800">Cuenta de Validador Oficial:</p>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  Correo: <span className="font-mono font-bold text-amber-900">admin123@gmail.com</span>
-                </p>
-                <p className="text-[11px] text-slate-600">
-                  Clave: <span className="font-mono font-bold text-amber-900">admin123</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginUsername('admin123@gmail.com');
-                  setLoginPassword('admin123');
-                  setLoginError(null);
-                }}
-                className="px-2 py-1 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-semibold transition-all cursor-pointer shrink-0 self-center"
-              >
-                Autocompletar
-              </button>
-            </div>
 
             {loginError && (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
@@ -413,13 +395,13 @@ export default function App() {
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Usuario o Correo Institucional
+                  Correo de tu cuenta de validador
                 </label>
                 <input
                   type="text"
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="admin123@gmail.com"
+                  placeholder="correo@institucion.mx"
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
                   required
                 />

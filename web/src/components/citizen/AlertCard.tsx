@@ -56,6 +56,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
       audioAlert.playInfoAlert();
     } catch (err) {
       console.warn('Error al registrar voto:', err);
+      window.alert((err as Error).message);
     } finally {
       setIsVoting(false);
     }

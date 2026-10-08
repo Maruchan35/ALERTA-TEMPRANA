@@ -42,3 +42,8 @@ apk/
 puente-whatsapp/sesion/
 puente-whatsapp/.env
 puente-whatsapp/node_modules/
+
+# Portal web (React + Vite): dependencias y compilados
+web/node_modules/
+web/dist/
+*.tsbuildinfo

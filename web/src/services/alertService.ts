@@ -1,77 +1,51 @@
-import { supabase, isSupabaseConfigured, SUPABASE_URL } from './supabase';
-import { 
-  AlertUI, 
-  SupabaseAlertaRow, 
-  CategoriaAlerta, 
+import { supabase, isSupabaseConfigured } from './supabase';
+import {
+  AlertUI,
+  SupabaseAlertaRow,
+  CategoriaAlerta,
   CATEGORIAS_OFICIALES,
   TipoConfirmacion,
 } from '../types/alert';
 
-
 const LOCAL_STORAGE_KEY = 'alerta_cerca_real_alerts';
 
-// Resuelve URLs públicas de Supabase Storage para fotos y evidencias
+/**
+ * Ruta de una foto dentro del bucket PRIVADO `fotos` de Supabase Storage. La app móvil sube cada
+ * foto ahí y guarda en `foto_path` "<id de usuario>/<milisegundos>.jpg". null si no es de Storage.
+ */
+export function rutaEnBucket(path?: string | null): string | null {
+  if (!path || typeof path !== 'string') return null;
+  const limpio = path.trim();
+  if (!limpio) return null;
+  // Una URL de nuestro Storage (pública o firmada vieja): se recupera la ruta y se vuelve a firmar
+  const enUrl = limpio.match(/storage\/v1\/object\/(?:public|sign|authenticated)\/fotos\/([^?#]+)/);
+  if (enUrl) return decodeURIComponent(enUrl[1]);
+  if (/^(https?:|data:|blob:|file:|content:)/i.test(limpio)) return null;
+  if (limpio.startsWith('/data/') || limpio.startsWith('/storage/emulated/')) return null; // ruta local del celular
+  return limpio.replace(/^\/+/, '').replace(/^fotos\//, '');
+}
+
+/**
+ * URL que se puede mostrar sin firmar: solo las externas (http, data, blob). Las de Storage NO:
+ * el bucket `fotos` es privado a propósito (fotos de menores y personas) y se firman en
+ * `AlertService.firmarFotos` con la sesión de quien mira.
+ */
 export function resolvePhotoUrl(path?: string | null): string | undefined {
-  if (!path || typeof path !== 'string' || path.trim() === '') return undefined;
-  const clean = path.trim();
+  if (!path || typeof path !== 'string' || rutaEnBucket(path)) return undefined;
+  const limpio = path.trim();
+  return /^(https?:|data:|blob:)/i.test(limpio) ? limpio : undefined;
+}
 
-  // 1. Descartar rutas de almacenamiento local del dispositivo móvil (Android/iOS)
-  if (
-    clean.startsWith('file://') ||
-    clean.startsWith('/data/user/') ||
-    clean.startsWith('/data/data/') ||
-    clean.startsWith('/storage/emulated/') ||
-    clean.startsWith('content://')
-  ) {
-    // Si la app móvil envió una ruta interna del teléfono en vez de subir al bucket de Supabase
-    return undefined;
+/** Mensajes del servidor en palabras de la persona que usa el portal. */
+function mensajeServidor(mensaje: string): string {
+  if (/No autorizado|row-level security/i.test(mensaje)) {
+    return 'Tu sesión no tiene permisos de validador. Vuelve a entrar con una cuenta de validador, institución o administrador.';
   }
-
-  // 2. Si ya es una URL web completa (http, https, blob o base64 data URI)
-  if (
-    clean.startsWith('http://') ||
-    clean.startsWith('https://') ||
-    clean.startsWith('data:') ||
-    clean.startsWith('blob:')
-  ) {
-    return clean;
+  if (/Verifica tu número|permission denied/i.test(mensaje)) {
+    return 'Para eso hay que verificar el número de teléfono en la app ALERTA CERCA (por WhatsApp).';
   }
-
-  // 3. Limpiar barras iniciales
-  const stripped = clean.replace(/^\/+/, '');
-
-  // 4. Si la ruta ya incluye el path de la API de Supabase Storage
-  if (stripped.startsWith('storage/v1/object/public/') || stripped.startsWith('storage/v1/object/sign/')) {
-    return `${SUPABASE_URL}/${stripped}`;
-  }
-
-  const baseUrl = `${SUPABASE_URL}/storage/v1/object/public`;
-
-  // 5. Si la ruta ya especifica el bucket (ej. "alertas/...", "fotos/...", "evidencias/...")
-  const knownBuckets = [
-    'alertas',
-    'fotos',
-    'evidencias',
-    'imagenes',
-    'reportes',
-    'public',
-    'uploads',
-    'images',
-    'photos',
-    'multimedia'
-  ];
-  const firstSlashIndex = stripped.indexOf('/');
-
-  if (firstSlashIndex !== -1) {
-    const bucket = stripped.substring(0, firstSlashIndex).toLowerCase();
-    if (knownBuckets.includes(bucket)) {
-      const rest = stripped.substring(firstSlashIndex + 1);
-      return `${baseUrl}/${bucket}/${rest}`;
-    }
-  }
-
-  // 6. Por defecto, buscar en el bucket oficial 'alertas'
-  return `${baseUrl}/alertas/${stripped}`;
+  if (/JWT expired|invalid JWT/i.test(mensaje)) return 'Tu sesión venció: vuelve a entrar.';
+  return mensaje;
 }
 
 // Función para transformar una fila de Supabase en un modelo AlertUI enriquecido
@@ -103,7 +77,11 @@ export function mapSupabaseRowToUI(row: SupabaseAlertaRow): AlertUI {
     verifiedAt: row.verificada_en || undefined,
     closedAt: row.cerrada_en || undefined,
     expiresAt: row.expira_en,
-    verifiedBy: row.validada_por || (row.verificada_por ? 'Consejo Coordinador Empresarial' : undefined),
+    verifiedBy:
+      row.validada_por ||
+      row.validador_institucion ||
+      row.validador_nombre ||
+      (row.verificada_por ? 'Consejo Coordinador Empresarial' : undefined),
     confirmedCount: row.n_confirmo || 0,
     disputeCount: row.n_parece_falsa || 0,
     instructions: catConfig.instrucciones,
@@ -112,10 +90,14 @@ export function mapSupabaseRowToUI(row: SupabaseAlertaRow): AlertUI {
   };
 }
 
+type AccionValidador = 'verificar' | 'ajustar_radio' | 'resolver' | 'descartar';
+
 class AlertService {
   private alertsCache: AlertUI[] = [];
   private listeners: Array<(alerts: AlertUI[]) => void> = [];
   private channel: any = null;
+  /** Fotos ya firmadas: ruta → URL (dura 1 h; se renueva un poco antes). */
+  private fotosFirmadas = new Map<string, { url: string; vence: number }>();
 
   constructor() {
     this.loadFromLocalStorage();
@@ -153,8 +135,7 @@ class AlertService {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'alertas' },
-          (payload) => {
-            console.log('📡 Cambio en tiempo real recibido desde Supabase:', payload);
+          () => {
             this.fetchAll();
           }
         )
@@ -189,27 +170,70 @@ class AlertService {
     this.listeners.forEach((listener) => listener([...this.alertsCache]));
   }
 
-  // Obtener todas las alertas reales desde Supabase
-  public async fetchAll(): Promise<AlertUI[]> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('alertas')
-          .select('*')
-          .order('creada_en', { ascending: false });
-
-        if (!error && Array.isArray(data)) {
-          this.alertsCache = data.map((row) => mapSupabaseRowToUI(row as SupabaseAlertaRow));
-          this.notify();
-          return this.alertsCache;
-        } else if (error) {
-          console.warn('Error al consultar alertas en Supabase:', error.message);
+  /** Las fotos del bucket privado `fotos` se firman en lote con la sesión de quien mira. */
+  private async firmarFotos(alertas: AlertUI[], filas: SupabaseAlertaRow[]) {
+    if (!supabase) return;
+    const ahora = Date.now();
+    const rutas = [...new Set(filas.map((f) => rutaEnBucket(f.foto_path)).filter((r): r is string => Boolean(r)))];
+    const faltan = rutas.filter((r) => (this.fotosFirmadas.get(r)?.vence ?? 0) <= ahora);
+    if (faltan.length) {
+      const { data, error } = await supabase.storage.from('fotos').createSignedUrls(faltan, 3600);
+      if (error) console.warn('No se pudieron firmar las fotos:', error.message);
+      for (const f of data ?? []) {
+        if (f.path && f.signedUrl) {
+          this.fotosFirmadas.set(f.path, { url: f.signedUrl, vence: ahora + 3500 * 1000 });
+        } else if (f.error) {
+          // "Object not found": la cuenta no tiene permiso para esa foto o la ruta no existe
+          console.warn('Foto', f.path, f.error);
         }
-      } catch (err) {
-        console.warn('Excepción de red con Supabase:', err);
       }
     }
+    filas.forEach((fila, i) => {
+      const ruta = rutaEnBucket(fila.foto_path);
+      if (ruta) alertas[i].photoUrl = this.fotosFirmadas.get(ruta)?.url;
+    });
+  }
 
+  private sesionAnonima?: Promise<unknown>;
+
+  /**
+   * Como la app: quien no inició sesión entra con una sesión anónima. Sin sesión el servidor no
+   * firma ninguna foto; con ella, solo las de alertas confirmadas (las de validador ven todas).
+   */
+  private async asegurarSesion() {
+    if (!supabase) return null;
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return data.session;
+    this.sesionAnonima ??= supabase.auth.signInAnonymously().finally(() => {
+      this.sesionAnonima = undefined;
+    });
+    await this.sesionAnonima;
+    return (await supabase.auth.getSession()).data.session;
+  }
+
+  // Obtener todas las alertas reales desde Supabase
+  public async fetchAll(): Promise<AlertUI[]> {
+    if (!supabase || !isSupabaseConfigured) return this.alertsCache;
+    try {
+      const sesion = await this.asegurarSesion();
+      const conCuenta = Boolean(sesion && !sesion.user.is_anonymous);
+      // Con cuenta de validador: la vista del panel (todas, con conteos y folio). Sin cuenta: lo que RLS deja ver.
+      const consultar = (fuente: string) =>
+        supabase!.from(fuente).select('*').order('creada_en', { ascending: false }).limit(300);
+      let resultado = await consultar(conCuenta ? 'alertas_panel' : 'alertas');
+      if (resultado.error && conCuenta) resultado = await consultar('alertas');
+      if (resultado.error || !Array.isArray(resultado.data)) {
+        console.warn('Error al consultar alertas en Supabase:', resultado.error?.message);
+        return this.alertsCache;
+      }
+      const filas = resultado.data as SupabaseAlertaRow[];
+      const alertas = filas.map(mapSupabaseRowToUI);
+      await this.firmarFotos(alertas, filas);
+      this.alertsCache = alertas;
+      this.notify();
+    } catch (err) {
+      console.warn('Excepción de red con Supabase:', err);
+    }
     return this.alertsCache;
   }
 
@@ -227,52 +251,37 @@ class AlertService {
     isOfficial?: boolean;
     officialVerifierName?: string;
   }): Promise<{ success: boolean; alert?: AlertUI; error?: string }> {
-    const expiresHours = 24;
-    const expiresAt = new Date(Date.now() + expiresHours * 3600 * 1000).toISOString();
+    if (!supabase || !isSupabaseConfigured) return this.crearReporteLocal(payload);
+
+    // El servidor decide el estado: con cuenta de validador/institución sale VERIFICADA; los
+    // ciudadanos necesitan su número verificado (en la app). Una foto por URL externa no se
+    // puede adjuntar (solo fotos del bucket propio): se deja en la descripción.
+    const foto = rutaEnBucket(payload.photoPath);
+    const urlExterna = payload.photoPath && !foto ? payload.photoPath.trim() : '';
+    const descripcion = [payload.description.trim(), urlExterna && `Foto: ${urlExterna}`].filter(Boolean).join('\n');
+    const { data, error } = await supabase.rpc('crear_reporte', {
+      p_categoria: payload.category,
+      p_titulo: payload.title.trim(),
+      p_descripcion: descripcion || null,
+      p_referencia: payload.reference?.trim() || null,
+      p_lat: payload.lat,
+      p_lon: payload.lng,
+      p_foto_path: foto,
+      p_folio_911: payload.folio911?.trim() || null,
+      p_consentimiento: Boolean(payload.consent),
+    });
+    if (error) return { success: false, error: mensajeServidor(error.message) };
+    await this.fetchAll();
+    const id = (data as { alerta_id?: string; duplicada_de?: string } | null)?.alerta_id ?? data?.duplicada_de;
+    return { success: true, alert: this.alertsCache.find((a) => a.id === id) };
+  }
+
+  /** Sin Supabase configurado (demostración sin internet): el reporte vive solo en este navegador. */
+  private crearReporteLocal(payload: Parameters<AlertService['createReport']>[0]) {
     const isOfficial = Boolean(payload.isOfficial);
-
-    const newRecord: Partial<SupabaseAlertaRow> = {
-      categoria: payload.category,
-      titulo: payload.title.trim(),
-      descripcion: payload.description.trim() || null,
-      referencia: payload.reference?.trim() || null,
-      foto_path: payload.photoPath || null,
-      folio_911: payload.folio911?.trim() || null,
-      consentimiento: Boolean(payload.consent),
-      lat: payload.lat,
-      lon: payload.lng,
-      estado: isOfficial ? 'verificada' : 'no_confirmada',
-      radio_actual_m: 1000,
-      expira_en: expiresAt,
-      publicada_en: new Date().toISOString(),
-      verificada_en: isOfficial ? new Date().toISOString() : null,
-    };
-
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('alertas')
-          .insert(newRecord)
-          .select()
-          .single();
-
-        if (!error && data) {
-          const alertUI = mapSupabaseRowToUI(data as SupabaseAlertaRow);
-          this.alertsCache = [alertUI, ...this.alertsCache.filter((a) => a.id !== alertUI.id)];
-          this.notify();
-          return { success: true, alert: alertUI };
-        } else if (error) {
-          console.warn('RLS impidió inserción directa en Supabase, registrando en caché local:', error.message);
-        }
-      } catch (err) {
-        console.warn('Error al comunicarse con Supabase:', err);
-      }
-    }
-
-    // Registro local garantizado (siempre funcional y persistente)
-    const localId = `loc-${Date.now()}`;
+    const ahora = new Date().toISOString();
     const localRow: SupabaseAlertaRow = {
-      id: localId,
+      id: `loc-${Date.now()}`,
       categoria: payload.category,
       titulo: payload.title.trim(),
       descripcion: payload.description.trim() || null,
@@ -287,172 +296,67 @@ class AlertService {
       radio_manual_m: null,
       creada_por: null,
       verificada_por: isOfficial ? payload.officialVerifierName || 'CCE Lázaro Cárdenas' : null,
-      creada_en: new Date().toISOString(),
-      publicada_en: new Date().toISOString(),
-      verificada_en: isOfficial ? new Date().toISOString() : null,
+      creada_en: ahora,
+      publicada_en: ahora,
+      verificada_en: isOfficial ? ahora : null,
       cerrada_en: null,
-      expira_en: expiresAt,
+      expira_en: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
       motivo_cierre: null,
     };
-
     const alertUI = mapSupabaseRowToUI(localRow);
     this.alertsCache = [alertUI, ...this.alertsCache];
     this.notify();
     return { success: true, alert: alertUI };
   }
 
-  // Verificar una alerta pendiente o no confirmada (Rol Validador / CCE)
-  public async verifyAlert(id: string, verifierName: string = 'Consejo Coordinador Empresarial'): Promise<boolean> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        await supabase
-          .from('alertas')
-          .update({
-            estado: 'verificada',
-            verificada_en: new Date().toISOString(),
-          })
-          .eq('id', id);
-      } catch (e) {
-        console.warn('Error al actualizar en Supabase:', e);
-      }
-    }
+  /**
+   * Acciones de validador: SIEMPRE con la función del servidor `validar_alerta`, que revisa el rol,
+   * deja registro en la bitácora y avisa a los teléfonos. Si falla, lanza un Error con el motivo.
+   */
+  private async validar(id: string, accion: AccionValidador, extra: { motivo?: string; radio?: number } = {}) {
+    if (!supabase || !isSupabaseConfigured) throw new Error('El portal no está conectado a Supabase.');
+    if (id.startsWith('loc-')) throw new Error('Esa alerta solo existe en este navegador: nunca llegó al servidor.');
+    const { error } = await supabase.rpc('validar_alerta', {
+      p_alerta: id,
+      p_accion: accion,
+      p_motivo: extra.motivo ?? null,
+      p_radio_m: extra.radio ?? null,
+    });
+    if (error) throw new Error(mensajeServidor(error.message));
+    await this.fetchAll();
+  }
 
-    this.alertsCache = this.alertsCache.map((a) =>
-      a.id === id
-        ? {
-            ...a,
-            status: 'verificada',
-            verifiedAt: new Date().toISOString(),
-            verifiedBy: verifierName,
-          }
-        : a
-    );
-    this.notify();
+  // Verificar una alerta pendiente o no confirmada (Rol Validador / CCE)
+  public async verifyAlert(id: string, _verifierName?: string): Promise<boolean> {
+    await this.validar(id, 'verificar');
     return true;
   }
 
   // Ajustar radio manual en metros (1000m, 3000m, 5000m, 10000m, 25000m)
   public async adjustRadius(id: string, radiusMeters: number): Promise<boolean> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        await supabase
-          .from('alertas')
-          .update({
-            radio_manual_m: radiusMeters,
-            radio_actual_m: radiusMeters,
-          })
-          .eq('id', id);
-      } catch (e) {
-        console.warn('Error al ajustar radio en Supabase:', e);
-      }
-    }
-
-    this.alertsCache = this.alertsCache.map((a) =>
-      a.id === id
-        ? {
-            ...a,
-            currentRadiusMeters: radiusMeters,
-            currentRadiusKm: Number((radiusMeters / 1000).toFixed(1)),
-            manualRadiusMeters: radiusMeters,
-          }
-        : a
-    );
-    this.notify();
+    await this.validar(id, 'ajustar_radio', { radio: radiusMeters });
     return true;
   }
 
   // Resolver una alerta (Caso atendido con éxito)
   public async resolveAlert(id: string, reason: string = 'Situación resuelta y atendida'): Promise<boolean> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        await supabase
-          .from('alertas')
-          .update({
-            estado: 'resuelta',
-            cerrada_en: new Date().toISOString(),
-            motivo_cierre: reason,
-          })
-          .eq('id', id);
-      } catch (e) {
-        console.warn('Error al resolver en Supabase:', e);
-      }
-    }
-
-    this.alertsCache = this.alertsCache.map((a) =>
-      a.id === id
-        ? {
-            ...a,
-            status: 'resuelta',
-            closedAt: new Date().toISOString(),
-          }
-        : a
-    );
-    this.notify();
+    await this.validar(id, 'resolver', { motivo: reason });
     return true;
   }
 
   // Descartar una alerta falsa o inválida
   public async discardAlert(id: string, reason: string = 'Descartada por reporte falso o duplicado'): Promise<boolean> {
-    if (supabase && isSupabaseConfigured) {
-      try {
-        await supabase
-          .from('alertas')
-          .update({
-            estado: 'descartada',
-            cerrada_en: new Date().toISOString(),
-            motivo_cierre: reason,
-          })
-          .eq('id', id);
-      } catch (e) {
-        console.warn('Error al descartar en Supabase:', e);
-      }
-    }
-
-    this.alertsCache = this.alertsCache.map((a) =>
-      a.id === id
-        ? {
-            ...a,
-            status: 'descartada',
-            closedAt: new Date().toISOString(),
-          }
-        : a
-    );
-    this.notify();
+    await this.validar(id, 'descartar', { motivo: reason });
     return true;
   }
 
-  // Votar confirmación ciudadana ('confirmo', 'ya_no_esta', 'parece_falsa')
+  // Votar confirmación ciudadana ('confirmo', 'ya_no_esta', 'parece_falsa'). Requiere el número
+  // verificado (en la app): el servidor cuenta un voto por persona y por alerta.
   public async voteConfirmation(alertaId: string, tipo: TipoConfirmacion): Promise<boolean> {
-    const target = this.alertsCache.find((a) => a.id === alertaId);
-    const nextConfirmCount = (target?.confirmedCount || 0) + (tipo === 'confirmo' ? 1 : 0);
-    const nextDisputeCount = (target?.disputeCount || 0) + (tipo === 'parece_falsa' ? 1 : 0);
-
-    // 1. Actualizar caché local y notificar reactivamente a los componentes
-    this.alertsCache = this.alertsCache.map((a) => {
-      if (a.id === alertaId) {
-        if (tipo === 'confirmo') {
-          return { ...a, confirmedCount: nextConfirmCount };
-        } else if (tipo === 'parece_falsa') {
-          return { ...a, disputeCount: nextDisputeCount };
-        }
-      }
-      return a;
-    });
-    this.notify();
-
-    // 2. Persistir en la base de datos de Supabase
-    if (supabase && isSupabaseConfigured) {
-      try {
-        if (tipo === 'confirmo') {
-          await supabase.from('alertas').update({ n_confirmo: nextConfirmCount }).eq('id', alertaId);
-        } else if (tipo === 'parece_falsa') {
-          await supabase.from('alertas').update({ n_parece_falsa: nextDisputeCount }).eq('id', alertaId);
-        }
-      } catch (err) {
-        console.warn('Error persistiendo voto en Supabase:', err);
-      }
-    }
-
+    if (!supabase || !isSupabaseConfigured) throw new Error('El portal no está conectado a Supabase.');
+    const { error } = await supabase.rpc('confirmar_alerta', { p_alerta: alertaId, p_tipo: tipo });
+    if (error) throw new Error(mensajeServidor(error.message));
+    await this.fetchAll();
     return true;
   }
 }

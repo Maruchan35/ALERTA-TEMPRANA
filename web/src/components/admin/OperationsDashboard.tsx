@@ -57,6 +57,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
     try {
       await alertService.verifyAlert(alertId, 'Consejo Coordinador Empresarial (CCE)');
       audioAlert.playInfoAlert();
+    } catch (e) {
+      window.alert((e as Error).message);
     } finally {
       setIsProcessing(null);
     }
@@ -68,6 +70,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
       // Escalones estándar de radio: 1km -> 3km -> 5km -> 10km -> 25km
       const nextMeters = currentMeters <= 1000 ? 3000 : currentMeters <= 3000 ? 5000 : currentMeters <= 5000 ? 10000 : 25000;
       await alertService.adjustRadius(alertId, nextMeters);
+    } catch (e) {
+      window.alert((e as Error).message);
     } finally {
       setIsProcessing(null);
     }
@@ -91,6 +95,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
       await alertService.resolveAlert(selectedAlertToResolve.id, resolutionNote.trim());
       audioAlert.playResolvedChime();
       setSelectedAlertToResolve(null);
+    } catch (e) {
+      window.alert((e as Error).message);
     } finally {
       setIsProcessing(null);
     }
@@ -101,6 +107,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
       setIsProcessing(alertId);
       try {
         await alertService.discardAlert(alertId, 'Reporte desestimado tras verificación operativa en campo.');
+      } catch (e) {
+        window.alert((e as Error).message);
       } finally {
         setIsProcessing(null);
       }
