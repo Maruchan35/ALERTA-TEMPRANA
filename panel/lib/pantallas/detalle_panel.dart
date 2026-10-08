@@ -226,38 +226,6 @@ class _DetallePanelState extends State<DetallePanel> {
                     'Nunca publiques domicilios.',
                   ),
                 ),
-              const SizedBox(height: 16),
-              if (a.estado.abierta)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (a.estado != EstadoAlerta.verificada)
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(backgroundColor: Colores.verde),
-                        onPressed: _ocupado ? null : () => _accion(AccionValidador.verificar),
-                        icon: const Icon(Icons.verified),
-                        label: const Text('Verificar'),
-                      ),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: Colores.marino),
-                      onPressed: _ocupado ? null : () => _accion(AccionValidador.ajustarRadio),
-                      icon: const Icon(Icons.radar),
-                      label: const Text('Ajustar radio'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _ocupado ? null : () => _accion(AccionValidador.resolver),
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Resolver'),
-                    ),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: Colores.rojo),
-                      onPressed: _ocupado ? null : () => _accion(AccionValidador.descartar),
-                      icon: const Icon(Icons.block),
-                      label: const Text('Descartar'),
-                    ),
-                  ],
-                ),
               if (widget.servicio is ServicioDemo && a.estado.activa) ...[
                 const SizedBox(height: 12),
                 Wrap(
@@ -307,6 +275,45 @@ class _DetallePanelState extends State<DetallePanel> {
             ],
           ),
         ),
+        // Acciones siempre visibles (no hay que desplazarse para verificar o descartar)
+        if (a.estado.abierta)
+          Material(
+            elevation: 8,
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (a.estado != EstadoAlerta.verificada)
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: Colores.verde),
+                      onPressed: _ocupado ? null : () => _accion(AccionValidador.verificar),
+                      icon: const Icon(Icons.verified),
+                      label: const Text('Verificar'),
+                    ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: Colores.marino),
+                    onPressed: _ocupado ? null : () => _accion(AccionValidador.ajustarRadio),
+                    icon: const Icon(Icons.radar),
+                    label: const Text('Ajustar radio'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _ocupado ? null : () => _accion(AccionValidador.resolver),
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Resolver'),
+                  ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: Colores.rojo),
+                    onPressed: _ocupado ? null : () => _accion(AccionValidador.descartar),
+                    icon: const Icon(Icons.block),
+                    label: const Text('Descartar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

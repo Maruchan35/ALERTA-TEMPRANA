@@ -34,6 +34,11 @@ void main() {
     await tester.tap(find.text('Niño de 8 años, playera roja y short azul'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Verificar'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('911-2026-04817'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.textContaining('911-2026-04817'), findsOneWidget);
 
     await tester.tap(find.text('Verificar'));
