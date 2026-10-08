@@ -21,6 +21,24 @@ npm run dev
 npx vite --host
 ```
 
-## 🔐 Credenciales del Validador Oficial (CCE)
-- **Usuario:** `admin123@gmail.com`
-- **Contraseña:** `admin123`
+## 🔐 Acceso de moderador
+
+Solo entran cuentas reales de Supabase con rol `validador`, `institucion` o `admin` (el rol se asigna en Supabase:
+[docs/panel-web.md](../docs/panel-web.md), paso 3). **Nunca escribas contraseñas en el código ni en este README**: el
+repositorio y la página son públicos.
+
+## 🧭 Reglas para hablar con el servidor
+
+Todo pasa por [`src/services/alertService.ts`](src/services/alertService.ts):
+
+| Para… | Usa | Nunca |
+|---|---|---|
+| Leer alertas | `alertas_panel` (con cuenta de validador) o `alertas` | — |
+| Verificar, ajustar radio, resolver, descartar | `rpc('validar_alerta', …)` | `.from('alertas').update(…)` |
+| Reportar o emitir una alerta oficial | `rpc('crear_reporte', …)` | `.from('alertas').insert(…)` |
+| Confirmar (“yo también lo vi”) | `rpc('confirmar_alerta', …)` | sumar contadores a mano |
+| Fotos | URL firmada de `storage.from('fotos')` (bucket privado) | `getPublicUrl` o hacer público el bucket |
+
+Las funciones del servidor revisan el rol, dejan registro en la bitácora y avisan a los teléfonos. Una escritura
+directa el servidor la rechaza (RLS) y la página mostraría algo que no pasó. Por eso `npm run build` (y GitHub
+Actions en cada push) falla si alguien la agrega; `npm run revisar` dice en qué archivo y línea.

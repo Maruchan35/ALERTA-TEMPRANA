@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "revisar": "node scripts/sin-escrituras-directas.mjs",
+    "build": "node scripts/sin-escrituras-directas.mjs && tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
