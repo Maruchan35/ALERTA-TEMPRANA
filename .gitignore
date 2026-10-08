@@ -34,3 +34,6 @@ Thumbs.db
 
 # ─── Configuración local de Claude Code ─────────────────────────────────────
 .claude/
+
+# ─── APK compilados localmente ──────────────────────────────────────────────
+apk/

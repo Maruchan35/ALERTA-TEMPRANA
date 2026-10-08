@@ -6,6 +6,9 @@
 -- del servidor (crear_reporte, confirmar_alerta, validar_alerta) que validan todo.
 -- =============================================================================
 
+-- En Supabase, PostGIS vive en el esquema `extensions`: la sesión de la migración debe verlo.
+set search_path = public, extensions;
+
 -- ¿Quien hace la petición es validador, institución o admin?
 create or replace function es_validador() returns boolean
 language sql stable security definer set search_path = public as $$

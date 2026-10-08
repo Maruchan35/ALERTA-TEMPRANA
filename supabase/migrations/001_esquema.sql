@@ -11,6 +11,9 @@ create extension if not exists postgis with schema extensions;
 create extension if not exists pg_cron with schema pg_catalog;   -- tareas periódicas
 create extension if not exists pg_net with schema extensions;    -- HTTP desde SQL (crea el esquema net)
 
+-- En Supabase, PostGIS vive en el esquema `extensions`: la sesión de la migración debe verlo.
+set search_path = public, extensions;
+
 -- ─── Tipos ──────────────────────────────────────────────────────────────────
 create type categoria_alerta as enum (
   'menor_desaparecido', 'persona_desaparecida', 'persona_vulnerable', 'robo_vehiculo',

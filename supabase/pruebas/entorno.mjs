@@ -30,6 +30,9 @@ export async function crearEntorno() {
     let sql = await readFile(path.join(raizSupabase, 'migrations', archivo), 'utf8');
     // pg_cron y pg_net no existen en PGlite: los emulan los stubs
     sql = sql.replace(/^create extension if not exists (pg_cron|pg_net)[^;]*;/gim, '-- (emulado en pruebas)');
+    // Como en `supabase db push`: cada archivo corre en una sesión SIN el esquema `extensions`
+    // en el search_path, así que cada migración debe declararlo (PostGIS vive ahí).
+    await db.exec(`set search_path = "$user", public`);
     try {
       await db.exec(sql);
     } catch (e) {

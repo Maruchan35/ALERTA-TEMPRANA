@@ -11,6 +11,9 @@
 --   select vault.create_secret('UNA_CADENA_LARGA_Y_ALEATORIA',            'secreto_funciones');
 -- =============================================================================
 
+-- En Supabase, PostGIS vive en el esquema `extensions`: la sesión de la migración debe verlo.
+set search_path = public, extensions;
+
 -- Llama a una Edge Function desde SQL. pg_net envía la petición DESPUÉS de que la
 -- transacción se confirma, así que la función ya encuentra la alerta guardada.
 create or replace function llamar_funcion(p_funcion text, p_cuerpo jsonb) returns void

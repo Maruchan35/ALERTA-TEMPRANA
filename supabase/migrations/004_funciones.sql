@@ -7,6 +7,9 @@
 -- final del archivo: nadie con la anon key puede llamarlas (prueba P14).
 -- =============================================================================
 
+-- En Supabase, PostGIS vive en el esquema `extensions`: la sesión de la migración debe verlo.
+set search_path = public, extensions;
+
 -- ─── Vista interna con los campos que se pueden mostrar a cualquier persona ──
 -- No se expone por la API (se revoca abajo); la usan alertas_cercanas() y obtener_alerta().
 -- Nunca incluye quién reportó ni el folio del 911.

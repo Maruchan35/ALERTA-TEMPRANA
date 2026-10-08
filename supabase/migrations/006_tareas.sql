@@ -7,6 +7,9 @@
 -- volver a ejecutar sin duplicar nada.
 -- =============================================================================
 
+-- En Supabase, PostGIS vive en el esquema `extensions`: la sesión de la migración debe verlo.
+set search_path = public, extensions;
+
 -- Radio dinámico: cada 15 segundos, ¿alguna alerta ya puede llegar más lejos?
 select cron.schedule('ampliar-radios', '15 seconds', 'select public.ampliar_radios()');
 

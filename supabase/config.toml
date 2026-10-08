@@ -70,12 +70,26 @@ enable_confirmations = false
 template = "Tu código de ALERTA CERCA es {{ .Code }}"
 max_frequency = "30s"
 
-# Números de prueba para la demo: no envían SMS, el código es fijo.
+# Números de prueba para la demo: no envían SMS y el código es fijo (123456). En la app se
+# escriben a 10 dígitos (5511111111). Sirven desde cualquier teléfono: 1 número = 1 cuenta.
 [auth.sms.test_otp]
 525511111111 = "123456"
 525522222222 = "123456"
 525533333333 = "123456"
 525544444444 = "123456"
+525555555555 = "123456"
+525566666666 = "123456"
+525577777777 = "123456"
+525588888888 = "123456"
+
+# Supabase exige un proveedor de SMS para activar el acceso por teléfono. En el prototipo se
+# deja uno de relleno: los números de prueba NO pasan por el proveedor. Para números reales,
+# crea una cuenta de Twilio, pon aquí sus datos y define el token en la variable de entorno.
+[auth.sms.twilio]
+enabled = true
+account_sid = "AC00000000000000000000000000000000"
+message_service_sid = "MG00000000000000000000000000000000"
+auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 
 [edge_runtime]
 enabled = true

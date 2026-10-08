@@ -3,6 +3,9 @@
 -- Ubicaciones, celdas y perfiles automáticos (paso 1.3).
 -- =============================================================================
 
+-- En Supabase, PostGIS vive en el esquema `extensions`: la sesión de la migración debe verlo.
+set search_path = public, extensions;
+
 -- Convierte lat/lon de la alerta en un punto geográfico
 create or replace function fijar_ubicacion_alerta() returns trigger
 language plpgsql set search_path = public, extensions as $$
