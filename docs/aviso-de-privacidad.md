@@ -13,7 +13,8 @@ Cárdenas. Durante un piloto, el responsable sería el organismo que lo opere. C
 - Una celda de ~1.2 × 0.6 km donde está tu teléfono. Tu ubicación exacta **nunca sale de tu teléfono**.
 - El identificador de notificaciones de tu teléfono (token), para poder avisarte.
 - Las celdas de tus zonas guardadas (casa, escuela, trabajo), si las agregas.
-- Solo si quieres reportar o confirmar: tu número de teléfono verificado.
+- Solo si quieres reportar o confirmar: tu número de teléfono, que verificamos con un código por WhatsApp. El
+  registro de ese mensaje se borra al día siguiente.
 - En los reportes: la ubicación del suceso (un lugar, no una persona), la descripción y, si la agregas, una foto sin
   metadatos.
 - Si usas el bot de Telegram: tu identificador de chat y la celda de la ubicación que compartiste.

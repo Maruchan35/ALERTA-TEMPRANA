@@ -14,8 +14,8 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 
 | Carpeta | Qué es | Estado |
 |---|---|---|
-| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, pg_cron, Vault | **48 pruebas automáticas** (PGlite + PostGIS reales) |
-| [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento` | **17 pruebas** Deno, tipos y lint |
+| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, verificación por WhatsApp, pg_cron, Vault | **51 pruebas automáticas** (PGlite + PostGIS reales) |
+| [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento`, `whatsapp` | **20 pruebas** Deno, tipos y lint |
 | [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push | Compila; analizada sin errores |
 | [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **simulador de 4 teléfonos** | Compila; analizado sin errores |
 | [`compartido/`](compartido) | Paquete Dart común: modelos, geohash, catálogo, servicio Supabase y **motor de demostración** con las mismas reglas del backend | Pruebas unitarias |
@@ -39,7 +39,7 @@ factor de tiempo 30). Requiere [Flutter](https://docs.flutter.dev) 3.47+.
 
 ```bash
 cd panel && flutter run -d chrome     # panel: entra con los datos precargados → pestaña "Simulador"
-cd app && flutter run -d chrome       # app: código de verificación de la demo = 123456
+cd app && flutter run -d chrome       # app: el código de verificación llega por WhatsApp simulado (123456 en la demo)
 ```
 
 En el panel: abre “Por validar” → **Verificar** el menor → en “Simulador” el teléfono **A (300 m)** lo recibe al instante,
@@ -50,7 +50,8 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 ## Despliegue real (paso a paso)
 
 1. **Supabase** (plan Free): crea el proyecto; en *Authentication → Sign In / Providers* activa *Anonymous sign-ins*,
-   *Email* y *Phone* (con números de prueba, p. ej. `525511111111 → 123456`).
+   *Email* y *Phone* (el código de verificación llega por WhatsApp: ver
+   [despliegue, paso 5c](docs/despliegue.md#5c-verificación-por-whatsapp-r2)).
 2. **Base de datos** (con la CLI: `npx supabase login`, `npx supabase link --project-ref TU_REF`):
    ```bash
    npx supabase db push --include-seed
@@ -98,8 +99,8 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 ## Pruebas
 
 ```bash
-cd supabase/pruebas && npm install && npm test        # 48 pruebas: P01–P14, P19, colmena, RLS, scripts de operación
-cd supabase/functions && deno task probar             # 17 pruebas de las Edge Functions
+cd supabase/pruebas && npm install && npm test        # 51 pruebas: P01–P14, P19, colmena, WhatsApp, RLS, scripts
+cd supabase/functions && deno task probar             # 20 pruebas de las Edge Functions
 cd compartido && flutter test                         # motor de demo, geohash, radio, mensajes
 ```
 

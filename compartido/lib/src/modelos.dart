@@ -386,6 +386,22 @@ class NuevoReporte {
   final bool consentimiento;
 }
 
+/// Mensaje de WhatsApp SIMULADO con el código de verificación (mientras no haya WhatsApp
+/// Business, el servidor lo guarda y la app que lo pidió lo muestra como si hubiera llegado).
+class MensajeWhatsapp {
+  const MensajeWhatsapp({required this.texto, required this.enviadoEn, this.codigo});
+
+  factory MensajeWhatsapp.desdeMapa(Map<String, dynamic> m) => MensajeWhatsapp(
+    texto: m['texto'] as String,
+    codigo: m['codigo'] as String?,
+    enviadoEn: DateTime.parse(m['enviado_en'] as String).toLocal(),
+  );
+
+  final String texto;
+  final String? codigo;
+  final DateTime enviadoEn;
+}
+
 class Zona {
   const Zona({required this.id, required this.nombre, required this.celda});
 

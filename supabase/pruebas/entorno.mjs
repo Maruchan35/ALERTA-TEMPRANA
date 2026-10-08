@@ -60,11 +60,11 @@ export class Entorno {
     await this.db.exec(`
       truncate alertas, dispositivos, zonas_usuario, entregas, confirmaciones,
                suscriptores_telegram, entregas_telegram, bitacora, storage.objects,
-               net.solicitudes restart identity cascade;
+               net.solicitudes, privado.mensajes_whatsapp restart identity cascade;
       delete from auth.users;
       update config set factor_tiempo = 1, minutos_espera_validador = 5, confirmaciones_corroborar = 3,
                         confirmaciones_colmena = 6, radio_max_corroborada_m = 3000, radio_max_colmena_m = 10000,
-                        reportes_por_hora = 10;
+                        reportes_por_hora = 10, whatsapp_simulado = true;
       delete from vault.secrets;
       select vault.create_secret('https://prueba.supabase.co/functions/v1', 'url_funciones');
       select vault.create_secret('secreto-de-prueba', 'secreto_funciones');

@@ -108,10 +108,30 @@ vistas y llama funciones del servidor, que validan el rol y dejan registro en la
   supabase.channel('panel').on('postgres_changes', { event: '*', schema: 'public', table: 'alertas' },
     () => recargar()).subscribe();
 
-  // 6. Foto (bucket privado): URL firmada por 10 minutos
-  const { data: foto } = await supabase.storage.from('fotos').createSignedUrl(alerta.foto_path, 600);
+  // 6. Foto (bucket privado): URL firmada por 10 minutos. NUNCA getPublicUrl: el bucket es privado
+  //    y esa URL siempre falla. Para varias a la vez: createSignedUrls([rutas], 600).
+  if (alerta.foto_path) {
+    const { data: foto, error: e } = await supabase.storage.from('fotos').createSignedUrl(alerta.foto_path, 600);
+    if (e) console.error('Foto:', e.message);   // casi siempre: la cuenta no tiene rol de validador
+    else document.querySelector('#foto').src = foto.signedUrl;
+  }
 </script>
 ```
+
+### Fotos
+
+El bucket `fotos` es **privado**: cada foto se pide con `createSignedUrl` (o `createSignedUrls` para varias) y la URL
+dura 10 minutos. Un validador, institución o administrador ve todas; otras cuentas solo las de alertas confirmadas.
+Si no aparecen:
+
+| Síntoma | Causa |
+|---|---|
+| `getPublicUrl` devuelve una URL que da 400/404 | El bucket es privado: usa `createSignedUrl`. |
+| `createSignedUrl` responde *Object not found* | La cuenta no tiene rol de validador/institución/admin (paso 3), o la ruta no es la de `foto_path`. |
+| La URL firmada abre en el navegador pero la página no la muestra | Pasaron más de 10 minutos: pide otra. |
+
+En el panel incluido (Flutter Web) la foto se carga igual y, si algo falla, ahora muestra el motivo en vez de un hueco
+en blanco; un clic la abre en grande.
 
 ### Qué trae cada fuente
 

@@ -29,9 +29,13 @@ abstract class ServicioAlertas {
   Future<void> iniciarSesionAnonima();
   Future<Perfil?> recargarPerfil();
 
-  /// Envía un código por SMS al número (10 dígitos de México) para verificar la cuenta.
+  /// Envía un código por WhatsApp al número (10 dígitos de México) para verificar la cuenta.
   Future<void> enviarCodigo(String telefono);
   Future<void> verificarCodigo(String telefono, String codigo);
+
+  /// WhatsApp SIMULADO: el último mensaje con código que "recibió" ese número en los últimos
+  /// 10 minutos (null si no hay, o si el envío ya es por WhatsApp de verdad).
+  Future<MensajeWhatsapp?> whatsappSimulado(String telefono);
 
   /// Acceso con correo y contraseña (validadores e instituciones).
   Future<void> iniciarSesionCorreo(String correo, String contrasena);

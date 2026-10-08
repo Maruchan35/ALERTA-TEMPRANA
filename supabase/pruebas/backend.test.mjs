@@ -446,6 +446,64 @@ test('para reportar, confirmar o subir fotos hace falta un teléfono verificado:
   assert.equal((await env.reportar(pc, { titulo: 'Incendio en bodega', punto: PUNTOS.D })).estado, 'verificada');
 });
 
+// ─── Verificación del teléfono por WhatsApp (Auth Hook "Send SMS") ──────────
+
+/** Lo que hace Supabase Auth al mandar un código: llama al hook con el rol supabase_auth_admin. */
+const hookWhatsapp = (evento) => env.db.transaction(async (tx) => {
+  await tx.exec('set local role supabase_auth_admin');
+  return (await tx.query(`select enviar_codigo_whatsapp($1::jsonb) as r`, [JSON.stringify(evento)])).rows[0].r;
+});
+
+test('WhatsApp simulado: Auth entrega el código al hook y la app que lo pidió lo "recibe"', async () => {
+  const u = await env.crearUsuario({ anonimo: true });
+  // Cuenta anónima que agrega su número: el número nuevo viene en `new_phone`
+  assert.deepEqual(await hookWhatsapp({ user: { id: u.id, phone: '', new_phone: '525522222222' }, sms: { otp: '482913' } }), {});
+  const [m] = await env.rpc(u, 'whatsapp_simulado', { p_telefono: '+52 55 2222 2222' });
+  assert.equal(m.codigo, '482913');
+  assert.match(m.texto, /tu código de verificación es 482913/);
+
+  // Lo normal: Auth manda el número en `sms.phone`
+  await hookWhatsapp({ user: { id: u.id, phone: '525533333333' }, sms: { otp: '111222', phone: '+525533333333' } });
+  assert.equal((await env.rpc(u, 'whatsapp_simulado', { p_telefono: '525533333333' }))[0].codigo, '111222');
+
+  // Solo los de los últimos 10 minutos, y solo en modo simulado
+  await env.sql(`update privado.mensajes_whatsapp set enviado_en = now() - interval '11 minutes'
+                 where telefono = '525533333333'`);
+  assert.deepEqual(await env.rpc(u, 'whatsapp_simulado', { p_telefono: '525533333333' }), []);
+  await env.sql(`update config set whatsapp_simulado = false`);
+  assert.deepEqual(await env.rpc(u, 'whatsapp_simulado', { p_telefono: '525522222222' }), []);
+
+  // Retención: a los 1 día se borran
+  await env.sql(`update privado.mensajes_whatsapp set enviado_en = now() - interval '2 days'`);
+  await env.sql(`select limpieza_diaria()`);
+  assert.equal((await env.sql(`select count(*)::int as n from privado.mensajes_whatsapp`))[0].n, 0);
+});
+
+test('WhatsApp real: sin modo simulado el hook llama a la Edge Function y no guarda el código', async () => {
+  await env.sql(`update config set whatsapp_simulado = false`);
+  const evento = { user: { id: '00000000-0000-4000-8000-000000000001', phone: '', new_phone: '525544444444' },
+    sms: { otp: '654321' } };
+  assert.deepEqual(await hookWhatsapp(evento), {});
+  const llamadas = await env.sql(`select headers, body from net.solicitudes where url like '%/whatsapp'`);
+  assert.equal(llamadas.length, 1);
+  assert.deepEqual(llamadas[0].body, { telefono: '525544444444', codigo: '654321' });
+  assert.equal(llamadas[0].headers['x-alerta-secreto'], 'secreto-de-prueba');
+  assert.deepEqual(await env.sql(`select codigo, simulado from privado.mensajes_whatsapp`), [{ codigo: null, simulado: false }]);
+});
+
+test('WhatsApp: el hook rechaza números inválidos y nadie más puede llamarlo ni leer los mensajes', async () => {
+  const r = await hookWhatsapp({ user: { phone: 'abc' }, sms: { otp: '123456' } });
+  assert.equal(r.error.http_code, 400);
+  const u = await env.crearUsuario({ anonimo: true });
+  for (const usuario of [null, u]) {
+    await assert.rejects(env.como(usuario, (tx) => tx.query(`select enviar_codigo_whatsapp('{}'::jsonb)`)),
+      /permission denied/);
+    await assert.rejects(env.como(usuario, (tx) => tx.query(`select * from privado.mensajes_whatsapp`)),
+      /permission denied/);
+  }
+  await assert.rejects(env.rpc(null, 'whatsapp_simulado', { p_telefono: '525522222222' }), /permission denied/);
+});
+
 // ─── P11: límite de reportes ───────────────────────────────────────────────
 
 test('P11: al pasar el límite de reportes por hora (config, 10 por defecto) se rechaza con un mensaje claro', async () => {
@@ -550,6 +608,8 @@ test('P14: con la anon key no se pueden leer tokens ni llamar funciones internas
     `select limpieza_diaria()`,
     `select * from fotos_por_borrar()`,
     `select * from alertas_publicas`,
+    `select enviar_codigo_whatsapp('{}'::jsonb)`,
+    `select * from privado.mensajes_whatsapp`,
   ];
   for (const usuario of [null, t.A]) {
     for (const consulta of internas) {

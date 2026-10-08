@@ -49,7 +49,12 @@ class ServicioSupabase implements ServicioAlertas {
     if (t.contains('token has expired') || t.contains('otp') && t.contains('invalid')) {
       return 'El código es incorrecto o ya venció.';
     }
+    final espera = RegExp(r'after (\d+) seconds').firstMatch(t);
+    if (espera != null) return 'Por seguridad, espera ${espera.group(1)} segundos para pedir otro código.';
     if (t.contains('rate limit') || t.contains('too many')) return 'Demasiados intentos. Espera un momento.';
+    if (t.contains('hook') || t.contains('error sending')) {
+      return 'No se pudo enviar el código por WhatsApp. Intenta de nuevo en un momento.';
+    }
     if (t.contains('phone') && t.contains('invalid')) return 'Número de teléfono inválido.';
     if (t.contains('email logins are disabled') || t.contains('email_provider_disabled')) {
       return 'El acceso con correo está apagado en el servidor (Supabase → Authentication → Sign In / Providers → Email).';
@@ -96,6 +101,8 @@ class ServicioSupabase implements ServicioAlertas {
     return _perfil.value;
   }
 
+  /// El código lo genera Supabase Auth y lo entrega el Auth Hook `enviar_codigo_whatsapp`
+  /// (009_whatsapp.sql) por WhatsApp, no por SMS.
   @override
   Future<void> enviarCodigo(String telefono) => _intentar(() async {
     final numero = '+52$telefono';
@@ -117,6 +124,16 @@ class ServicioSupabase implements ServicioAlertas {
     await cliente.auth.refreshSession();
     await recargarPerfil();
   });
+
+  @override
+  Future<MensajeWhatsapp?> whatsappSimulado(String telefono) async {
+    try {
+      final filas = await cliente.rpc('whatsapp_simulado', params: {'p_telefono': '52$telefono'}) as List;
+      return filas.isEmpty ? null : MensajeWhatsapp.desdeMapa(filas.first as Map<String, dynamic>);
+    } catch (_) {
+      return null; // sin conexión: la pantalla sigue esperando o permite reenviar
+    }
+  }
 
   @override
   Future<void> iniciarSesionCorreo(String correo, String contrasena) => _intentar(() async {
@@ -169,9 +186,11 @@ class ServicioSupabase implements ServicioAlertas {
   Future<ImageProvider?> imagenFoto(String path) async {
     try {
       final url = await cliente.storage.from('fotos').createSignedUrl(path, 600);
-      return NetworkImage(url);
-    } catch (_) {
-      return null; // sin permiso (p. ej. la alerta ya se resolvió) o sin conexión
+      // En la web, si el navegador no deja leer la imagen desde Flutter, se muestra con <img>
+      return NetworkImage(url, webHtmlElementStrategy: WebHtmlElementStrategy.fallback);
+    } catch (e) {
+      debugPrint('Foto $path: $e');
+      return null; // sin permiso (p. ej. la alerta ya se resolvió o la cuenta no es validadora) o sin conexión
     }
   }
 

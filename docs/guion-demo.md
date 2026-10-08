@@ -75,7 +75,7 @@ Costo del prototipo: $0 (planes gratuitos). Piloto con empresas del CCE, escuela
 |---|---|
 | ¿Y si alguien publica una alerta falsa? | Para reportar o confirmar se necesita un teléfono verificado; lo no confirmado viaja máximo 1 km; la foto de una persona solo se muestra cuando la alerta ya está confirmada; 3 votos de “parece falsa” la regresan a revisión; reputación (−2 por descarte, suspensión en −6) y bitácora. |
 | ¿Por qué no SMS o una alerta sin app? | El único canal universal, Cell Broadcast, lo operan autoridades y operadores; el SMS cuesta. El feed CAP permite que una autoridad retransmita nuestras alertas verificadas. |
-| ¿Cuánto cuesta? | Prototipo $0. Un piloto cabe en planes gratuitos o Supabase Pro (~25 USD/mes). El único costo variable es el SMS de verificación de quien reporta. |
+| ¿Cuánto cuesta? | Prototipo $0. Un piloto cabe en planes gratuitos o Supabase Pro (~25 USD/mes). La verificación de quien reporta es por WhatsApp (hoy simulada; con WhatsApp Business cada código cuesta centavos). |
 | ¿Gasta batería? | No rastreamos continuamente: precisión media solo al abrir la app, al cambiar de celda o cada 15 min si la persona lo permite. |
 | ¿Funciona en iPhone? | Mismo código Flutter; publicarlo requiere la cuenta de Apple Developer (99 USD/año). |
 | ¿Quién valida a las 3 a. m.? | Nadie tiene que estar despierto para que funcione: la colmena publica sola los reportes en revisión a los 5 minutos (o al instante con un segundo testigo) y las confirmaciones de vecinos amplían el radio. Los validadores aceleran y corrigen; el panel mide su tiempo de respuesta. |

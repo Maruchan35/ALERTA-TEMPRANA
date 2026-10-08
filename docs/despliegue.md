@@ -25,8 +25,9 @@ local (`supabase start`); para desplegar a la nube no.
 2. **Authentication → Sign In / Providers**:
    - *Allow anonymous sign-ins*: **activado** (recibir alertas no pide cuenta).
    - *Email*: activado (cuentas de validadores). Puedes desactivar el registro público de correo.
-   - *Phone*: activado (quien reporta verifica su número). Agrega **números de prueba** con código fijo, p. ej.
-     `525511111111 → 123456`. Si pide un proveedor de SMS para guardar, crea una cuenta de prueba de Twilio.
+   - *Phone*: activado (quien reporta verifica su número **por WhatsApp**, ver el paso 5c). Si pide un proveedor
+     de SMS para guardar, deja uno de relleno: el código no viaja por SMS. **No** agregues números de prueba con
+     código fijo: esos se saltan WhatsApp.
 3. **Project Settings → API Keys**: copia la **Project URL** y la **publishable key** (o la *anon key* en la pestaña
    *Legacy*). Ambas son públicas. **Nunca** copies la `service_role`/`secret` key a la app ni a git.
 4. Vincula el proyecto (el REF está en la URL del panel: `supabase.com/dashboard/project/<REF>`):
@@ -155,6 +156,25 @@ app ya tenga en otra pantalla. Si cambias permisos, plugins, el `AndroidManifest
 servidor (tablas, categorías, radios, Edge Functions) nunca requieren actualizar la app, y el panel web se actualiza
 con solo recargar la página.
 
+## 5c. Verificación por WhatsApp (R2)
+
+Quien quiere reportar o confirmar verifica su número con un código que llega **por WhatsApp**, no por SMS
+([009_whatsapp.sql](../supabase/migrations/009_whatsapp.sql)). Supabase Auth genera y comprueba el código (1 número =
+1 cuenta) y se lo entrega a la función `enviar_codigo_whatsapp()` (Auth Hook *Send SMS*). `supabase config push` lo
+activa (`[auth.hook.send_sms]` en `config.toml`); en el panel se ve en **Authentication → Hooks**.
+
+- **Simulado (mientras no haya WhatsApp Business)**: `config.whatsapp_simulado = true` (así viene). El mensaje queda
+  en `privado.mensajes_whatsapp` y la app que lo pidió lo muestra como una burbuja de WhatsApp y escribe el código
+  sola. Cualquier número sirve. **Es solo para pruebas**: cualquiera podría verificar cualquier número.
+- **WhatsApp de verdad**: cuenta de WhatsApp Business en Meta, un número que envíe y una plantilla de *autenticación*
+  aprobada (por defecto `codigo_verificacion`, idioma `es_MX`, con botón “Copiar código”). Pon `WHATSAPP_TOKEN` y
+  `WHATSAPP_PHONE_NUMBER_ID` en `supabase/functions/.env`, súbelos (`npx supabase secrets set --env-file
+  supabase/functions/.env`), despliega la función (`npx supabase functions deploy whatsapp --use-api`) y en el SQL
+  Editor: `update config set whatsapp_simulado = false;`. Desde ese momento el código ya no se guarda: lo envía la
+  Edge Function [`whatsapp`](../supabase/functions/whatsapp/index.ts).
+- Los números de prueba con código fijo (*Authentication → Sign In / Providers → Phone → Test phone numbers*) se
+  saltan el hook: bórralos.
+
 ## 6. Telegram (R2, opcional)
 
 1. En Telegram, **@BotFather** → `/newbot` (nombre *ALERTA CERCA Demo*, usuario terminado en `bot`). Guarda el token.
@@ -200,5 +220,7 @@ Para una versión (Release) con el APK de demostración: `git tag v1.0.0 && git 
 | Con la app cerrada no llega nada (Xiaomi, Redmi, POCO, Huawei, Oppo, Vivo) | El fabricante bloquea la app en segundo plano: en la app, *Ajustes → Avisos con la app cerrada*, y en los ajustes del teléfono activa **Inicio automático** y batería **Sin restricciones**. *Ajustes → Probar una notificación* confirma que el teléfono las muestra. |
 | Solo me llegan mis propias alertas | El push solo llega a teléfonos **registrados**: el panel muestra cuántos hay (*teléfonos registrados*). Cada teléfono necesita la APK v1.0.0 (las anteriores no tienen push ni se actualizan solas), abrirla, aceptar notificaciones y cerrarla y abrirla otra vez para aplicar las actualizaciones. En la app, *Ajustes → Registro para recibir alertas* debe estar en verde. Además el aviso solo llega **dentro del radio** (1 km si no está confirmada): para probar desde lugares distintos, elijan el mismo punto en *Ajustes → Demostración · ubicación simulada*. |
 | El botón “Yo también lo vi” no aparece | No aparece en tus propios reportes (nadie confirma lo suyo): ahí la app muestra cuántas confirmaciones lleva. Los demás lo ven en el detalle de la alerta; para que cuente, verifican su número una vez, cada teléfono con un número distinto (55 2222 2222, 55 3333 3333… código 123456). |
+| No llega el WhatsApp con el código | En modo simulado aparece en la misma pantalla en 1–2 s. Si no: ¿el número está en *Test phone numbers*? (esos no pasan por WhatsApp: bórralos). ¿*Authentication → Hooks* muestra *Send SMS* activado con `enviar_codigo_whatsapp`? Con WhatsApp real, revisa los registros de la función `whatsapp`. |
+| `Por seguridad, espera N segundos para pedir otro código` | Es el límite de Auth por número (30 s). |
 | `Alcanzaste el límite de reportes` | Son 10 reportes nuevos por hora por persona (los duplicados no cuentan). Para pruebas intensas: `update config set reportes_por_hora = 30;` |
 | `permission denied for function …` desde la app | Es correcto para las funciones internas (prueba P14). La app solo llama `registrar_dispositivo`, `alertas_cercanas`, `obtener_alerta`, `crear_reporte`, `confirmar_alerta`, `validar_alerta` y `borrar_mi_cuenta`. |

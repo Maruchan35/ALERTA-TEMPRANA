@@ -27,6 +27,10 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 
 ## Además de la propuesta
 
+- **Verificación por WhatsApp** (`009_whatsapp.sql`): el hook guarda el código y solo se “recibe” en los 10 minutos
+  siguientes y en modo simulado; sin modo simulado llama a la Edge Function `whatsapp` y no guarda el código; rechaza
+  números inválidos; nadie más puede llamarlo ni leer los mensajes; retención de 1 día. La plantilla de WhatsApp
+  Cloud API se prueba en `whatsapp_test.ts`, y el WhatsApp simulado de la demo en `compartido`.
 - **Colmena** (`007_colmena.sql`): publicación automática a los 5 min sin revisión, segundo testigo que publica al
   instante, sin publicación automática para autores con reputación baja ni para lo regresado por votos, tope de 10 km
   con 6 confirmaciones, umbrales configurables en `config`, foto de personas oculta hasta confirmarse y teléfono
@@ -47,8 +51,8 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 ## Cómo ejecutarlas
 
 ```bash
-cd supabase/pruebas && npm install && npm test     # 48 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
-cd supabase/functions && deno task probar          # 17 pruebas
+cd supabase/pruebas && npm install && npm test     # 51 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
+cd supabase/functions && deno task probar          # 20 pruebas
 cd supabase/functions && deno task revisar         # tipos, lint y formato
 cd compartido && flutter test                      # geohash, radio, mensajes y motor de demostración
 cd app && flutter test                             # pantallas (modo demostración)

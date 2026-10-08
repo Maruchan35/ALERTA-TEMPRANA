@@ -106,6 +106,30 @@ class _DetallePanelState extends State<DetallePanel> {
     }
   }
 
+  void _verFoto(BuildContext context, ImageProvider foto) => showDialog<void>(
+    context: context,
+    builder: (context) => Dialog(
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          InteractiveViewer(
+            maxScale: 5,
+            child: Image(image: foto, fit: BoxFit.contain),
+          ),
+          Positioned(
+            right: 4,
+            top: 4,
+            child: IconButton.filledTonal(
+              tooltip: 'Cerrar',
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final a = widget.alerta;
@@ -153,15 +177,36 @@ class _DetallePanelState extends State<DetallePanel> {
               if (_foto != null)
                 FutureBuilder<ImageProvider?>(
                   future: _foto,
-                  builder: (context, s) => s.data == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                  builder: (context, s) {
+                    if (s.connectionState != ConnectionState.done) {
+                      return const SizedBox(height: 220, child: Center(child: CircularProgressIndicator()));
+                    }
+                    if (s.data == null) {
+                      return const _AvisoFoto(
+                        'No se pudo obtener la foto. Revisa tu conexión y que tu cuenta tenga rol de validador, '
+                        'institución o administrador.',
+                      );
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Tooltip(
+                        message: 'Ver la foto completa',
+                        child: InkWell(
+                          onTap: () => _verFoto(context, s.data!),
+                          borderRadius: BorderRadius.circular(12),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image(image: s.data!, height: 220, fit: BoxFit.cover),
+                            child: Image(
+                              image: s.data!,
+                              height: 220,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, e, _) => _AvisoFoto('El navegador no pudo mostrar la foto: $e'),
+                            ),
                           ),
                         ),
+                      ),
+                    );
+                  },
                 ),
               if (a.descripcion != null) Text(a.descripcion!, style: const TextStyle(fontSize: 15)),
               if (a.referencia != null)
@@ -349,6 +394,27 @@ class _Fila extends StatelessWidget {
           ),
         ),
         Expanded(child: Text(valor)),
+      ],
+    ),
+  );
+}
+
+/// Cuando la foto no se puede obtener o mostrar: el motivo a la vista, no un hueco en blanco.
+class _AvisoFoto extends StatelessWidget {
+  const _AvisoFoto(this.texto);
+
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: const Color(0xFFFFF4E5), borderRadius: BorderRadius.circular(12)),
+    child: Row(
+      children: [
+        const Icon(Icons.broken_image_outlined, color: Color(0xFF8A4B00)),
+        const SizedBox(width: 10),
+        Expanded(child: Text(texto)),
       ],
     ),
   );

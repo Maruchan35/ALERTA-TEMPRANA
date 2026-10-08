@@ -17,12 +17,16 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role') then
     create role service_role nologin noinherit bypassrls;
   end if;
+  -- Rol con el que Supabase Auth ejecuta los Auth Hooks de Postgres
+  if not exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then
+    create role supabase_auth_admin nologin noinherit;
+  end if;
 end $$;
 
 create schema if not exists extensions;
 create extension if not exists postgis with schema extensions;
 
-grant usage on schema public, extensions to anon, authenticated, service_role;
+grant usage on schema public, extensions to anon, authenticated, service_role, supabase_auth_admin;
 alter default privileges in schema public grant all on tables    to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;

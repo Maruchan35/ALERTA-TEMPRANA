@@ -135,6 +135,28 @@ abstract final class Notificaciones {
     );
   }
 
+  /// WhatsApp simulado: el código "llega" como notificación, igual que llegaría un mensaje.
+  static Future<void> mensajeWhatsapp(String texto) async {
+    if (kIsWeb || !_listo) return;
+    final canal = canales[3]!;
+    await _plugin.show(
+      id: 8,
+      title: 'WhatsApp · ALERTA CERCA (simulado)',
+      body: texto,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          canal.id,
+          canal.name,
+          channelDescription: canal.description,
+          importance: canal.importance,
+          priority: Priority.high,
+          color: const Color(0xFF25D366),
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+    );
+  }
+
   static Future<bool> permitidas() async {
     if (kIsWeb) return true;
     final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();

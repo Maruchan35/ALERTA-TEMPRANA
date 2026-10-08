@@ -11,6 +11,6 @@
   },
   "tasks": {
     "probar": "deno test --allow-env _compartido/",
-    "revisar": "deno check notificar/index.ts telegram-webhook/index.ts cap/index.ts mantenimiento/index.ts && deno lint && deno fmt --check"
+    "revisar": "deno check notificar/index.ts telegram-webhook/index.ts cap/index.ts mantenimiento/index.ts whatsapp/index.ts && deno lint && deno fmt --check"
   }
 }

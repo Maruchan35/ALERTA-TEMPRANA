@@ -295,6 +295,20 @@ void main() {
       app.cerrar();
     });
 
+    test('WhatsApp simulado: el código "llega" solo al número que lo pidió', () async {
+      final app = ServicioDemo(reloj: () => ahora, iniciarReloj: false, sembrar: false);
+      await app.iniciarSesionAnonima();
+      expect(await app.whatsappSimulado('5522222222'), isNull);
+      await app.enviarCodigo('5522222222');
+      final m = await app.whatsappSimulado('5522222222');
+      expect(m!.codigo, '123456');
+      expect(m.texto, contains('tu código de verificación es 123456'));
+      expect(await app.whatsappSimulado('5533333333'), isNull);
+      await app.verificarCodigo('5522222222', m.codigo!);
+      expect(app.perfil.value!.esAnonimo, isFalse);
+      app.cerrar();
+    });
+
     test('P11: límite de reportes por hora (10)', () async {
       final app = ServicioDemo(reloj: () => ahora, iniciarReloj: false, sembrar: false);
       await app.iniciarSesionAnonima();

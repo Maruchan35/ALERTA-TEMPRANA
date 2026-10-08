@@ -106,6 +106,9 @@ class ServicioDemo implements ServicioAlertas {
   String? _celdaYo;
   var _secuencia = 0;
 
+  /// Número al que se "envió" el último código por WhatsApp (simulado).
+  String? _whatsappPara;
+
   /// Avisos que reciben los teléfonos simulados (A, B, C, D y "yo").
   Stream<AvisoDemo> get avisos => _avisos.stream;
 
@@ -481,7 +484,17 @@ class ServicioDemo implements ServicioAlertas {
   Future<void> enviarCodigo(String telefono) async {
     if (!RegExp(r'^\d{10}$').hasMatch(telefono)) throw const ErrorServicio('Escribe tu número a 10 dígitos.');
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    _whatsappPara = telefono;
   }
+
+  @override
+  Future<MensajeWhatsapp?> whatsappSimulado(String telefono) async => telefono != _whatsappPara
+      ? null
+      : MensajeWhatsapp(
+          texto: 'ALERTA CERCA: tu código de verificación es 123456. No lo compartas con nadie.',
+          codigo: '123456',
+          enviadoEn: ahora,
+        );
 
   @override
   Future<void> verificarCodigo(String telefono, String codigo) async {

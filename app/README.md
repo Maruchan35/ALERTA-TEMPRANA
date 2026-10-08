@@ -19,6 +19,8 @@ flutter build apk --release --dart-define-from-file=config.json
 
 - **Push**: `flutterfire configure` reemplaza `lib/firebase_options.dart`. Sin Firebase, la app avisa con la app
   abierta usando Realtime.
-- **Modo demostración**: *Ajustes → Demostración · ubicación simulada* (puntos A, B, C y D). El código de verificación
-  es `123456`. Con `"DEMO": "true"` en `config.json` también aparece en compilaciones release.
+- **Modo demostración**: *Ajustes → Demostración · ubicación simulada* (puntos A, B, C y D). Con `"DEMO": "true"` en
+  `config.json` también aparece en compilaciones release.
+- **Verificación por WhatsApp**: el código llega por WhatsApp. Mientras sea simulado, la app muestra el mensaje en la
+  misma pantalla y escribe el código sola (en la demo sin servidor es `123456`).
 - Para recibir alertas no se pide cuenta (sesión anónima); el número se verifica solo para reportar o confirmar.
