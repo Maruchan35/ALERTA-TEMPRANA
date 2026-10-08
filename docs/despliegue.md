@@ -122,6 +122,33 @@ select id, status_code, content::text from net._http_response order by created d
 
 En menos de 10 segundos el teléfono muestra **INCENDIO · A 300 m de ti · Verificada · PRUEBA…**.
 
+## 5b. Actualizaciones sin reinstalar (Shorebird)
+
+La APK se genera con [Shorebird](https://shorebird.dev) (code push para Flutter). Una vez instalada, cada cambio
+en el código de la app llega solo: el teléfono descarga el parche al abrir la app y lo aplica la siguiente vez que
+se abre. No hay que volver a compartir la APK.
+
+1. Una sola vez por computadora: instala Shorebird (`git clone --branch stable https://github.com/shorebirdtech/shorebird.git`
+   y agrega su carpeta `bin` al PATH) e inicia sesión con `shorebird login`. `app/shorebird.yaml` ya tiene el
+   `app_id` del proyecto.
+2. Primera versión (la que se instala en los teléfonos):
+
+   ```bash
+   cd app
+   shorebird release android --artifact apk --target-platform android-arm,android-arm64 --dart-define-from-file=config.json
+   ```
+
+3. Cada actualización posterior:
+
+   ```bash
+   scripts\publicar-actualizacion.cmd      # = shorebird patch android --dart-define-from-file=config.json
+   ```
+
+Los parches solo cambian código Dart. Si cambias permisos, plugins, el `AndroidManifest` o Firebase, sube `version:` en
+`app/pubspec.yaml` y crea una versión nueva con `shorebird release` (esa sí se vuelve a instalar). Los cambios del
+servidor (tablas, categorías, radios, Edge Functions) nunca requieren actualizar la app, y el panel web se actualiza
+con solo recargar la página.
+
 ## 6. Telegram (R2, opcional)
 
 1. En Telegram, **@BotFather** → `/newbot` (nombre *ALERTA CERCA Demo*, usuario terminado en `bot`). Guarda el token.
