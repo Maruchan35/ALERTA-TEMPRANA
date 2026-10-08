@@ -18,6 +18,7 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 | [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento`, `whatsapp` | **20 pruebas** Deno, tipos y lint |
 | [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push | Compila; analizada sin errores |
 | [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **simulador de 4 teléfonos** | Compila; analizado sin errores |
+| [`web/`](web) | Portal Web Comunitario y Consola CCE (React + Vite + Leaflet + Tailwind): Radar en vivo, geocercas, avistamientos y modo moderador oscuro | **Listo y Verificado (v1.0.0-mvp-cce)** |
 | [`puente-whatsapp/`](puente-whatsapp) | Envía los códigos de verificación desde un WhatsApp normal vinculado como dispositivo (sin WhatsApp Business) | Pruebas de Node |
 | [`compartido/`](compartido) | Paquete Dart común: modelos, geohash, catálogo, servicio Supabase y **motor de demostración** con las mismas reglas del backend | Pruebas unitarias |
 
