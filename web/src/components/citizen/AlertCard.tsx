@@ -31,6 +31,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
   isAdminTheme = false,
 }) => {
   const [imageError, setImageError] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
   const [hasVoted, setHasVoted] = useState<boolean>(() => {
     try {
@@ -205,34 +206,75 @@ export const AlertCard: React.FC<AlertCardProps> = ({
         {/* Contenido y descripción */}
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           {alert.photoUrl && (
-            <div className={`sm:w-36 h-36 shrink-0 rounded-lg overflow-hidden border relative group ${
-              isAdminTheme ? 'border-zinc-800 bg-zinc-950' : 'border-slate-200 bg-slate-100'
-            }`}>
-              {!imageError ? (
-                <img
-                  src={alert.photoUrl}
-                  alt={alert.title}
-                  onError={() => setImageError(true)}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
-              ) : (
-                <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-center ${
-                  isAdminTheme ? 'bg-zinc-950 text-zinc-400' : 'bg-slate-100 text-slate-500'
-                }`}>
-                  <Camera className="w-6 h-6 mb-1 text-slate-400" />
-                  <span className="text-[10px] font-semibold">Evidencia adjunta</span>
-                  <a
-                    href={alert.photoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[9px] text-blue-500 underline mt-1"
+            <>
+              <div 
+                onClick={() => !imageError && setShowImageModal(true)}
+                className={`sm:w-36 h-36 shrink-0 rounded-lg overflow-hidden border relative group cursor-pointer ${
+                  isAdminTheme ? 'border-zinc-800 bg-zinc-950' : 'border-slate-200 bg-slate-100'
+                }`}
+                title="Clic para ampliar foto"
+              >
+                {!imageError ? (
+                  <>
+                    <img
+                      src={alert.photoUrl}
+                      alt={alert.title}
+                      onError={() => setImageError(true)}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium gap-1">
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Ampliar</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-center ${
+                    isAdminTheme ? 'bg-zinc-950 text-zinc-400' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    <Camera className="w-6 h-6 mb-1 text-slate-400" />
+                    <span className="text-[10px] font-semibold">Evidencia adjunta</span>
+                    <a
+                      href={alert.photoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[9px] text-blue-500 underline mt-1"
+                    >
+                      Abrir enlace
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Lightbox / Modal para ampliar foto en alta resolución */}
+              {showImageModal && !imageError && (
+                <div 
+                  className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+                  onClick={() => setShowImageModal(false)}
+                >
+                  <div 
+                    className="relative max-w-3xl max-h-[90vh] bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl p-2"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Abrir enlace
-                  </a>
+                    <div className="flex items-center justify-between px-3 py-2 text-xs text-zinc-400 border-b border-zinc-800 mb-2">
+                      <span className="font-semibold text-zinc-200">{alert.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowImageModal(false)}
+                        className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs cursor-pointer font-bold"
+                      >
+                        ✕ Cerrar
+                      </button>
+                    </div>
+                    <img
+                      src={alert.photoUrl}
+                      alt={alert.title}
+                      className="max-h-[75vh] w-auto mx-auto object-contain rounded-lg"
+                    />
+                  </div>
                 </div>
               )}
-            </div>
+            </>
           )}
 
           <div className="flex-1 space-y-2.5">

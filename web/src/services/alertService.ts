@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured, SUPABASE_URL } from './supabase';
+import { supabase, isSupabaseConfigured, SUPABASE_URL, ensureAuthSession } from './supabase';
 import { 
   AlertUI, 
   SupabaseAlertaRow, 
@@ -10,7 +10,10 @@ import {
 
 const LOCAL_STORAGE_KEY = 'alerta_cerca_real_alerts';
 
-// Resuelve URLs públicas de Supabase Storage para fotos y evidencias
+// Caché en memoria para URLs firmadas (para evitar llamadas redundantes a Supabase Storage)
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+// Resuelve URLs públicas o temporales de Supabase Storage para fotos y evidencias
 export function resolvePhotoUrl(path?: string | null): string | undefined {
   if (!path || typeof path !== 'string' || path.trim() === '') return undefined;
   const clean = path.trim();
@@ -23,7 +26,6 @@ export function resolvePhotoUrl(path?: string | null): string | undefined {
     clean.startsWith('/storage/emulated/') ||
     clean.startsWith('content://')
   ) {
-    // Si la app móvil envió una ruta interna del teléfono en vez de subir al bucket de Supabase
     return undefined;
   }
 
@@ -47,10 +49,10 @@ export function resolvePhotoUrl(path?: string | null): string | undefined {
 
   const baseUrl = `${SUPABASE_URL}/storage/v1/object/public`;
 
-  // 5. Si la ruta ya especifica el bucket (ej. "alertas/...", "fotos/...", "evidencias/...")
+  // 5. Si la ruta ya especifica el bucket (ej. "fotos/...", "alertas/...", "evidencias/...")
   const knownBuckets = [
-    'alertas',
     'fotos',
+    'alertas',
     'evidencias',
     'imagenes',
     'reportes',
@@ -70,14 +72,104 @@ export function resolvePhotoUrl(path?: string | null): string | undefined {
     }
   }
 
-  // 6. Por defecto, buscar en el bucket oficial 'alertas'
-  return `${baseUrl}/alertas/${stripped}`;
+  // 6. Por defecto, buscar en el bucket oficial 'fotos'
+  return `${baseUrl}/fotos/${stripped}`;
+}
+
+// Resuelve URLs firmadas con token autorizado para buckets privados con RLS
+export async function resolveSignedPhotoUrl(path?: string | null): Promise<string | undefined> {
+  if (!path || typeof path !== 'string' || path.trim() === '') return undefined;
+  const clean = path.trim();
+
+  // 1. Descartar rutas de almacenamiento local del móvil
+  if (
+    clean.startsWith('file://') ||
+    clean.startsWith('/data/user/') ||
+    clean.startsWith('/data/data/') ||
+    clean.startsWith('/storage/emulated/') ||
+    clean.startsWith('content://')
+  ) {
+    return undefined;
+  }
+
+  // 2. Si ya es una URL completa con protocolo o base64
+  if (
+    clean.startsWith('http://') ||
+    clean.startsWith('https://') ||
+    clean.startsWith('data:') ||
+    clean.startsWith('blob:')
+  ) {
+    return clean;
+  }
+
+  // 3. Revisar caché local en memoria
+  const cached = signedUrlCache.get(clean);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.url;
+  }
+
+  if (!supabase || !isSupabaseConfigured) {
+    return resolvePhotoUrl(clean);
+  }
+
+  try {
+    await ensureAuthSession();
+
+    const stripped = clean.replace(/^\/+/, '');
+    let bucket = 'fotos';
+    let filePath = stripped;
+
+    const knownBuckets = ['fotos', 'alertas', 'evidencias', 'imagenes', 'reportes', 'public', 'uploads', 'images'];
+    const firstSlashIndex = stripped.indexOf('/');
+
+    if (firstSlashIndex !== -1) {
+      const candidateBucket = stripped.substring(0, firstSlashIndex).toLowerCase();
+      if (knownBuckets.includes(candidateBucket)) {
+        bucket = candidateBucket;
+        filePath = stripped.substring(firstSlashIndex + 1);
+      }
+    }
+
+    // Intentar generar URL firmada con vigencia de 1 hora
+    const { data: signData, error: signError } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(filePath, 3600);
+
+    if (!signError && signData?.signedUrl) {
+      signedUrlCache.set(clean, {
+        url: signData.signedUrl,
+        expiresAt: Date.now() + 50 * 60 * 1000,
+      });
+      return signData.signedUrl;
+    }
+
+    // Si falló en fotos, intentar con alertas
+    if (bucket === 'fotos') {
+      const { data: fallbackSign } = await supabase.storage
+        .from('alertas')
+        .createSignedUrl(filePath, 3600);
+      if (fallbackSign?.signedUrl) {
+        signedUrlCache.set(clean, {
+          url: fallbackSign.signedUrl,
+          expiresAt: Date.now() + 50 * 60 * 1000,
+        });
+        return fallbackSign.signedUrl;
+      }
+    }
+  } catch (err) {
+    console.warn('Error resolviendo Signed URL para foto:', err);
+  }
+
+  return resolvePhotoUrl(clean);
 }
 
 // Función para transformar una fila de Supabase en un modelo AlertUI enriquecido
 export function mapSupabaseRowToUI(row: SupabaseAlertaRow): AlertUI {
   const catConfig = CATEGORIAS_OFICIALES[row.categoria] || CATEGORIAS_OFICIALES['otro'];
   const radiusMeters = row.radio_manual_m || row.radio_actual_m || 1000;
+
+  // Si tenemos una URL firmada en caché, la usamos de inmediato
+  let photo = row.foto_path ? (signedUrlCache.get(row.foto_path)?.url || resolvePhotoUrl(row.foto_path)) : undefined;
 
   return {
     id: row.id,
@@ -89,7 +181,7 @@ export function mapSupabaseRowToUI(row: SupabaseAlertaRow): AlertUI {
     status: row.estado,
     description: row.descripcion || '',
     reference: row.referencia || undefined,
-    photoUrl: resolvePhotoUrl(row.foto_path),
+    photoUrl: photo,
     folio911: row.folio_911 || undefined,
     coordinates: {
       lat: Number(row.lat) || 17.9581,
@@ -201,6 +293,10 @@ class AlertService {
         if (!error && Array.isArray(data)) {
           this.alertsCache = data.map((row) => mapSupabaseRowToUI(row as SupabaseAlertaRow));
           this.notify();
+
+          // Enriquecer fotos con URLs firmadas autorizadas de forma asíncrona
+          this.enrichPhotosWithSignedUrls(data as SupabaseAlertaRow[]);
+
           return this.alertsCache;
         } else if (error) {
           console.warn('Error al consultar alertas en Supabase:', error.message);
@@ -211,6 +307,26 @@ class AlertService {
     }
 
     return this.alertsCache;
+  }
+
+  // Enriquecer fotos con URLs autorizadas
+  private async enrichPhotosWithSignedUrls(rows: SupabaseAlertaRow[]) {
+    let hasUpdates = false;
+    for (const row of rows) {
+      if (row.foto_path) {
+        const signed = await resolveSignedPhotoUrl(row.foto_path);
+        if (signed) {
+          const target = this.alertsCache.find((a) => a.id === row.id);
+          if (target && target.photoUrl !== signed) {
+            target.photoUrl = signed;
+            hasUpdates = true;
+          }
+        }
+      }
+    }
+    if (hasUpdates) {
+      this.notify();
+    }
   }
 
   // Emitir un nuevo reporte ciudadano o institucional
