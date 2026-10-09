@@ -252,10 +252,14 @@ export const AlertCard: React.FC<AlertCardProps> = ({
               </span>
             )}
 
-            {alert.verifiedBy && (
-              <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 font-medium border border-emerald-200 flex items-center gap-1">
+            {alert.verifiedBy ? (
+              <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 font-medium border border-emerald-200 flex items-center gap-1" title={`Verificada por: ${alert.verifiedBy}`}>
                 <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
-                CCE
+                Verificada CCE
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-medium border border-blue-200" title="Reporte emitido por la comunidad en proceso de corroboración">
+                Reporte Ciudadano
               </span>
             )}
           </div>

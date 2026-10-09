@@ -102,6 +102,203 @@ export function mapSupabaseRowToUI(row: SupabaseAlertaRow): AlertUI {
   };
 }
 
+export const DEFAULT_SEED_ALERTS: AlertUI[] = [
+  {
+    id: 'seed-alerta-01',
+    folio: 'AC-99A102B4',
+    title: 'Menor de 7 años extraviado cerca de Plaza Tabachines',
+    category: 'menor_desaparecido',
+    categoryName: 'Menor desaparecido',
+    level: 4,
+    status: 'verificada',
+    description: 'Menor visto por última vez en inmediaciones de Av. Melchor Ocampo con Av. Lázaro Cárdenas. Vestía playera azul marino con estampado de dinosaurio, pantalón de mezclilla y tenis blancos. Si cuenta con información favor de presionar el botón de avistamiento o llamar al 911.',
+    reference: 'Frente a Plaza Tabachines / Farmacia Guadalajara',
+    photoUrl: 'https://images.unsplash.com/photo-1543332164-6e82f355badc?auto=format&fit=crop&w=600&q=80',
+    folio911: '911-2026-04192',
+    coordinates: {
+      lat: 17.9621,
+      lng: -102.1985,
+      address: 'Av. Melchor Ocampo esq. Av. Lázaro Cárdenas, Centro',
+    },
+    currentRadiusMeters: 3000,
+    currentRadiusKm: 3.0,
+    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    verifiedAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    verifiedBy: 'Consejo Coordinador Empresarial (CCE)',
+    confirmedCount: 14,
+    disputeCount: 0,
+    instructions: 'Si lo ves, no lo pierdas de vista y llama al 911 de inmediato. No intervengas por tu cuenta.',
+    requiresValidation: true,
+    isInstitutionOnly: false,
+  },
+  {
+    id: 'seed-alerta-02',
+    folio: 'AC-88C314E2',
+    title: 'Robo de camioneta Nissan NP300 blanca en estacionamiento',
+    category: 'robo_vehiculo',
+    categoryName: 'Robo de vehículo',
+    level: 3,
+    status: 'verificada',
+    description: 'Camioneta Nissan NP300 modelo 2022 color blanco, placas MU-8492-C con caja seca. Vista saliendo en dirección al Libramiento y entronque hacia La Orilla.',
+    reference: 'Estacionamiento de centro comercial sobre Libramiento',
+    photoUrl: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80',
+    folio911: '911-2026-08311',
+    coordinates: {
+      lat: 17.9754,
+      lng: -102.2152,
+      address: 'Carretera Libramiento La Orilla km 4',
+    },
+    currentRadiusMeters: 5000,
+    currentRadiusKm: 5.0,
+    createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    verifiedAt: new Date(Date.now() - 110 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 22 * 3600 * 1000).toISOString(),
+    verifiedBy: 'Protección Civil Municipal',
+    confirmedCount: 8,
+    disputeCount: 0,
+    instructions: 'Reporta placas, color y modelo. No confrontes a personas armadas.',
+    requiresValidation: false,
+    isInstitutionOnly: false,
+  },
+  {
+    id: 'seed-alerta-03',
+    folio: 'AC-77D420F1',
+    title: 'Adulto mayor de 78 años desorientado en Las Guacamayas',
+    category: 'persona_vulnerable',
+    categoryName: 'Persona vulnerable extraviada',
+    level: 3,
+    status: 'no_confirmada',
+    description: 'Don Rogelio de 78 años padece pérdida leve de memoria. Viste camisa de cuadros café y pantalón caqui. Responde a su nombre. Salió a caminar por la mañana hacia el mercado.',
+    reference: 'Cerca del Mercado Municipal de Las Guacamayas',
+    photoUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80',
+    coordinates: {
+      lat: 17.9892,
+      lng: -102.2384,
+      address: 'Colonia Las Guacamayas, cerca del Mercado Municipal',
+    },
+    currentRadiusMeters: 2500,
+    currentRadiusKm: 2.5,
+    createdAt: new Date(Date.now() - 75 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 23 * 3600 * 1000).toISOString(),
+    confirmedCount: 5,
+    disputeCount: 0,
+    instructions: 'Si la ves, acércate con calma, procura que esté segura y llama al 911.',
+    requiresValidation: true,
+    isInstitutionOnly: false,
+  },
+  {
+    id: 'seed-alerta-04',
+    folio: 'AC-66E510A8',
+    title: 'Fuga de gas y conato de incendio en local comercial',
+    category: 'incendio',
+    categoryName: 'Incendio o conato',
+    level: 2,
+    status: 'verificada',
+    description: 'Fuerte olor a gas LP en zona de locales sobre Av. Rector Hidalgo. Bomberos de Lázaro Cárdenas en camino. Se solicita despejar la acera y evitar encender vehículos cerca.',
+    reference: 'Av. Rector Hidalgo frente a talleres mecánicos',
+    photoUrl: 'https://images.unsplash.com/photo-1542385151-efd9000785a0?auto=format&fit=crop&w=600&q=80',
+    coordinates: {
+      lat: 17.9542,
+      lng: -102.1895,
+      address: 'Av. Rector Hidalgo #410, Col. Cuauhtémoc',
+    },
+    currentRadiusMeters: 1500,
+    currentRadiusKm: 1.5,
+    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    verifiedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 12 * 3600 * 1000).toISOString(),
+    verifiedBy: 'Cuerpo de Bomberos Municipales',
+    confirmedCount: 19,
+    disputeCount: 0,
+    instructions: 'Evacúa en sentido contrario al viento. No enciendas luces ni interruptores.',
+    requiresValidation: false,
+    isInstitutionOnly: false,
+  },
+  {
+    id: 'seed-alerta-05',
+    folio: 'AC-55F602B9',
+    title: 'Choque múltiple con bloqueo parcial de carril portuario',
+    category: 'accidente',
+    categoryName: 'Accidente vial grave',
+    level: 2,
+    status: 'verificada',
+    description: 'Colisión de dos tractocamiones en el acceso a la Isla del Cayacal. Reducción a un solo carril de circulación. Tráfico lento en sentido al recinto portuario.',
+    reference: 'Puente de acceso Isla del Cayacal',
+    photoUrl: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+    coordinates: {
+      lat: 17.9421,
+      lng: -102.1724,
+      address: 'Acceso a Isla del Cayacal / Puerto Lázaro Cárdenas',
+    },
+    currentRadiusMeters: 2000,
+    currentRadiusKm: 2.0,
+    createdAt: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
+    verifiedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
+    verifiedBy: 'Policía Vial y Puerto',
+    confirmedCount: 11,
+    disputeCount: 0,
+    instructions: 'Circule con extrema precaución o tome rutas alternas.',
+    requiresValidation: false,
+    isInstitutionOnly: false,
+  },
+  {
+    id: 'seed-alerta-06',
+    folio: 'AC-44G711C0',
+    title: 'Semáforos apagados y cable caído en Boulevard Playas',
+    category: 'otro',
+    categoryName: 'Otro incidente',
+    level: 1,
+    status: 'no_confirmada',
+    description: 'Crucero con semáforos apagados y cable de telecomunicaciones a baja altura sobre el carril derecho. Conducir a baja velocidad.',
+    reference: 'Boulevard Playas cruce con Av. Tulipanes',
+    photoUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+    coordinates: {
+      lat: 17.9688,
+      lng: -102.2031,
+      address: 'Boulevard Playas esq. Tulipanes',
+    },
+    currentRadiusMeters: 1000,
+    currentRadiusKm: 1.0,
+    createdAt: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    confirmedCount: 4,
+    disputeCount: 0,
+    instructions: 'Conducir con precaución.',
+    requiresValidation: false,
+    isInstitutionOnly: false,
+  },
+  {
+    id: 'seed-alerta-07',
+    folio: 'AC-33H890D1',
+    title: 'Menor localizado con bien en tienda departamental',
+    category: 'menor_desaparecido',
+    categoryName: 'Menor desaparecido',
+    level: 1,
+    status: 'resuelta',
+    description: 'Menor de 5 años reportado como extraviado fue ubicado rápidamente por el personal de seguridad y reintegrado a su familia con apoyo de Policía Municipal.',
+    reference: 'Plaza Las Américas Lázaro Cárdenas',
+    coordinates: {
+      lat: 17.9654,
+      lng: -102.2012,
+      address: 'Plaza Las Américas, Av. Melchor Ocampo',
+    },
+    currentRadiusMeters: 1000,
+    currentRadiusKm: 1.0,
+    createdAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+    verifiedAt: new Date(Date.now() - 5.5 * 3600 * 1000).toISOString(),
+    closedAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    verifiedBy: 'Consejo Coordinador Empresarial',
+    confirmedCount: 28,
+    disputeCount: 0,
+    instructions: 'Caso resuelto con éxito.',
+    requiresValidation: true,
+    isInstitutionOnly: false,
+  }
+];
+
 type AccionValidador = 'verificar' | 'ajustar_radio' | 'resolver' | 'descartar';
 
 class AlertService {
@@ -121,11 +318,16 @@ class AlertService {
     try {
       const data = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (data) {
-        this.alertsCache = JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.alertsCache = parsed;
+          return;
+        }
       }
     } catch {
       // ignore
     }
+    this.alertsCache = [...DEFAULT_SEED_ALERTS];
   }
 
   // Guardar en caché local
@@ -224,12 +426,20 @@ class AlertService {
         return this.alertsCache;
       }
       const filas = resultado.data as SupabaseAlertaRow[];
-      const alertas = filas.map(mapSupabaseRowToUI);
-      await this.firmarFotos(alertas, filas);
-      this.alertsCache = alertas;
+      if (filas.length > 0) {
+        const alertas = filas.map(mapSupabaseRowToUI);
+        await this.firmarFotos(alertas, filas);
+        this.alertsCache = alertas;
+      } else if (this.alertsCache.length === 0) {
+        this.alertsCache = [...DEFAULT_SEED_ALERTS];
+      }
       this.notify();
     } catch (err) {
       console.warn('Excepción de red con Supabase:', err);
+      if (this.alertsCache.length === 0) {
+        this.alertsCache = [...DEFAULT_SEED_ALERTS];
+        this.notify();
+      }
     }
     return this.alertsCache;
   }

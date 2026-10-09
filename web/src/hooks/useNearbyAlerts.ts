@@ -60,10 +60,10 @@ export function useNearbyAlerts(userCoords: Coordinates) {
     });
   }, [alerts, userCoords, ticker]);
 
-  // Alertas activas y verificadas que cubren al ciudadano (Ordenadas por NIVEL DE IMPORTANCIA primero)
+  // Alertas activas que cubren al ciudadano (Ordenadas por NIVEL DE IMPORTANCIA primero)
   const nearbyActiveAlerts = useMemo(() => {
     return processedAlerts
-      .filter((a) => a.isWithinCoverage && (a.status === 'verificada' || a.status === 'corroborada' || a.status === 'no_confirmada'))
+      .filter((a) => a.isWithinCoverage && a.status !== 'resuelta' && a.status !== 'descartada' && a.status !== 'expirada')
       .sort((a, b) => {
         // 1. Mayor grado de importancia primero (4 > 3 > 2 > 1)
         if (b.level !== a.level) {
@@ -77,7 +77,7 @@ export function useNearbyAlerts(userCoords: Coordinates) {
   // Alertas activas en otros puntos del municipio (Ordenadas por NIVEL DE IMPORTANCIA primero)
   const outOfRangeAlerts = useMemo(() => {
     return processedAlerts
-      .filter((a) => !a.isWithinCoverage && (a.status === 'verificada' || a.status === 'corroborada' || a.status === 'no_confirmada'))
+      .filter((a) => !a.isWithinCoverage && a.status !== 'resuelta' && a.status !== 'descartada' && a.status !== 'expirada')
       .sort((a, b) => {
         if (b.level !== a.level) {
           return b.level - a.level;

@@ -53,10 +53,13 @@ export const NearbyAlertsFeed: React.FC<NearbyAlertsFeedProps> = ({
 
   const resolvedAlerts = nearbyResolvedAlerts.length > 0 ? nearbyResolvedAlerts : allAlerts.filter((a) => a.status === 'resuelta');
 
+  // Si está en 'nearby' pero no hay alertas dentro del radio y sí hay alertas en el municipio, mostrar todas
+  const isAutoShowingAll = activeTab === 'nearby' && nearbyActiveAlerts.length === 0 && activeAlertsAll.length > 0;
+
   // Determinar lista base según pestaña
   const baseList =
     activeTab === 'nearby'
-      ? nearbyActiveAlerts
+      ? (isAutoShowingAll ? activeAlertsAll : nearbyActiveAlerts)
       : activeTab === 'all'
       ? activeAlertsAll
       : resolvedAlerts;
@@ -80,6 +83,27 @@ export const NearbyAlertsFeed: React.FC<NearbyAlertsFeedProps> = ({
 
   return (
     <div className="w-full space-y-5">
+      {/* Aviso contextual si se muestran todas las alertas del municipio */}
+      {isAutoShowingAll && (
+        <div className="px-4 py-3 rounded-xl bg-blue-50/80 border border-blue-200/80 text-blue-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="p-1 rounded-md bg-blue-100 text-blue-700 font-semibold shrink-0">
+              📍 Municipio Completo
+            </span>
+            <span className="text-blue-800">
+              Tu ubicación actual está fuera del radio inmediato de los incidentes. Mostrando <strong>todas las {activeAlertsAll.length} alertas ciudadanas e institucionales</strong> activas en Lázaro Cárdenas.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('all')}
+            className="text-xs font-semibold text-blue-700 hover:text-blue-900 underline shrink-0 cursor-pointer text-left"
+          >
+            Ver vista municipal
+          </button>
+        </div>
+      )}
+
       {/* Barra Superior: Filtros y Selector de Pestañas */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
         <div className="inline-flex rounded-xl p-1 bg-slate-100/90 border border-slate-200/60">
