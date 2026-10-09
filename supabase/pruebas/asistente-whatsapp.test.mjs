@@ -175,41 +175,29 @@ test('asistente: la función que crea reportes no se puede llamar desde la app n
     /no se puede reportar por WhatsApp/);
 });
 
-test('asistente: las opciones son encuestas que se tocan; un toque cuenta como elegir el número', async () => {
-  await escribe(CEL, 'hola');
-  const encuestaActual = async () => (await env.sql(
-    `select encuesta from privado.mensajes_whatsapp where telefono = $1 order by id desc limit 1`, [CEL]))[0].encuesta;
+test('asistente: se contesta solo con números, sin encuestas', async () => {
+  const bienvenida = (await escribe(CEL, 'hola')).respuesta;
+  assert.match(bienvenida, /Elija el número de lo que pasó:\n1 Robo de vehículo/);
+  assert.doesNotMatch(bienvenida, /toque la opción/i, 'ya no hay nada que tocar');
 
-  const categorias = await encuestaActual();
-  assert.equal(categorias.pregunta, '¿Qué pasó?');
-  assert.equal(categorias.opciones.length, 7);
-  assert.equal(categorias.valores[0], 'categoria:1');
+  const respuestas = [bienvenida];
+  respuestas.push((await escribe(CEL, '1')).respuesta);
+  respuestas.push((await escribe(CEL, null, { lat: 17.96, lon: -102.2 })).respuesta);
+  respuestas.push((await escribe(CEL, '0')).respuesta);
+  assert.match(respuestas.at(-1), /1 Enviar[\s\S]*2 Empezar de nuevo/, 'la confirmación también pide un número');
 
-  assert.match((await escribe(CEL, 'categoria:1')).respuesta, /Dónde pasó/);
-  assert.equal(await encuestaActual(), null, 'en el paso del lugar no hay encuesta: la ubicación va con el clip');
-  // Un toque de una encuesta vieja (la de confirmar) no envía nada: se repite el paso actual
-  const viejo = await escribe(CEL, 'confirmar:1');
-  assert.equal(viejo.paso, 'lugar');
-  assert.match(viejo.respuesta, /Dónde pasó/);
-  assert.deepEqual(await alertas(), [], 'nada se creó con el toque viejo');
+  // La cola de salida del puente trae solo id, teléfono y texto
+  const cola = await env.rpc(null, 'whatsapp_pendientes', { p_secreto: SECRETO_PUENTE, p_limite: 10 });
+  assert.equal(cola.length, 4);
+  assert.deepEqual(Object.keys(cola[0]).sort(), ['id', 'telefono', 'texto']);
 
-  await escribe(CEL, null, { lat: 17.96, lon: -102.2 });
-  assert.deepEqual((await encuestaActual()).valores, ['descripcion:escribir', 'descripcion:0']);
-  assert.match((await escribe(CEL, 'descripcion:escribir')).respuesta, /Escriba su frase/);
-  assert.equal(await encuestaActual(), null, 'si va a escribir, no se manda encuesta');
-
-  assert.equal((await escribe(CEL, 'descripcion:0')).paso, 'confirmar');
-  assert.deepEqual((await encuestaActual()).valores, ['confirmar:1', 'confirmar:2']);
-  await escribe(CEL, 'confirmar:1');
-  assert.equal((await alertas()).length, 1, 'el toque "Sí, enviar" crea el reporte');
-});
-
-test('asistente: el puente recibe la encuesta junto con el texto de la respuesta', async () => {
-  await escribe(CEL, 'hola');
-  const [fila] = await env.rpc(null, 'whatsapp_pendientes', { p_secreto: SECRETO_PUENTE, p_limite: 5 });
-  assert.match(fila.texto, /911/);
-  assert.equal(fila.encuesta.opciones[0], 'Robo de vehículo');
-  assert.equal(fila.encuesta.valores[6], 'categoria:7');
+  // "confirmar:1" ya no es un toque especial: es un texto cualquiera y no crea nada
+  const raro = await escribe(CEL, 'confirmar:1');
+  assert.equal(raro.paso, 'confirmar');
+  assert.match(raro.respuesta, /Escriba 1 para enviar o 2 para empezar de nuevo/);
+  assert.deepEqual(await alertas(), []);
+  assert.equal((await escribe(CEL, '1')).paso, 'inicio');
+  assert.equal((await alertas()).length, 1, 'escribir 1 envía el reporte');
 });
 
 test('asistente: con respuesta inmediata el puente envía al instante y la cola solo reintenta si se cae', async () => {
@@ -221,7 +209,7 @@ test('asistente: con respuesta inmediata el puente envía al instante y la cola 
   const r = await pedir(CEL);
   assert.ok(r.mensaje_id, 'devuelve el id para marcarlo como enviado');
   assert.match(r.respuesta, /911/);
-  assert.equal(r.encuesta.opciones.length, 7, 'devuelve la encuesta: el puente no necesita pedirla otra vez');
+  assert.ok(!('encuesta' in r), 'la respuesta ya no lleva encuesta');
   assert.deepEqual(await env.sql(`select estado, intentos from privado.mensajes_whatsapp where id = $1`, [r.mensaje_id]),
     [{ estado: 'enviando', intentos: 1 }]);
   assert.deepEqual(await tomar(), [], 'la cola no la toma mientras quien la pidió la está enviando');

@@ -142,16 +142,6 @@ export function entradaDeMensaje(m) {
   return null; // reacciones, stickers, avisos del protocolo: no se contestan
 }
 
-/**
- * La opción que tocó la persona, como su valor para el asistente (p. ej. 'categoria:3').
- * `votos` es lo que devuelve Baileys (getAggregateVotesInPollMessage): [{ name, voters }].
- */
-export function valorElegido(votos, opciones, valores) {
-  const elegida = (votos ?? []).find((v) => v.voters?.length > 0);
-  const i = elegida ? opciones.indexOf(elegida.name) : -1;
-  return i >= 0 ? (valores[i] ?? null) : null;
-}
-
 /** Los tipos de contenido de un mensaje (para el registro: qué llegó cuando no se pudo entender). */
 export function tiposDeMensaje(m) {
   const c = contenidoReal(m?.message);
