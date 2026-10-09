@@ -44,9 +44,9 @@ class ModoProteccionService : Service(), SensorEventListener {
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "alerta_cerca:modo_proteccion")
             .apply { acquire() }
         sensores = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        sensores?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
+        escuchando = sensores?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
             sensores?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)
-        }
+        } == true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -64,6 +64,7 @@ class ModoProteccionService : Service(), SensorEventListener {
     }
 
     override fun onDestroy() {
+        escuchando = false
         sensores?.unregisterListener(this)
         despierto?.let { if (it.isHeld) it.release() }
         super.onDestroy()
@@ -198,7 +199,26 @@ class ModoProteccionService : Service(), SensorEventListener {
             contexto.stopService(Intent(contexto, ModoProteccionService::class.java))
         }
 
+        /** Lo que eligió la persona (el interruptor de Ajustes). */
         fun encendido(contexto: Context): Boolean =
             contexto.getSharedPreferences(PREFERENCIAS, Context.MODE_PRIVATE).getBoolean(CLAVE_ENCENDIDO, false)
+
+        /**
+         * El servicio está vivo y recibiendo el acelerómetro. No es lo mismo que [encendido]: Android
+         * lo cierra al instalar una versión nueva de la app y algunos teléfonos para ahorrar batería.
+         */
+        @Volatile
+        var escuchando = false
+            private set
+
+        /** Si la persona lo dejó encendido pero el servicio no está escuchando, lo vuelve a encender. */
+        fun asegurar(contexto: Context) {
+            if (!encendido(contexto) || escuchando) return
+            try {
+                iniciar(contexto)
+            } catch (e: Exception) {
+                // Android no deja arrancarlo ahora: con la app abierta, la app escucha la sacudida
+            }
+        }
     }
 }

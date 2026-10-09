@@ -198,15 +198,21 @@ class ControlEmergencia extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Con la app abierta se escucha la sacudida aquí, salvo que el modo protección ya la escuche.
+  /// Con la app abierta se escucha la sacudida aquí si la persona la activó (o el modo protección),
+  /// salvo que el servicio de Android YA la esté escuchando. Si ese servicio murió (Android lo cierra
+  /// al actualizar la app o para ahorrar batería), la app no se queda sorda.
   Future<void> _actualizarEscucha() async {
-    final nativo = await Proteccion.proteccionActiva();
-    if (sacudidaActivada && _enPrimerPlano && !nativo) {
+    final quiere = sacudidaActivada || await Proteccion.proteccionActiva();
+    final nativo = await Proteccion.proteccionEscuchando();
+    if (quiere && _enPrimerPlano && !nativo) {
       _escucha.iniciar();
     } else {
       _escucha.detener();
     }
   }
+
+  /// Arma la sacudida en cuanto abre la app, sin esperar la sesión ni internet.
+  Future<void> armarSacudida() => _actualizarEscucha();
 
   void alCambiarCicloDeVida(AppLifecycleState s) {
     _enPrimerPlano = s == AppLifecycleState.resumed;
@@ -627,10 +633,25 @@ class ControlEmergencia extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Al abrir la app: manda un cierre que no alcanzó a llegar, retoma una emergencia abierta (la app
-  /// se cerró o el teléfono se reinició) y sube la evidencia pendiente.
+  /// Al abrir la app: arma la sacudida (sin depender de internet), manda un cierre que no alcanzó a
+  /// llegar, retoma una emergencia abierta (la app se cerró o el teléfono se reinició) y sube la
+  /// evidencia pendiente.
   Future<void> reanudar() async {
     _cargarCola();
+    // Primero lo que no necesita internet: pedir ayuda tiene que funcionar aunque no haya señal
+    puedeAutenticar = await Autenticacion.disponible();
+    await _actualizarEscucha();
+    try {
+      await _retomarDelServidor();
+    } catch (e) {
+      // Sin conexión o sin sesión: lo pendiente se intenta otra vez la próxima vez que abra la app
+      debugPrint('SOS: no se pudo revisar el servidor al abrir la app: $e');
+    }
+    _evaluarAudio();
+    _procesarCola();
+  }
+
+  Future<void> _retomarDelServidor() async {
     final pendiente = prefs.getString(Claves.sosCierrePendiente);
     if (pendiente != null) {
       final partes = pendiente.split('|');
@@ -670,10 +691,6 @@ class ControlEmergencia extends ChangeNotifier {
         await prefs.remove(Claves.sosId);
       }
     }
-    puedeAutenticar = await Autenticacion.disponible();
-    await _actualizarEscucha();
-    _evaluarAudio();
-    _procesarCola();
   }
 
   // ─── Evidencia ─────────────────────────────────────────────────────────────

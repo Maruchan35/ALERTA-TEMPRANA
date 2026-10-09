@@ -47,7 +47,13 @@ abstract final class Proteccion {
   /// Modo protección: detectar la sacudida con la app cerrada (servicio con notificación fija).
   static Future<bool> activarProteccion() async => await _llamar<bool>('activarProteccion') ?? false;
   static Future<void> desactivarProteccion() => _llamar<bool>('desactivarProteccion');
+
+  /// Lo que eligió la persona (el interruptor de Ajustes).
   static Future<bool> proteccionActiva() async => await _llamar<bool>('proteccionActiva') ?? false;
+
+  /// El servicio está vivo y escuchando el acelerómetro. Puede no estarlo aunque la persona lo haya
+  /// encendido: Android lo cierra al actualizar la app o para ahorrar batería.
+  static Future<bool> proteccionEscuchando() async => await _llamar<bool>('proteccionEscuchando') ?? false;
 
   /// Mientras hay una emergencia, la app se muestra encima de la pantalla de bloqueo.
   static Future<void> sobrePantallaBloqueada(bool si) => _llamar<void>('sobrePantallaBloqueada', si);

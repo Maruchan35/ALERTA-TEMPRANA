@@ -78,12 +78,14 @@
             android:name=".GrabacionService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
-        <!-- Si el modo protección estaba encendido, vuelve a encenderlo al reiniciar el teléfono -->
+        <!-- Si el modo protección estaba encendido, vuelve a encenderlo al reiniciar el teléfono y al
+             actualizar la app (instalar una versión nueva cierra el servicio) -->
         <receiver
             android:name=".ArranqueReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
             </intent-filter>
         </receiver>
 

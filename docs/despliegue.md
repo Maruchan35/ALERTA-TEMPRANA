@@ -190,7 +190,7 @@ Qué pasa después lo decide `config.whatsapp_modo`
    Crea la tabla de emergencias, el bucket privado `evidencias`, la tarea `revisar-senal-emergencias` y la alarma a
    validadores.
 2. App: el SOS trae permisos y plugins nativos nuevos (cámara, micrófono, sensores, servicio en primer plano), así que
-   **no llega como parche**: la versión actual es la **1.3.0** (beta, con la copia de la evidencia en el teléfono) y se
+   **no llega como parche**: la versión actual es la **1.3.1** (beta, con la copia de la evidencia en el teléfono) y se
    instala a mano (`shorebird release`, paso 5b). Desde ahí los cambios de Dart vuelven a llegar solos.
 3. En cada teléfono: *Ajustes → Modo emergencia (SOS)*: revisar los permisos (ubicación, notificaciones, cámara y
    micrófono, almacenamiento, "Aparecer con el teléfono bloqueado" en Android 14+), dejar activado **Pedir huella o PIN
@@ -259,6 +259,7 @@ Para una versión (Release) con el APK de demostración: `git tag v1.0.0 && git 
 | La alarma SOS no le llega a un validador | Debe tener la app 1.1.0 con su cuenta de validador iniciada y *Registro para recibir alertas* en verde, o el panel abierto (ahí suena con la pestaña abierta). |
 | El SOS dice "Activaste el SOS demasiadas veces" | Son 5 por hora por persona. Para pruebas: `update config set emergencias_por_hora = 20;` |
 | Al cancelar el SOS no pide huella/PIN | El teléfono no tiene bloqueo configurado: ponlo en los ajustes del teléfono. Sin bloqueo, cualquiera podría apagar el SOS, así que la app deja cancelar con el diálogo normal y avisa. |
+| La sacudida no hace nada (antes sí) | Pasaba al instalar una versión nueva con el modo protección encendido: Android cerraba su servicio y la app creía que seguía escuchando. Desde la 1.3.1 el servicio se reactiva solo al actualizar o abrir la app (vuelve la notificación fija) y, mientras tanto, la app abierta escucha la sacudida. |
 | No se oye el audio en vivo del SOS | El micrófono graba cuando la cámara NO está grabando (pantalla apagada). Si la pantalla del SOS está abierta, el audio va dentro del video. Revisa el permiso de micrófono en *Ajustes → Modo emergencia*. |
 | *Mis evidencias* no muestra un SOS de antes | Si se reinstaló la app, Android solo le deja ver las copias anteriores con el permiso de almacenamiento (*Ajustes → Modo emergencia → Almacenamiento*). Los archivos siguen en *Descargas › ALERTA CERCA* aunque la app no los vea. |
 | `permission denied for function …` desde la app | Es correcto para las funciones internas (prueba P14). La app solo llama `registrar_dispositivo`, `alertas_cercanas`, `obtener_alerta`, `crear_reporte`, `confirmar_alerta`, `validar_alerta`, `borrar_mi_cuenta` y las del SOS (`iniciar_emergencia`, `senal_emergencia`, `tipo_emergencia`, `registrar_evidencia`, `terminar_emergencia`, `atender_emergencia`). |

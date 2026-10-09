@@ -29,4 +29,4 @@ flutter build apk --release --dart-define-from-file=config.json
   validadores, ubicación en vivo (servicio en primer plano), video 720p (fragmentos de 15 s) y audio de evidencia, copia
   en el teléfono con constancia y huella SHA-256 (*Mis evidencias*, para una denuncia) y 911 a un toque.
   *Ajustes → Modo emergencia* revisa permisos, activa el modo protección y hace un simulacro. Usa plugins nativos: se
-  distribuye como versión nueva (1.3.0, beta), no como parche.
+  distribuye como versión nueva (1.3.1, beta), no como parche.

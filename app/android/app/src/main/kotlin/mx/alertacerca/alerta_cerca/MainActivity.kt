@@ -56,6 +56,7 @@ class MainActivity : FlutterFragmentActivity() {
                         resultado.success(true)
                     }
                     "proteccionActiva" -> resultado.success(ModoProteccionService.encendido(this@MainActivity))
+                    "proteccionEscuchando" -> resultado.success(ModoProteccionService.escuchando)
                     "sobrePantallaBloqueada" -> {
                         sobrePantallaBloqueada(llamada.arguments as? Boolean ?: false)
                         resultado.success(null)
@@ -101,6 +102,12 @@ class MainActivity : FlutterFragmentActivity() {
         super.onCreate(savedInstanceState)
         // Flutter todavía no corre: el disparo queda pendiente hasta que lo pida
         recibir(intent, enArranque = true)
+    }
+
+    /** Si la persona dejó el modo protección encendido y Android cerró el servicio, se reactiva. */
+    override fun onResume() {
+        super.onResume()
+        ModoProteccionService.asegurar(this)
     }
 
     override fun onNewIntent(intent: Intent) {

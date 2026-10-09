@@ -43,6 +43,8 @@ class _AlertaCercaAppState extends State<AlertaCercaApp> with WidgetsBindingObse
     Proteccion.pendiente().then((o) {
       if (o != null) widget.sos.iniciarCuenta(o);
     });
+    // La sacudida no espera a la sesión ni a internet (reanudar() sí los necesita)
+    widget.sos.armarSacudida();
     widget.sos.addListener(_alCambiarSos);
     widget.estado.addListener(_alIniciar);
     WidgetsBinding.instance.addObserver(this);

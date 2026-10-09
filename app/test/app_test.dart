@@ -257,6 +257,54 @@ void main() {
     expect(constancia['texto'], contains(huella));
   });
 
+  testWidgets('SOS: con la app abierta la sacudida pide ayuda aunque el servicio del modo protección no escuche', (
+    tester,
+  ) async {
+    // Así quedaba al instalar una versión nueva: el modo protección "encendido" (es una preferencia),
+    // Android había cerrado su servicio y la app no escuchaba porque creía que el servicio lo hacía
+    final mensajero = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const metodoSensores = MethodChannel('dev.fluttercommunity.plus/sensors/method');
+    const acelerometro = EventChannel('dev.fluttercommunity.plus/sensors/accelerometer');
+    mensajero
+      ..setMockMethodCallHandler(
+        const MethodChannel('alerta_cerca/proteccion'),
+        (llamada) async => switch (llamada.method) {
+          'proteccionActiva' => true,
+          'proteccionEscuchando' => false,
+          _ => null,
+        },
+      )
+      ..setMockMethodCallHandler(metodoSensores, (llamada) async => null);
+    MockStreamHandlerEventSink? lecturas;
+    mensajero.setMockStreamHandler(
+      acelerometro,
+      MockStreamHandler.inline(
+        onListen: (_, sink) {
+          lecturas = sink;
+        },
+      ),
+    );
+    addTearDown(() {
+      mensajero
+        ..setMockStreamHandler(acelerometro, null)
+        ..setMockMethodCallHandler(metodoSensores, null);
+    });
+
+    await abrirApp(tester, {'bienvenida_vista': true, 'demo_punto': 'A'});
+    expect(lecturas, isNotNull, reason: 'la app escucha el acelerómetro');
+    // ~3 g: cuatro golpes fuertes en menos de un segundo (el detector mide con el reloj real)
+    for (var i = 0; i < 4; i++) {
+      lecturas!.success(<double>[0, 0, 30, DateTime.now().microsecondsSinceEpoch.toDouble()]);
+      await tester.pump(); // entrega la lectura
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    }
+    await tester.pump();
+    expect(sos.etapa, EtapaSos.cuentaRegresiva);
+    expect(sos.origen, OrigenEmergencia.movimiento);
+    sos.cancelarCuenta();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
   testWidgets('SOS: el simulacro se ve igual pero no avisa a nadie', (tester) async {
     final estado = await abrirApp(tester, {'bienvenida_vista': true, 'demo_punto': 'A'});
     sos.iniciarCuenta(OrigenEmergencia.boton, simulacro: true);
