@@ -5,4 +5,5 @@ export interface ModeratorUser {
   fullName: string;
   roleTitle: string;
   entity: string;
+  isMasterAdmin?: boolean;
 }

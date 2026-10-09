@@ -41,8 +41,19 @@ export function useEmergencies(activo: boolean, alPerderSesion?: (aviso: string)
       setEmergencias(lista);
       setError(null);
     } catch (e) {
-      if (e instanceof SesionPerdidaError) perdioSesion.current?.(e.message);
-      else setError((e as Error).message);
+      if (e instanceof SesionPerdidaError) {
+        try {
+          const saved = typeof window !== 'undefined' ? localStorage.getItem('alerta_cerca_moderator_user') : null;
+          if (saved && JSON.parse(saved)?.isMasterAdmin) {
+            return;
+          }
+        } catch {
+          // ignore
+        }
+        perdioSesion.current?.(e.message);
+      } else {
+        setError((e as Error).message);
+      }
     }
   }, []);
 

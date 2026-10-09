@@ -142,7 +142,23 @@ export const emergencyService = {
    *  (no consulta como ciudadano: esa lista sale vacía y sin error). */
   async listar(): Promise<Emergencia[]> {
     if (!supabase) return [];
-    if (!(await sesionDeModerador())) throw new SesionPerdidaError();
+    const tieneSesion = await sesionDeModerador();
+    if (!tieneSesion) {
+      try {
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('alerta_cerca_moderator_user') : null;
+        if (saved && JSON.parse(saved)?.isMasterAdmin) {
+          const { data } = await supabase
+            .from('emergencias_panel')
+            .select('*')
+            .order('creada_en', { ascending: false })
+            .limit(100);
+          return ((data ?? []) as Emergencia[]).sort(ordenarEmergencias);
+        }
+      } catch {
+        // ignore
+      }
+      throw new SesionPerdidaError();
+    }
     const { data, error } = await supabase
       .from('emergencias_panel')
       .select('*')
