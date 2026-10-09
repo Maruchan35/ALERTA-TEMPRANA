@@ -16,7 +16,7 @@ import { formatDistance } from './services/geo';
 import { ModeratorUser } from './types/auth';
 import { supabase } from './services/supabase';
 import { adminSettingsService } from './services/adminSettingsService';
-import { AlertTriangle, KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2, Siren } from 'lucide-react';
+import { KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2, X } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
 const STORAGE_MOD_KEY = 'alerta_cerca_moderator_user';
@@ -45,6 +45,7 @@ export default function App() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [sightingAlert, setSightingAlert] = useState<AlertWithDistance | null>(null);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+  const [dismissedCriticalAlertId, setDismissedCriticalAlertId] = useState<string | null>(null);
 
   // Modal de Login de Moderador
   const [showModLoginModal, setShowModLoginModal] = useState(false);
@@ -224,20 +225,21 @@ export default function App() {
 
       {/* Banner de Emergencia SOS si hay una persona pidiendo auxilio en vivo */}
       {isModerator && emergenciasAbiertas.length > 0 && (
-        <div className="bg-red-600 text-white px-4 py-2.5 shadow-md border-b border-red-700 animate-pulse">
+        <div className="bg-red-600 text-white px-4 py-2 border-b border-red-700 shadow-2xs">
           <div className="max-w-[1800px] mx-auto w-full flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <span className="p-1.5 rounded-full bg-white text-red-600 animate-bounce">
-                <Siren className="w-4 h-4" />
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
               </span>
-              <p className="text-xs sm:text-sm font-black tracking-wide">
-                ¡EMERGENCIA SOS ACTIVA ({emergenciasAbiertas.length})! Persona solicitando auxilio con recorrido y video en tiempo real.
+              <p className="text-xs sm:text-sm font-semibold tracking-tight">
+                Emergencia SOS Activa ({emergenciasAbiertas.length}): Transmisión de auxilio y coordenadas en tiempo real.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setCurrentView('sos')}
-              className="px-3.5 py-1.5 bg-white hover:bg-red-50 text-red-700 font-black text-xs rounded-xl shadow transition-transform active:scale-95 cursor-pointer shrink-0"
+              className="px-3.5 py-1 bg-white hover:bg-slate-100 text-red-700 font-semibold text-xs rounded-lg shadow-2xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
             >
               Atender SOS Ahora
             </button>
@@ -245,31 +247,60 @@ export default function App() {
         </div>
       )}
 
-      {/* Banner de Emergencia Crítica si hay un menor extraviado dentro del radio */}
-      {criticalNearbyAlert && (
-        <div className="bg-red-700 text-white px-4 py-2.5 shadow-sm border-b border-red-800">
-          <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="p-1 rounded-full bg-white/20 animate-pulse">
-                <AlertTriangle className="w-4 h-4 text-white" />
+      {/* Alerta Flotante de Emergencia Crítica (Ventana emergente lateral táctica) */}
+      {criticalNearbyAlert && dismissedCriticalAlertId !== criticalNearbyAlert.id && (
+        <aside
+          role="alert"
+          aria-live="assertive"
+          className="fixed bottom-6 right-6 z-[9990] w-[calc(100vw-3rem)] sm:w-96 bg-white border-l-4 border-l-red-600 border border-slate-200/90 rounded-2xl p-4 shadow-xl shadow-red-500/10 animate-fade-in"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600" />
               </span>
-              <p className="text-xs sm:text-sm font-semibold tracking-tight">
-                ALERTA ROJA EN TU PERÍMETRO: {criticalNearbyAlert.title} a solo{' '}
-                <span className="underline font-bold tabular-nums">
-                  {formatDistance(criticalNearbyAlert.distanceKm)}
-                </span>{' '}
-                de ti.
-              </p>
+              <span className="text-[10px] font-bold tracking-wider text-red-700 uppercase font-mono">
+                Alerta Crítica en Perímetro
+              </span>
             </div>
             <button
               type="button"
-              onClick={() => handleSelectOnMap(criticalNearbyAlert.id)}
-              className="px-3 py-1 bg-white text-red-700 font-bold text-xs rounded-lg shadow-sm hover:bg-slate-100 transition-transform active:scale-[0.98] cursor-pointer shrink-0"
+              onClick={() => setDismissedCriticalAlertId(criticalNearbyAlert.id)}
+              className="text-slate-400 hover:text-slate-700 p-0.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Descartar aviso flotante"
+              aria-label="Cerrar aviso flotante"
             >
-              Ver en Mapa
+              <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
+
+          <div className="mt-2.5 space-y-1">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug line-clamp-2">
+              {criticalNearbyAlert.title}
+            </h4>
+            <div className="flex items-center gap-2 text-xs pt-1">
+              <span className="font-mono font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200 tabular-nums text-[11px]">
+                A {formatDistance(criticalNearbyAlert.distanceKm)}
+              </span>
+              <span className="text-[11px] text-slate-500 truncate">
+                {criticalNearbyAlert.coordinates.address || 'Lázaro Cárdenas'}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                handleSelectOnMap(criticalNearbyAlert.id);
+              }}
+              className="w-full py-2 px-3 bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Ver en Radar Cartográfico</span>
+            </button>
+          </div>
+        </aside>
       )}
 
       {/* Contenido Principal con Aislamiento Estricto por Sección */}
@@ -413,19 +444,19 @@ export default function App() {
 
       {/* MODAL DE LOGIN DE MODERADOR */}
       {showModLoginModal && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
           <div
-            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 shadow-xl space-y-5"
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-5"
             role="dialog"
             aria-modal="true"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                  <h3 className="text-base font-semibold text-slate-900 tracking-tight">
                     Acceso para Moderadores
                   </h3>
                   <p className="text-xs text-slate-500">
@@ -444,14 +475,14 @@ export default function App() {
             </div>
 
             {/* Hint de credenciales para evaluadores y validadores */}
-            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex items-start justify-between gap-2">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-start justify-between gap-2">
               <div>
-                <p className="font-semibold text-amber-800">Cuenta de Validador Oficial:</p>
+                <p className="font-semibold text-slate-900">Cuenta de Validador Oficial:</p>
                 <p className="text-[11px] text-slate-600 mt-0.5">
-                  Correo: <span className="font-mono font-bold text-amber-900">admin123@gmail.com</span>
+                  Correo: <span className="font-mono font-bold text-slate-900">admin123@gmail.com</span>
                 </p>
                 <p className="text-[11px] text-slate-600">
-                  Clave: <span className="font-mono font-bold text-amber-900">admin123</span>
+                  Clave: <span className="font-mono font-bold text-slate-900">admin123</span>
                 </p>
               </div>
               <button
@@ -461,7 +492,7 @@ export default function App() {
                   setLoginPassword('admin123');
                   setLoginError(null);
                 }}
-                className="px-2 py-1 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-semibold transition-all cursor-pointer shrink-0 self-center"
+                className="px-2.5 py-1 rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-semibold transition-all cursor-pointer shrink-0 self-center active:scale-[0.98]"
               >
                 Autocompletar
               </button>
@@ -484,7 +515,7 @@ export default function App() {
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
                   placeholder="admin123@gmail.com"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
                   required
                 />
               </div>
@@ -499,7 +530,7 @@ export default function App() {
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Contraseña..."
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 pr-9 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 pr-9 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
                     required
                   />
                   <button
@@ -512,7 +543,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -527,7 +558,7 @@ export default function App() {
                   type="submit"
                   disabled={isLoggingIn}
                   icon={isLoggingIn ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium"
                 >
                   {isLoggingIn ? 'Verificando...' : 'Iniciar Sesión'}
                 </Button>
