@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useNearbyAlerts, AlertWithDistance } from './hooks/useNearbyAlerts';
 import { Header, AppView } from './components/layout/Header';
@@ -14,12 +14,17 @@ import { EmergencyPanel } from './components/admin/EmergencyPanel';
 import { useEmergencies } from './hooks/useEmergencies';
 import { formatDistance } from './services/geo';
 import { ModeratorUser } from './types/auth';
-import { supabase } from './services/supabase';
+import type { Session } from '@supabase/supabase-js';
+import { supabase, esSesionReal } from './services/supabase';
 import { adminSettingsService } from './services/adminSettingsService';
 import { AlertTriangle, KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2, Siren } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
 const STORAGE_MOD_KEY = 'alerta_cerca_moderator_user';
+const ROLES_MODERADOR = ['validador', 'institucion', 'admin'];
+
+const tituloDeRol = (rol: string) =>
+  rol === 'admin' ? 'Super Administrador (Supabase RLS)' : rol === 'institucion' ? 'Institución Oficial' : 'Validador Oficial CCE';
 
 export default function App() {
   // Estado de Autenticación de Moderador
@@ -66,13 +71,25 @@ export default function App() {
     setLocationManually,
   } = useGeolocation();
 
+  // Sale del modo moderador y, si hay motivo, vuelve a abrir el acceso diciéndolo (nunca en silencio)
+  const cerrarModo = useCallback((aviso?: string) => {
+    setIsModerator(false);
+    setModeratorUser(null);
+    localStorage.removeItem(STORAGE_MOD_KEY);
+    setCurrentView('citizen');
+    if (aviso) {
+      setLoginError(aviso);
+      setShowModLoginModal(true);
+    }
+  }, []);
+
   // Hook de Emergencias SOS en tiempo real (para moderadores y centro de mando)
   const {
     emergencias,
     abiertas: emergenciasAbiertas,
     error: errorEmergencias,
     recargar: recargarEmergencias,
-  } = useEmergencies(isModerator);
+  } = useEmergencies(isModerator, cerrarModo);
 
   // Hook de Alertas reactivas por proximidad
   const {
@@ -88,39 +105,56 @@ export default function App() {
     requestRealGPS();
   }, [requestRealGPS]);
 
-  // Sincronización opcional de perfil de validador/administrador con Supabase
+  // El modo moderador solo vale mientras haya una sesión REAL de Supabase con rol de validador,
+  // institución o admin (lo guardado en localStorage no basta: se puede escribir a mano). Se revisa
+  // al abrir y cada vez que cambia la sesión. Un fallo pasajero (sin internet, servidor lento) NO
+  // saca a nadie; sí lo hace una sesión vencida, anónima o sin rol.
   useEffect(() => {
     const client = supabase;
     if (!client || !isModerator) return;
-    client.auth.getSession().then(async ({ data }) => {
-      // Solo consultar perfil si hay un usuario real registrado por correo (no anónimo)
-      if (data?.session?.user?.id && !data.session.user.is_anonymous) {
-        const { data: perfil } = await client
-          .from('perfiles')
-          .select('id, nombre, rol, institucion')
-          .eq('id', data.session.user.id)
-          .single();
+    let vivo = true;
 
-        if (perfil && (perfil.nombre || perfil.institucion)) {
-          setModeratorUser((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  fullName: perfil.nombre || prev.fullName,
-                  roleTitle:
-                    perfil.rol === 'admin'
-                      ? 'Super Administrador (Supabase RLS)'
-                      : perfil.rol === 'institucion'
-                      ? 'Institución Oficial'
-                      : 'Validador Oficial CCE',
-                  entity: perfil.institucion || prev.entity,
-                }
-              : null
-          );
-        }
+    const verificar = async (sesion: Session | null) => {
+      if (!esSesionReal(sesion)) {
+        if (vivo) cerrarModo('Tu sesión venció o no es de un validador. Entra de nuevo con tu cuenta.');
+        return;
       }
+      const { data: perfil, error } = await client
+        .from('perfiles')
+        .select('id, nombre, rol, institucion')
+        .eq('id', sesion.user.id)
+        .maybeSingle();
+      if (!vivo || error) return;
+      if (!perfil || !ROLES_MODERADOR.includes(perfil.rol)) {
+        console.warn('Acceso denegado: la cuenta no tiene rol de validador, institución ni admin');
+        cerrarModo('Esta cuenta no tiene rol de validador. Pide que se lo asignen (ver docs/panel-web.md).');
+        return;
+      }
+      if (perfil.nombre || perfil.institucion) {
+        setModeratorUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                fullName: perfil.nombre || prev.fullName,
+                roleTitle: tituloDeRol(perfil.rol),
+                entity: perfil.institucion || prev.entity,
+              }
+            : null
+        );
+      }
+    };
+
+    client.auth.getSession().then(({ data }) => verificar(data.session));
+    const { data: suscripcion } = client.auth.onAuthStateChange((evento, sesion) => {
+      // Fuera del callback: Supabase no admite pedirle datos mientras gestiona el cambio de sesión
+      if (evento === 'SIGNED_OUT') window.setTimeout(() => verificar(null), 0);
+      else if (evento === 'SIGNED_IN' || evento === 'USER_UPDATED') window.setTimeout(() => verificar(sesion), 0);
     });
-  }, [isModerator]);
+    return () => {
+      vivo = false;
+      suscripcion.subscription.unsubscribe();
+    };
+  }, [isModerator, cerrarModo]);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,86 +163,45 @@ export default function App() {
     setIsLoggingIn(true);
     setLoginError(null);
 
-    try {
-      // 1. Intentar inicio de sesión real contra Supabase Auth
-      if (supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanUser,
-          password: cleanPass,
-        });
-
-        if (!error && data?.user) {
-          // Consultar el perfil y rol real en la base de datos de Supabase
-          const { data: perfil } = await supabase
-            .from('perfiles')
-            .select('id, nombre, rol, institucion')
-            .eq('id', data.user.id)
-            .single();
-
-          const rolValido = perfil && (perfil.rol === 'validador' || perfil.rol === 'institucion' || perfil.rol === 'admin');
-
-          if (!rolValido) {
-            setIsLoggingIn(false);
-            setLoginError(`Acceso Denegado: La cuenta tiene rol "${perfil?.rol || 'ciudadano'}" en Supabase. Solo usuarios con rol "validador", "institucion" o "admin" tienen autorización.`);
-            await supabase.auth.signOut();
-            return;
-          }
-
-          const user: ModeratorUser = {
-            username: data.user.email || cleanUser,
-            fullName: perfil.nombre || data.user.user_metadata?.full_name || 'Validador Oficial CCE',
-            roleTitle: perfil.rol === 'admin' ? 'Super Administrador (Supabase RLS)' : perfil.rol === 'institucion' ? 'Institución Oficial' : 'Validador Oficial CCE',
-            entity: perfil.institucion || 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
-          };
-          setIsModerator(true);
-          setModeratorUser(user);
-          localStorage.setItem(STORAGE_MOD_KEY, JSON.stringify(user));
-          setShowModLoginModal(false);
-          setLoginUsername('');
-          setLoginPassword('');
-          setIsLoggingIn(false);
-          setCurrentView('command');
-          adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Operador ${user.username} (Rol: ${perfil.rol}) ingresó con token seguro de Supabase`);
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('Fallo en autenticación remota Supabase:', err);
+    if (!supabase) {
+      setIsLoggingIn(false);
+      setLoginError('El portal no está conectado a Supabase: revisa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
+      return;
     }
 
-    // 2. Validación flexible de credenciales de administrador (cuentas maestras y CCE)
-    const registeredAccount = adminSettingsService
-      .getAccounts()
-      .find((a) => a.username.toLowerCase() === cleanUser && a.active);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanUser, password: cleanPass });
+      if (error || !data?.user) {
+        setLoginError(
+          /confirm/i.test(error?.message ?? '')
+            ? 'Esa cuenta aún no está confirmada. Márcala como confirmada en Supabase (Authentication → Users).'
+            : 'Correo o contraseña incorrectos.'
+        );
+        return;
+      }
 
-    const isMasterUser =
-      cleanUser === 'admin' ||
-      cleanUser === 'administrador' ||
-      cleanUser === 'admin123' ||
-      cleanUser === 'admin123@gmail.com' ||
-      cleanUser === 'moderador' ||
-      cleanUser === 'cce' ||
-      cleanUser === 'cce.lazarocardenas@gmail.com' ||
-      cleanUser === 'superadmin';
+      // El rol real vive en la base de datos (tabla perfiles), no en el navegador
+      const { data: perfil, error: errorPerfil } = await supabase
+        .from('perfiles')
+        .select('id, nombre, rol, institucion')
+        .eq('id', data.user.id)
+        .maybeSingle();
 
-    const isMasterPass =
-      cleanPass === 'admin' ||
-      cleanPass === 'admin123' ||
-      cleanPass === 'administrador' ||
-      cleanPass === 'cce2026' ||
-      cleanPass === 'alerta2026' ||
-      cleanPass.length >= 4;
+      if (errorPerfil || !perfil || !ROLES_MODERADOR.includes(perfil.rol)) {
+        await supabase.auth.signOut();
+        setLoginError(
+          errorPerfil
+            ? 'No se pudo comprobar tu rol. Revisa tu conexión e inténtalo de nuevo.'
+            : `Acceso denegado: esta cuenta tiene el rol "${perfil?.rol || 'ciudadano'}". Solo entran los roles "validador", "institucion" o "admin": pide que se lo asignen (ver docs/panel-web.md).`
+        );
+        return;
+      }
 
-    if ((isMasterUser && isMasterPass) || (registeredAccount && cleanPass.length >= 4)) {
       const user: ModeratorUser = {
-        username: registeredAccount ? registeredAccount.username : cleanUser,
-        fullName: registeredAccount
-          ? registeredAccount.fullName
-          : cleanUser.includes('cce')
-          ? 'Lic. Julio César Cortés (Operador CCE)'
-          : 'Director General CCE (Super Admin)',
-        roleTitle: registeredAccount ? registeredAccount.roleTitle : 'Coordinador General & Super Administrador',
-        entity: registeredAccount ? registeredAccount.entity : 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
+        username: data.user.email || cleanUser,
+        fullName: perfil.nombre || data.user.user_metadata?.full_name || 'Validador Oficial CCE',
+        roleTitle: tituloDeRol(perfil.rol),
+        entity: perfil.institucion || 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
       };
       setIsModerator(true);
       setModeratorUser(user);
@@ -216,14 +209,14 @@ export default function App() {
       setShowModLoginModal(false);
       setLoginUsername('');
       setLoginPassword('');
-      setIsLoggingIn(false);
       setCurrentView('command');
-      adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Administrador ${user.username} ingresó al sistema`);
-      return;
+      adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Administrador ${user.username} (Rol: ${perfil.rol}) ingresó con su sesión de Supabase`);
+    } catch (err) {
+      console.warn('Fallo en autenticación remota Supabase:', err);
+      setLoginError('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setIsLoggingIn(false);
     }
-
-    setIsLoggingIn(false);
-    setLoginError('Credenciales no válidas. Usa: admin123@gmail.com / admin123 o admin / admin123');
   };
 
   const handleLogoutModerator = async () => {
@@ -514,29 +507,10 @@ export default function App() {
               </button>
             </div>
 
-            {/* Hint de credenciales para evaluadores y validadores */}
-            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold text-amber-800">Cuenta de Validador Oficial:</p>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  Correo: <span className="font-mono font-bold text-amber-900">admin123@gmail.com</span>
-                </p>
-                <p className="text-[11px] text-slate-600">
-                  Clave: <span className="font-mono font-bold text-amber-900">admin123</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginUsername('admin123@gmail.com');
-                  setLoginPassword('admin123');
-                  setLoginError(null);
-                }}
-                className="px-2 py-1 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-semibold transition-all cursor-pointer shrink-0 self-center"
-              >
-                Autocompletar
-              </button>
-            </div>
+            <p className="text-[11px] text-slate-500">
+              Entran las cuentas de Supabase con rol <b>validador</b>, <b>institución</b> o <b>admin</b>. Si tu cuenta
+              ya existe pero no entra, falta asignarle el rol (docs/panel-web.md, paso 3).
+            </p>
 
             {loginError && (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
@@ -548,13 +522,13 @@ export default function App() {
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Usuario o Correo Institucional
+                  Correo de tu cuenta
                 </label>
                 <input
                   type="text"
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="admin123@gmail.com"
+                  placeholder="correo@ejemplo.com"
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
                   required
                 />

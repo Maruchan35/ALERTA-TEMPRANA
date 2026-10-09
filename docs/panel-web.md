@@ -209,4 +209,7 @@ puede verificarlo, descartarlo o resolverlo antes o después. Umbrales en la tab
 | `Email not confirmed` | Authentication → Users → la cuenta → *Confirm email*, o el `update` de `cuentas_validadores.sql`. |
 | `Invalid login credentials` | Correo o contraseña incorrectos. |
 | Entra pero no ve nada / “no tiene permisos de validador” | Falta el `update perfiles set rol = ...` del paso 3. |
+| «Acceso denegado: esta cuenta tiene el rol "ciudadano"» | Crear la cuenta en Authentication → Users **no basta**: toda cuenta nueva nace como `ciudadano`. Falta el `update perfiles set rol = ...` del paso 3. |
+| Te saca al login con «Tu sesión venció o no es de un validador» | La sesión de Supabase se perdió (venció, se limpió el navegador o era anónima). Vuelve a entrar. Desde la versión que quitó las cuentas de demostración el portal solo acepta cuentas reales de Supabase. |
+| Los SOS no aparecían | Pasaba cuando se «entraba» sin una cuenta real: el portal consultaba como ciudadano y la lista salía vacía, sin error. Ahora, sin sesión de validador, avisa y pide entrar de nuevo. |
 | `permission denied for function …` | Esa función es interna del servidor (no la llama la web). Usa solo las de esta guía. |

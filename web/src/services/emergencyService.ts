@@ -1,4 +1,4 @@
-import { supabase, ensureAuthSession } from './supabase';
+import { supabase, sesionDeModerador } from './supabase';
 
 export type EstadoEmergencia = 'activa' | 'en_seguimiento' | 'cerrada';
 export type TipoEmergencia = 'sos' | 'asalto' | 'secuestro' | 'me_siguen' | 'otra';
@@ -128,12 +128,21 @@ function mensajeServidor(mensaje: string): string {
   return mensaje;
 }
 
+/** La sesión de moderador se perdió (venció, se cerró o es anónima): hay que entrar de nuevo. */
+export class SesionPerdidaError extends Error {
+  constructor() {
+    super('Tu sesión venció o no es de un validador. Entra de nuevo con tu cuenta.');
+    this.name = 'SesionPerdidaError';
+  }
+}
+
 export const emergencyService = {
   /** Si falla, LANZA el error para que el panel lo muestre: una lista vacía haría creer al
-   *  validador que nadie está pidiendo ayuda. */
+   *  validador que nadie está pidiendo ayuda. Sin sesión de validador lanza SesionPerdidaError
+   *  (no consulta como ciudadano: esa lista sale vacía y sin error). */
   async listar(): Promise<Emergencia[]> {
     if (!supabase) return [];
-    await ensureAuthSession();
+    if (!(await sesionDeModerador())) throw new SesionPerdidaError();
     const { data, error } = await supabase
       .from('emergencias_panel')
       .select('*')
@@ -203,23 +212,53 @@ export const emergencyService = {
   },
 
   /**
-   * Tiempo real: cambios de emergencias, puntos nuevos del recorrido y evidencia.
+   * Tiempo real: cambios de emergencias y evidencia nueva. Si el canal se cae (red, suspensión del
+   * equipo, token vencido) se vuelve a abrir solo, y al reconectar avisa para recargar lo que pasó
+   * mientras estuvo caído. Cada canal lleva un nombre único: reutilizar el nombre de uno que aún se
+   * estaba cerrando hacía fallar la suscripción en silencio y el portal se quedaba sin tiempo real.
    */
   suscribir(alCambiar: () => void): () => void {
     if (!supabase) return () => {};
     const cliente = supabase;
-    try {
-      const canal = cliente
-        .channel('portal-emergencias-sos')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'emergencias' }, () => alCambiar())
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emergencia_evidencias' }, () => alCambiar())
-        .subscribe();
-      return () => {
-        cliente.removeChannel(canal);
-      };
-    } catch {
-      return () => {};
-    }
+    let canal: ReturnType<typeof cliente.channel> | null = null;
+    let cerrado = false;
+    let generacion = 0;
+    let reintento: number | undefined;
+
+    const reabrir = () => {
+      window.clearTimeout(reintento);
+      reintento = window.setTimeout(() => {
+        if (cerrado) return;
+        if (canal) void cliente.removeChannel(canal);
+        canal = null;
+        abrir();
+      }, 3000);
+    };
+
+    const abrir = () => {
+      const esta = ++generacion;
+      try {
+        const nombre = `portal-emergencias-sos-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        canal = cliente
+          .channel(nombre)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'emergencias' }, () => alCambiar())
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emergencia_evidencias' }, () => alCambiar())
+          .subscribe((estado) => {
+            if (cerrado || esta !== generacion) return; // un canal viejo que se está cerrando
+            if (estado === 'SUBSCRIBED') alCambiar();
+            else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') reabrir();
+          });
+      } catch {
+        reabrir();
+      }
+    };
+
+    abrir();
+    return () => {
+      cerrado = true;
+      window.clearTimeout(reintento);
+      if (canal) void cliente.removeChannel(canal);
+    };
   },
 
   /** Cada punto nuevo del recorrido de UNA emergencia */

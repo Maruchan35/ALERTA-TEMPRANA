@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ModeratorUser } from '../../types/auth';
+import { supabase } from '../../services/supabase';
 import { Button } from '../ui/Button';
 import {
   adminSettingsService,
@@ -147,7 +148,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
     setNewUserEmail('');
     setNewUserName('');
     setNewUserPhone('');
-    showNotification(`Operador "${created.fullName}" dado de alta satisfactoriamente.`);
+    showNotification(`"${created.fullName}" quedó anotado SOLO en este navegador. Para que pueda entrar, asígnale el rol en Supabase.`);
   };
 
   const handleToggleStatus = (id: string) => {
@@ -211,7 +212,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
   };
 
   // --- ACCIONES DE CONTRASEÑA ---
-  const handleSavePassword = (e: React.FormEvent) => {
+  const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
       setPasswordError('La nueva contraseña debe tener al menos 6 caracteres.');
@@ -221,14 +222,41 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
       setPasswordError('Las contraseñas no coinciden.');
       return;
     }
+    if (!supabase) {
+      setPasswordError('El portal no está conectado a Supabase.');
+      return;
+    }
 
     setPasswordError(null);
+    try {
+      // Se comprueba la contraseña actual y luego se cambia la de la cuenta REAL de Supabase
+      const { data: sesion } = await supabase.auth.getSession();
+      const correo = sesion.session?.user.email;
+      if (!correo) {
+        setPasswordError('Tu sesión venció. Entra de nuevo para cambiar la contraseña.');
+        return;
+      }
+      const { error: errorActual } = await supabase.auth.signInWithPassword({ email: correo, password: currentPassword });
+      if (errorActual) {
+        setPasswordError('La contraseña actual no es correcta.');
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setPasswordError(`No se pudo cambiar la contraseña: ${error.message}`);
+        return;
+      }
+    } catch {
+      setPasswordError('No se pudo conectar con el servidor. Inténtalo de nuevo.');
+      return;
+    }
+
     setPasswordSuccess(true);
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setTimeout(() => setPasswordSuccess(false), 3000);
-    showNotification('Contraseña principal de acceso actualizada.');
+    showNotification('Contraseña de tu cuenta actualizada.');
   };
 
   // Exportar Auditoría a JSON
@@ -958,7 +986,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
               <span>Actualizar Contraseña de Acceso</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Modifica la clave de acceso utilizada para proteger la consola confidencial del Centro de Mando.
+              Cambia la contraseña de tu cuenta de Supabase (la que usas para entrar a esta consola).
             </p>
           </div>
 
@@ -984,7 +1012,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Ingresa clave actual (ej. admin123 o cce2026)"
+                placeholder="Tu contraseña actual"
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500"
                 required
               />
@@ -1059,7 +1087,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 <span>Asignación de Roles en Supabase RLS:</span>
               </div>
               <p>
-                Para autorizar acceso a funciones del servidor protegidas, la cuenta debe registrarse en Supabase Auth y su rol asignarse en la tabla <code>perfiles (rol in ('validador', 'institucion', 'admin'))</code>.
+                <b>Esto solo guarda una nota en este navegador y NO da acceso.</b> Para que alguien entre, créale la cuenta en Supabase (Authentication → Users) y asígnale el rol en la tabla <code>perfiles (rol in ('validador', 'institucion', 'admin'))</code>; los pasos están en docs/panel-web.md.
               </p>
             </div>
 
