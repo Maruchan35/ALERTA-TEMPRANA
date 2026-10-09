@@ -88,6 +88,45 @@ export default function App() {
     requestRealGPS();
   }, [requestRealGPS]);
 
+  // Validación de seguridad contra Supabase perfiles: previene manipulación en DevTools/localStorage
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !isModerator) return;
+    client.auth.getSession().then(async ({ data }) => {
+      if (data?.session?.user?.id) {
+        const { data: perfil, error } = await client
+          .from('perfiles')
+          .select('id, nombre, rol, institucion')
+          .eq('id', data.session.user.id)
+          .single();
+
+        if (error || !perfil || perfil.rol === 'ciudadano') {
+          // Si el usuario en Supabase tiene rol ciudadano o fue revocado, expulsar del modo mando
+          console.warn('Acceso denegado: permisos insuficientes en Supabase RLS (perfiles.rol = ciudadano)');
+          setIsModerator(false);
+          setModeratorUser(null);
+          localStorage.removeItem(STORAGE_MOD_KEY);
+        } else if (perfil.nombre || perfil.institucion) {
+          setModeratorUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  fullName: perfil.nombre || prev.fullName,
+                  roleTitle:
+                    perfil.rol === 'admin'
+                      ? 'Super Administrador (Supabase RLS)'
+                      : perfil.rol === 'institucion'
+                      ? 'Institución Oficial'
+                      : 'Validador Oficial CCE',
+                  entity: perfil.institucion || prev.entity,
+                }
+              : null
+          );
+        }
+      }
+    });
+  }, [isModerator]);
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUser = loginUsername.trim().toLowerCase();
@@ -104,11 +143,27 @@ export default function App() {
         });
 
         if (!error && data?.user) {
+          // Consultar el perfil y rol real en la base de datos de Supabase
+          const { data: perfil } = await supabase
+            .from('perfiles')
+            .select('id, nombre, rol, institucion')
+            .eq('id', data.user.id)
+            .single();
+
+          const rolValido = perfil && (perfil.rol === 'validador' || perfil.rol === 'institucion' || perfil.rol === 'admin');
+
+          if (!rolValido) {
+            setIsLoggingIn(false);
+            setLoginError(`Acceso Denegado: La cuenta tiene rol "${perfil?.rol || 'ciudadano'}" en Supabase. Solo usuarios con rol "validador", "institucion" o "admin" tienen autorización.`);
+            await supabase.auth.signOut();
+            return;
+          }
+
           const user: ModeratorUser = {
             username: data.user.email || cleanUser,
-            fullName: data.user.user_metadata?.full_name || 'Validador Oficial CCE',
-            roleTitle: 'Validador y Administrador de Alertas',
-            entity: 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
+            fullName: perfil.nombre || data.user.user_metadata?.full_name || 'Validador Oficial CCE',
+            roleTitle: perfil.rol === 'admin' ? 'Super Administrador (Supabase RLS)' : perfil.rol === 'institucion' ? 'Institución Oficial' : 'Validador Oficial CCE',
+            entity: perfil.institucion || 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
           };
           setIsModerator(true);
           setModeratorUser(user);
@@ -117,6 +172,7 @@ export default function App() {
           setLoginUsername('');
           setLoginPassword('');
           setIsLoggingIn(false);
+          adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Operador ${user.username} (Rol: ${perfil.rol}) ingresó con token seguro de Supabase`);
           return;
         }
       }

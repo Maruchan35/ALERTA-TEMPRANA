@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 export type AdminRole = 'superadmin' | 'operador' | 'observador';
 
 export interface AdminAccount {
@@ -11,6 +13,7 @@ export interface AdminAccount {
   createdAt: string;
   lastLogin?: string;
   phone?: string;
+  source?: 'supabase' | 'local';
 }
 
 export interface EmergencyContact {
@@ -38,6 +41,8 @@ export interface AuditLogEntry {
   action: string;
   details: string;
   ipOrDevice?: string;
+  alertaId?: string;
+  source?: 'supabase' | 'local';
 }
 
 const STORAGE_ACCOUNTS_KEY = 'alerta_cerca_admin_accounts';
@@ -144,9 +149,104 @@ class AdminSettingsService {
     }
   }
 
-  // --- 1. GESTIÓN DE OPERADORES Y CUENTAS ---
+  // --- 1. GESTIÓN DE OPERADORES Y CUENTAS CON VALIDACIÓN RLS EN SUPABASE ---
+  public async verifyUserRole(userId: string): Promise<{
+    valid: boolean;
+    role: AdminRole;
+    rawRole: string;
+    nombre: string;
+    institucion: string;
+  } | null> {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, nombre, rol, institucion')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data) return null;
+
+      // Solo roles con privilegios bajo RLS es_validador()
+      if (!['admin', 'validador', 'institucion'].includes(data.rol)) {
+        return null;
+      }
+
+      let role: AdminRole = 'operador';
+      if (data.rol === 'admin') role = 'superadmin';
+      else if (data.rol === 'institucion') role = 'observador';
+
+      return {
+        valid: true,
+        role,
+        rawRole: data.rol,
+        nombre: data.nombre || 'Validador Oficial CCE',
+        institucion: data.institucion || 'Consejo Coordinador Empresarial',
+      };
+    } catch (err) {
+      console.warn('Error verificando rol en perfiles:', err);
+      return null;
+    }
+  }
+
   public getAccounts(): AdminAccount[] {
     return [...this.accounts];
+  }
+
+  public async fetchServerAccounts(): Promise<AdminAccount[]> {
+    if (!supabase) return this.getAccounts();
+    try {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, nombre, rol, institucion, creado_en')
+        .in('rol', ['admin', 'validador', 'institucion'])
+        .order('creado_en', { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        return this.getAccounts();
+      }
+
+      const roleTitles: Record<string, string> = {
+        admin: 'Coordinador General & Super Administrador RLS',
+        validador: 'Operador de Mando & Validador CCE',
+        institucion: 'Enlace de Seguridad / Protección Civil',
+      };
+
+      const serverAccounts: AdminAccount[] = data.map((p) => {
+        let mappedRole: AdminRole = 'operador';
+        if (p.rol === 'admin') mappedRole = 'superadmin';
+        else if (p.rol === 'institucion') mappedRole = 'observador';
+
+        const local = this.accounts.find((a) => a.id === p.id || a.fullName === p.nombre);
+
+        return {
+          id: p.id,
+          username: local?.username || `${p.nombre?.toLowerCase().replace(/\s+/g, '.') || 'operador'}@cce.gob.mx`,
+          fullName: p.nombre || 'Operador Oficial CCE',
+          role: mappedRole,
+          roleTitle: roleTitles[p.rol] || 'Validador Oficial CCE',
+          entity: p.institucion || 'Consejo Coordinador Empresarial',
+          active: true,
+          createdAt: p.creado_en || new Date().toISOString(),
+          lastLogin: local?.lastLogin,
+          phone: local?.phone,
+          source: 'supabase',
+        };
+      });
+
+      // Asegurar que las cuentas locales preconfiguradas también estén visibles si no chocan
+      const merged = [...serverAccounts];
+      for (const loc of this.accounts) {
+        if (!merged.some((m) => m.id === loc.id || m.username === loc.username)) {
+          merged.push({ ...loc, source: 'local' });
+        }
+      }
+
+      return merged;
+    } catch (err) {
+      console.warn('Error obteniendo cuentas de Supabase:', err);
+      return this.getAccounts();
+    }
   }
 
   public createAccount(newAccount: Omit<AdminAccount, 'id' | 'createdAt'>): AdminAccount {
@@ -238,14 +338,110 @@ class AdminSettingsService {
     this.saveToStorage(STORAGE_CONTACTS_KEY, this.contacts);
   }
 
-  // --- 4. AUDITORÍA FORENSE INMUTABLE ---
+  // --- 4. AUDITORÍA FORENSE INMUTABLE CON SINCRONIZACIÓN SUPABASE (bitacora) ---
   public getAuditLogs(): AuditLogEntry[] {
     return [...this.auditLogs].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   }
 
-  public logAction(operatorName: string, action: string, details: string): void {
+  public async fetchServerAuditLogs(): Promise<AuditLogEntry[]> {
+    if (!supabase) return this.getAuditLogs();
+    try {
+      // 1. Consultar eventos forenses registrados en la tabla 'bitacora' de PostgreSQL
+      const { data: bitacoraRows, error: bitErr } = await supabase
+        .from('bitacora')
+        .select('id, alerta_id, usuario_id, accion, detalle, creada_en')
+        .order('creada_en', { ascending: false })
+        .limit(150);
+
+      if (bitErr || !bitacoraRows || bitacoraRows.length === 0) {
+        return this.getAuditLogs();
+      }
+
+      // 2. Extraer IDs de usuarios para resolver sus nombres de validadores
+      const userIds = Array.from(
+        new Set(bitacoraRows.map((b) => b.usuario_id).filter((id): id is string => Boolean(id)))
+      );
+
+      const perfilMap = new Map<string, { nombre: string; rol: string; institucion: string }>();
+      if (userIds.length > 0) {
+        const { data: perfiles } = await supabase
+          .from('perfiles')
+          .select('id, nombre, rol, institucion')
+          .in('id', userIds);
+
+        if (perfiles) {
+          perfiles.forEach((p) => {
+            perfilMap.set(p.id, {
+              nombre: p.nombre || 'Validador Oficial',
+              rol: p.rol,
+              institucion: p.institucion || 'CCE',
+            });
+          });
+        }
+      }
+
+      // 3. Mapear cada registro de bitácora
+      const serverEntries: AuditLogEntry[] = bitacoraRows.map((b) => {
+        const perfil = b.usuario_id ? perfilMap.get(b.usuario_id) : null;
+        let detalleStr = '';
+        if (b.detalle && typeof b.detalle === 'object') {
+          detalleStr = Object.entries(b.detalle)
+            .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+            .join(' | ');
+        } else {
+          detalleStr = String(b.detalle || 'Acción de protocolo ejecutada');
+        }
+
+        const roleDisplay = perfil?.rol === 'admin'
+          ? 'Super Administrador'
+          : perfil?.rol === 'institucion'
+          ? 'Enlace Institucional'
+          : b.usuario_id
+          ? 'Validador CCE'
+          : 'Sistema Automático';
+
+        return {
+          id: `srv-bit-${b.id}`,
+          timestamp: b.creada_en,
+          operatorName: perfil?.nombre || (b.usuario_id ? 'Operador Validador' : 'Motor Central CCE'),
+          operatorRole: roleDisplay,
+          action: String(b.accion || 'ACCION').toUpperCase(),
+          details: b.alerta_id ? `[Alerta ${b.alerta_id.slice(0, 8)}] ${detalleStr}` : detalleStr,
+          ipOrDevice: 'Servidor PostgreSQL (RLS)',
+          alertaId: b.alerta_id,
+          source: 'supabase',
+        };
+      });
+
+      // 4. Combinar con acciones locales de cabina si no coinciden
+      const localLogs = this.auditLogs.map((l) => ({
+        ...l,
+        source: (l.source || 'local') as 'supabase' | 'local',
+      }));
+
+      const merged = [...serverEntries];
+      for (const loc of localLogs) {
+        if (!merged.some((m) => m.id === loc.id || (m.timestamp === loc.timestamp && m.action === loc.action))) {
+          merged.push(loc);
+        }
+      }
+
+      merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return merged;
+    } catch (err) {
+      console.warn('Error sincronizando bitácora con Supabase:', err);
+      return this.getAuditLogs();
+    }
+  }
+
+  public logAction(
+    operatorName: string,
+    action: string,
+    details: string,
+    alertaId?: string
+  ): void {
     const entry: AuditLogEntry = {
       id: `aud-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       timestamp: new Date().toISOString(),
@@ -254,6 +450,8 @@ class AdminSettingsService {
       action,
       details,
       ipOrDevice: navigator.userAgent.includes('Mobile') ? 'Móvil' : 'Estación Fija',
+      alertaId,
+      source: 'local',
     };
     this.auditLogs.unshift(entry);
     if (this.auditLogs.length > 300) this.auditLogs.pop(); // Mantener últimas 300 acciones

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ModeratorUser } from '../../types/auth';
 import { Button } from '../ui/Button';
 import {
@@ -28,6 +28,8 @@ import {
   Download,
   Plus,
   Sparkles,
+  RefreshCw,
+  Database,
 } from 'lucide-react';
 
 interface ModeratorSettingsProps {
@@ -80,6 +82,38 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
 
   // Notificación Toast
   const [toast, setToast] = useState<string | null>(null);
+
+  const [isLoadingServerAccounts, setIsLoadingServerAccounts] = useState(false);
+  const [isLoadingServerAudit, setIsLoadingServerAudit] = useState(false);
+
+  const loadServerAccounts = async () => {
+    setIsLoadingServerAccounts(true);
+    try {
+      const serverAccounts = await adminSettingsService.fetchServerAccounts();
+      setAccounts(serverAccounts);
+    } catch (err) {
+      console.warn('Error cargando cuentas de Supabase:', err);
+    } finally {
+      setIsLoadingServerAccounts(false);
+    }
+  };
+
+  const loadServerAudit = async () => {
+    setIsLoadingServerAudit(true);
+    try {
+      const serverLogs = await adminSettingsService.fetchServerAuditLogs();
+      setAuditLogs(serverLogs);
+    } catch (err) {
+      console.warn('Error cargando bitácora de Supabase:', err);
+    } finally {
+      setIsLoadingServerAudit(false);
+    }
+  };
+
+  useEffect(() => {
+    loadServerAccounts();
+    loadServerAudit();
+  }, []);
 
   const showNotification = (msg: string) => {
     setToast(msg);
@@ -396,19 +430,45 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   <span>Cuentas de Operadores y Administradores Autorizados</span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Como Super Administrador puedes dar de alta nuevos operadores, definir sus facultades o suspender su acceso.
+                  Operadores autorizados bajo políticas Row Level Security (RLS) en Supabase y consola de mando.
                 </p>
               </div>
 
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setShowNewUserModal(true)}
-                icon={<UserPlus className="w-3.5 h-3.5" />}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
-              >
-                Dar de Alta Operador
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={loadServerAccounts}
+                  icon={<RefreshCw className={`w-3.5 h-3.5 ${isLoadingServerAccounts ? 'animate-spin' : ''}`} />}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 cursor-pointer"
+                  title="Sincronizar cuentas reales desde tabla perfiles en Supabase"
+                >
+                  {isLoadingServerAccounts ? 'Consultando...' : 'Sincronizar Supabase'}
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowNewUserModal(true)}
+                  icon={<UserPlus className="w-3.5 h-3.5" />}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
+                >
+                  Dar de Alta Operador
+                </Button>
+              </div>
+            </div>
+
+            {/* Banner de Validación Criptográfica RLS */}
+            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/70 text-xs text-emerald-900 flex items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <Database className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  <strong>Seguridad RLS Supabase Activa:</strong> Los roles operativos son validados criptográficamente contra la tabla <code>perfiles</code> (<code>rol in ('validador', 'institucion', 'admin')</code>). Modificaciones locales no otorgan privilegios de red.
+                </span>
+              </div>
+              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200/70 text-emerald-900 shrink-0">
+                PostgreSQL RLS
+              </span>
             </div>
 
             {/* Tabla de Operadores */}
@@ -427,7 +487,19 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   {accounts.map((acc) => (
                     <tr key={acc.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="font-bold text-slate-900">{acc.fullName}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">{acc.fullName}</span>
+                          {acc.source === 'supabase' ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-bold" title="Cuenta real confirmada en tabla perfiles de Supabase">
+                              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                              RLS Supabase
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-500 text-[9px] font-semibold" title="Configurada en memoria local">
+                              Local
+                            </span>
+                          )}
+                        </div>
                         <div className="font-mono text-[11px] text-slate-500">{acc.username}</div>
                         {acc.phone && <div className="text-[10px] text-slate-400">Tel: {acc.phone}</div>}
                       </td>
@@ -784,6 +856,17 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 <Button
                   variant="secondary"
                   size="sm"
+                  onClick={loadServerAudit}
+                  icon={<RefreshCw className={`w-3.5 h-3.5 ${isLoadingServerAudit ? 'animate-spin' : ''}`} />}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 cursor-pointer"
+                  title="Sincronizar eventos con la tabla bitacora de PostgreSQL en Supabase"
+                >
+                  {isLoadingServerAudit ? 'Consultando...' : 'Sincronizar Supabase'}
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleExportAudit}
                   icon={<Download className="w-3.5 h-3.5" />}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-300 cursor-pointer"
@@ -791,6 +874,19 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   Exportar Auditoría (.JSON)
                 </Button>
               </div>
+            </div>
+
+            {/* Banner de Sincronización de Bitácora */}
+            <div className="p-3 rounded-xl border border-blue-200 bg-blue-50/70 text-xs text-blue-900 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>
+                  <strong>Bitácora Oficial Sincronizada:</strong> Registro forense enlazado a PostgreSQL con RLS (<code>bitacora</code>). Valida acciones de verificación, confirmaciones ciudadanas y despacho de emergencias.
+                </span>
+              </div>
+              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-200/70 text-blue-900 shrink-0">
+                Auditoría Inmutable
+              </span>
             </div>
 
             {/* Buscador de Logs */}
@@ -810,12 +906,27 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                     className="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-200 text-slate-800">
                           {log.action}
                         </span>
                         <span className="font-bold text-slate-900">{log.operatorName}</span>
                         <span className="text-[10px] text-slate-400">({log.operatorRole})</span>
+                        {log.source === 'supabase' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                            Supabase Bitácora
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-200 text-slate-600">
+                            Local
+                          </span>
+                        )}
+                        {log.alertaId && (
+                          <span className="font-mono text-[10px] text-slate-400">
+                            Ref: {log.alertaId.slice(0, 8)}
+                          </span>
+                        )}
                       </div>
                       <p className="text-slate-600 text-[11px] leading-relaxed">{log.details}</p>
                     </div>
@@ -940,6 +1051,16 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
+              <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-red-600" />
+                <span>Asignación de Roles en Supabase RLS:</span>
+              </div>
+              <p>
+                Para autorizar acceso a funciones del servidor protegidas, la cuenta debe registrarse en Supabase Auth y su rol asignarse en la tabla <code>perfiles (rol in ('validador', 'institucion', 'admin'))</code>.
+              </p>
             </div>
 
             <form onSubmit={handleCreateUser} className="space-y-3.5 text-xs">

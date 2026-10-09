@@ -231,31 +231,61 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
     emergencyService.evidencias(e.id).then(setEvidencias).catch(() => {});
   }, [e.id, e.n_evidencias]);
 
-  // Bitácora Táctica de Despacho
-  const [bitacoraNotas, setBitacoraNotas] = useState<Array<{ id: string; hora: string; texto: string }>>(() => {
-    try {
-      const data = localStorage.getItem(`bitacora_sos_${e.id}`);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Bitácora Táctica de Despacho sincronizada en Supabase con los demás validadores
   const [nuevaNota, setNuevaNota] = useState('');
+  const [isSavingNota, setIsSavingNota] = useState(false);
 
-  const agregarNotaBitacora = (texto: string) => {
-    const item = {
-      id: `bit-${Date.now()}`,
-      hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      texto,
-    };
-    const updated = [item, ...bitacoraNotas];
-    setBitacoraNotas(updated);
-    try {
-      localStorage.setItem(`bitacora_sos_${e.id}`, JSON.stringify(updated));
-    } catch {
-      // ignore
+  // Parsea las notas del servidor para que todos los validadores vean las mismas anotaciones
+  const bitacoraNotas = React.useMemo(() => {
+    const lista: Array<{ id: string; hora: string; texto: string; sincronizada: boolean }> = [];
+    if (e.nota && e.nota.trim()) {
+      const rawLineas = e.nota.split('\n').filter(Boolean);
+      rawLineas.forEach((linea, index) => {
+        const match = linea.match(/^\[(.*?)\]\s*(.*)$/);
+        if (match) {
+          lista.push({
+            id: `srv-${e.id}-${index}`,
+            hora: match[1],
+            texto: match[2],
+            sincronizada: true,
+          });
+        } else {
+          lista.push({
+            id: `srv-${e.id}-${index}`,
+            hora: 'Despacho',
+            texto: linea,
+            sincronizada: true,
+          });
+        }
+      });
     }
-    setNuevaNota('');
+    return lista;
+  }, [e.id, e.nota]);
+
+  const agregarNotaBitacora = async (texto: string) => {
+    if (!texto.trim() || isSavingNota) return;
+    setIsSavingNota(true);
+    const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    const nuevaEntrada = `[${horaActual}] ${texto.trim()}`;
+    const notasPrevias = (e.nota || '').trim();
+    const textoCombinado = notasPrevias ? `${notasPrevias}\n${nuevaEntrada}` : nuevaEntrada;
+    // Respetar restricción de longitud de PostgreSQL (char_length(nota) <= 500)
+    const notaFinal = textoCombinado.length > 490 ? textoCombinado.slice(-490) : textoCombinado;
+
+    try {
+      if (e.id !== SIMULACRO_DEMO.id) {
+        // Enviar a Supabase para que todos los operadores reciban la actualización
+        await emergencyService.atender(e.id, 'nota', { nota: notaFinal });
+        onRecargar();
+      } else {
+        e.nota = notaFinal;
+      }
+      setNuevaNota('');
+    } catch (err: any) {
+      console.warn('Error al persistir nota en Supabase:', err);
+    } finally {
+      setIsSavingNota(false);
+    }
   };
 
   const atender = async (accion: Parameters<typeof emergencyService.atender>[1], opciones?: { nota?: string; folio?: string }) => {
@@ -418,12 +448,17 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
 
         {/* Bitácora de Despacho Táctico CCE */}
         <div className="pt-3 border-t border-slate-200 text-xs space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-1">
             <p className="font-bold text-slate-800 uppercase tracking-wide text-[11px] flex items-center gap-1.5">
               <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
               <span>Bitácora de Despacho Táctico y Comunicaciones en Vivo</span>
             </p>
-            <span className="text-[10px] text-slate-400 font-mono">{bitacoraNotas.length} registros</span>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                🌐 Sincronizado en Servidor
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">{bitacoraNotas.length} registros</span>
+            </div>
           </div>
 
           {/* Presets Rápidos de Despacho */}
