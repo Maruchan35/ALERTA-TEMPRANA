@@ -8,7 +8,7 @@ Portal web de alta fidelidad para el sistema **ALERTA CERCA (HackaITLAC 2026)**.
 - **📁 Carpetas de Investigación y Expedientes Forenses (v1.1.0)**: Resguardo permanente de alertas resueltas y descartadas (cero pérdida de datos). Generación y copiado en 1 clic de oficios formales para el Ministerio Público / 911 con coordenadas WGS84, motivo de cierre y Hash SHA de integridad forense, además de descarga completa en JSON.
 - **Acceso Comunitario y Reportes Ciudadanos**: Reporte de incidentes en 3 pasos con validación estricta, geolocalización en tiempo real y botón colaborativo *"Lo he visto"* para registrar avistamientos ciudadanos.
 - **Sincronización Total con Supabase**: Subscripciones en tiempo real (`postgres_changes`), mapeo PostGIS, soporte multi-bucket para fotos y evidencias.
-- **Emergencias SOS (Modo Moderador)**: alarma crítica y banner rojo en cualquier vista cuando alguien pide ayuda desde la app; recorrido en vivo en el mapa, velocidad, batería, video de evidencia y seguimiento (tomar el caso, aviso al 911, cerrar). Código: `services/emergencyService.ts`, `hooks/useEmergencies.ts`, `components/admin/EmergencyPanel.tsx`.
+- **Emergencias SOS (Modo Moderador)**: alarma crítica y banner rojo en cualquier vista cuando alguien pide ayuda desde la app; recorrido en vivo en el mapa, velocidad, batería, video y audio de evidencia (reproducción seguida y huella SHA-256 de cada fragmento) y seguimiento (tomar el caso, aviso al 911, cerrar). Código: `services/emergencyService.ts`, `hooks/useEmergencies.ts`, `components/admin/EmergencyPanel.tsx`.
 
 ## 🚀 Puesta en marcha rápida
 

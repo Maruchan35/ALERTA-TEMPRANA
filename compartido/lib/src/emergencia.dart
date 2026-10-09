@@ -259,19 +259,30 @@ class PuntoEmergencia {
 }
 
 class EvidenciaEmergencia {
-  const EvidenciaEmergencia({required this.tipo, required this.ruta, required this.creadaEn, this.duracionS});
+  const EvidenciaEmergencia({
+    required this.tipo,
+    required this.ruta,
+    required this.creadaEn,
+    this.duracionS,
+    this.sha256,
+  });
 
   factory EvidenciaEmergencia.desdeMapa(Map<String, dynamic> m) => EvidenciaEmergencia(
     tipo: m['tipo'] as String,
     ruta: m['ruta'] as String,
     duracionS: (m['duracion_s'] as num?)?.toInt(),
     creadaEn: _fecha(m['creada_en'])!,
+    sha256: m['sha256'] as String?,
   );
 
   final String tipo; // video | audio | foto
   final String ruta;
   final int? duracionS;
   final DateTime creadaEn;
+
+  /// Huella que calculó el teléfono al grabarlo (null en la app 1.2). Con ella se comprueba que
+  /// la copia que la persona guardó en su teléfono, para una denuncia, no se editó después.
+  final String? sha256;
 }
 
 /// Detecta una sacudida FUERTE e intencional (o un forcejeo): [picos] golpes de aceleración

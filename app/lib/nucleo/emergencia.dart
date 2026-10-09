@@ -10,9 +10,12 @@ import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import 'bitacora_sos.dart';
+import 'copia_evidencia.dart';
 import 'preferencias.dart';
 import 'proteccion.dart';
 import 'ubicacion.dart';
@@ -34,7 +37,8 @@ enum EtapaSos {
   terminada,
 }
 
-/// Un fragmento de video que falta subir. Se guarda en el teléfono por si la app se cierra.
+/// Un fragmento de evidencia (video o audio) que falta subir. Se guarda en el teléfono por si la
+/// app se cierra.
 class _Fragmento {
   const _Fragmento({
     required this.emergencia,
@@ -43,6 +47,7 @@ class _Fragmento {
     required this.duracion,
     this.tipo = 'video',
     this.contentType = 'video/mp4',
+    this.sha256,
   });
 
   factory _Fragmento.desdeJson(String s) {
@@ -54,6 +59,7 @@ class _Fragmento {
       duracion: (m['duracion'] as num).toInt(),
       tipo: m['tipo'] as String? ?? 'video',
       contentType: m['contentType'] as String? ?? 'video/mp4',
+      sha256: m['sha256'] as String?,
     );
   }
 
@@ -64,6 +70,9 @@ class _Fragmento {
   final String tipo;
   final String contentType;
 
+  /// Huella del archivo al terminar de grabarlo (el servidor la registra con la hora).
+  final String? sha256;
+
   String aJson() => jsonEncode({
     'emergencia': emergencia,
     'ruta': ruta,
@@ -71,6 +80,7 @@ class _Fragmento {
     'duracion': duracion,
     'tipo': tipo,
     'contentType': contentType,
+    'sha256': sha256,
   });
 }
 
@@ -98,8 +108,20 @@ class ControlEmergencia extends ChangeNotifier {
   DateTime? ultimaSenal;
   double? precisionM;
 
-  /// Fragmentos de video que ya llegaron al servidor.
+  /// Fragmentos de evidencia (video o audio) que ya llegaron al servidor.
   int enviados = 0;
+
+  /// Fragmentos de esta emergencia copiados al teléfono (Descargas/ALERTA CERCA).
+  int copias = 0;
+
+  /// Lo que pasa en la emergencia (horas, ubicaciones, huellas): con esto se arma la constancia
+  /// para la denuncia. Solo vive en el teléfono; sigue aquí después del cierre por si llega tarde
+  /// el último fragmento.
+  BitacoraSos? bitacora;
+  DateTime? _pidioAyudaEn;
+  DateTime? _bitacoraGuardada;
+  var _escribiendoConstancia = false;
+  var _constanciaPendiente = false;
 
   Timer? _cuenta;
   Timer? _reintento;
@@ -146,6 +168,14 @@ class ControlEmergencia extends ChangeNotifier {
   }
 
   // ─── Configuración ─────────────────────────────────────────────────────────
+  /// Guardar una copia de la evidencia en el teléfono (Descargas/ALERTA CERCA), para una denuncia.
+  bool get copiaActivada => prefs.getBool(Claves.sosCopiaTelefono) ?? true;
+
+  Future<void> configurarCopia(bool si) async {
+    await prefs.setBool(Claves.sosCopiaTelefono, si);
+    notifyListeners();
+  }
+
   /// Sacudida fuerte con la app abierta.
   bool get sacudidaActivada => prefs.getBool(Claves.sosSacudida) ?? false;
 
@@ -251,6 +281,8 @@ class ControlEmergencia extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    _pidioAyudaEn = DateTime.now();
+    copias = 0;
     etapa = EtapaSos.enviando;
     notifyListeners();
     await _intentarIniciar();
@@ -285,6 +317,13 @@ class ControlEmergencia extends ChangeNotifier {
       ultimaSenal = DateTime.now();
       error = null;
       etapa = EtapaSos.activa;
+      bitacora = BitacoraSos(id: r.id, inicio: _pidioAyudaEn ?? DateTime.now(), origen: origen)
+        ..lat = p.lat
+        ..lon = p.lon
+        ..precisionM = p.precision
+        ..anotar('Pidió ayuda (${origen.texto})', _pidioAyudaEn)
+        ..anotar('La alerta llegó a los validadores');
+      _guardarBitacora(ya: true);
       await prefs.setString(Claves.sosId, r.id);
       _seguir();
       _evaluarAudio();
@@ -395,6 +434,7 @@ class ControlEmergencia extends ChangeNotifier {
       if (p?.precision != null) precisionM = p!.precision;
       error = null;
       if (etapa != EtapaSos.activa) return;
+      _anotarSenal(id, p?.lat, p?.lon, antes: estado, ahora: r);
       estado = r;
       // Un validador la cerró (p. ej. ya la localizaron)
       if (!r.estado.abierta) await _terminarLocal(r);
@@ -404,6 +444,45 @@ class ControlEmergencia extends ChangeNotifier {
       _enviandoSenal = false;
       notifyListeners();
     }
+  }
+
+  /// Bitácora de la constancia: última ubicación, cuántas señales y lo que hicieron los validadores.
+  void _anotarSenal(
+    String id,
+    double? lat,
+    double? lon, {
+    EstadoMiEmergencia? antes,
+    required EstadoMiEmergencia ahora,
+  }) {
+    final b = bitacora;
+    if (b == null || b.id != id) return;
+    b.senales++;
+    if (lat != null && lon != null) {
+      b
+        ..ultimaLat = lat
+        ..ultimaLon = lon
+        ..ultimaEn = DateTime.now();
+    }
+    var cambio = false;
+    if (ahora.atendidaPor != null && antes?.atendidaPor == null) {
+      b.anotar('${ahora.atendidaPor} tomó el caso');
+      cambio = true;
+    }
+    if (ahora.policiaAvisada && !(antes?.policiaAvisada ?? false)) {
+      b.anotar('Avisaron al 911');
+      cambio = true;
+    }
+    _guardarBitacora(ya: cambio);
+  }
+
+  /// La ubicación cambia cada 5 s: se escribe como mucho cada 30 s (los hechos, al momento).
+  void _guardarBitacora({bool ya = false}) {
+    final b = bitacora;
+    if (b == null) return;
+    final ahora = DateTime.now();
+    if (!ya && _bitacoraGuardada != null && ahora.difference(_bitacoraGuardada!) < const Duration(seconds: 30)) return;
+    _bitacoraGuardada = ahora;
+    Bitacoras.guardar(b);
   }
 
   Future<int?> _nivelBateria() async {
@@ -434,6 +513,13 @@ class ControlEmergencia extends ChangeNotifier {
     );
     notifyListeners();
     if (simulacro) return;
+    final b = bitacora;
+    if (b != null && b.id == id) {
+      b
+        ..tipo = tipo
+        ..anotar('Indicó: ${tipo.enPrimeraPersona}');
+      _guardarBitacora(ya: true);
+    }
     try {
       estado = await servicio.tipoEmergencia(id, tipo);
     } on ErrorServicio catch (e) {
@@ -479,6 +565,15 @@ class ControlEmergencia extends ChangeNotifier {
     _latido?.cancel();
     _reintento?.cancel();
     await _detenerAudio();
+    final b = bitacora;
+    if (r != null && b != null && b.id == r.id && b.fin == null) {
+      b
+        ..fin = DateTime.now()
+        ..cierre = _textoCierre(r)
+        ..anotar(b.cierre!);
+      _guardarBitacora(ya: true);
+      unawaited(_escribirConstancia(b));
+    }
     cerrada = r;
     estado = null;
     etapa = simulacro || r == null ? EtapaSos.inactiva : EtapaSos.terminada;
@@ -487,6 +582,41 @@ class ControlEmergencia extends ChangeNotifier {
     if (etapa == EtapaSos.inactiva) await Proteccion.sobrePantallaBloqueada(false);
     notifyListeners();
     _procesarCola(); // los últimos fragmentos tienen 15 min para terminar de subir
+  }
+
+  static String _textoCierre(EstadoMiEmergencia r) => switch (r.cierre) {
+    CierreEmergencia.aSalvo => 'La persona indicó que está a salvo',
+    CierreEmergencia.localizada => 'La cerró ${r.atendidaPor ?? 'un validador'}: la localizaron',
+    CierreEmergencia.falsaAlarma => 'Se cerró como falsa alarma',
+    null => 'Se cerró',
+  };
+
+  /// Al cerrar (y si después llega un fragmento) la constancia queda junto a la evidencia. Una a la
+  /// vez: si el último fragmento llega mientras se escribe, se vuelve a escribir al terminar (en el
+  /// mismo archivo, sin dejar una "constancia (1)").
+  Future<void> _escribirConstancia(BitacoraSos b) async {
+    if (!CopiaEvidencia.disponible || b.archivos.every((a) => a.uri == null)) return;
+    if (_escribiendoConstancia) {
+      _constanciaPendiente = true;
+      return;
+    }
+    _escribiendoConstancia = true;
+    try {
+      do {
+        _constanciaPendiente = false;
+        final r = await CopiaEvidencia.guardarTexto(
+          constanciaSos(carpeta: b.carpeta, bitacora: b, ahora: DateTime.now()),
+          carpeta: b.carpeta,
+          reemplazar: b.constanciaUri,
+        );
+        if (r != null) {
+          b.constanciaUri = r.uri;
+          _guardarBitacora(ya: true);
+        }
+      } while (_constanciaPendiente);
+    } finally {
+      _escribiendoConstancia = false;
+    }
   }
 
   /// Cierra la pantalla final ("Tu emergencia se cerró…").
@@ -526,6 +656,11 @@ class ControlEmergencia extends ChangeNotifier {
       }
       if (encontrada != null && encontrada.estado.abierta && !abierta) {
         _cuenta?.cancel();
+        final id = encontrada.id;
+        bitacora =
+            (await Bitacoras.leer(id) ?? BitacoraSos(id: id, inicio: DateTime.now(), origen: origen, retomada: true))
+              ..anotar('La app se volvió a abrir y retomó la emergencia');
+        _guardarBitacora(ya: true);
         estado = encontrada;
         etapa = EtapaSos.activa;
         await prefs.setString(Claves.sosId, encontrada.id);
@@ -542,8 +677,8 @@ class ControlEmergencia extends ChangeNotifier {
   }
 
   // ─── Evidencia ─────────────────────────────────────────────────────────────
-  /// Un fragmento de evidencia terminado (video o audio): se sube en cuanto se pueda, y se
-  /// reintenta si no hay señal.
+  /// Un fragmento de evidencia terminado (video o audio): se le saca la huella, se copia al
+  /// teléfono (para una denuncia) y se sube en cuanto se pueda; si no hay señal, se reintenta.
   Future<void> agregarFragmento(
     String ruta,
     Duration duracion, {
@@ -556,14 +691,50 @@ class ControlEmergencia extends ChangeNotifier {
       _borrar(ruta);
       return;
     }
+    final inicio = DateTime.now().subtract(duracion);
+    final segundos = math.max(1, duracion.inSeconds);
+    // Huella del archivo tal como se grabó (en otro hilo: son varios MB). Va al servidor con el
+    // fragmento y a la bitácora: así se comprueba después que la copia del teléfono no se editó.
+    ({String sha256, int bytes})? huella;
+    try {
+      huella = await compute(huellaArchivo, ruta);
+    } catch (e) {
+      debugPrint('Huella del SOS: $e');
+    }
+    // La copia va ANTES de subirlo: al subirse, el archivo temporal se borra
+    final b = bitacora?.id == id ? bitacora : null;
+    if (b != null) {
+      final nombre = '${DateFormat('HH.mm.ss').format(inicio)} $tipo.$extension';
+      final copia = copiaActivada && CopiaEvidencia.disponible
+          ? await CopiaEvidencia.guardar(ruta, carpeta: b.carpeta, nombre: nombre, mime: contentType)
+          : null;
+      if (copia != null) copias++;
+      if (huella != null) {
+        b.archivos.add(
+          ArchivoSos(
+            nombre: copia?.nombre ?? nombre,
+            tipo: tipo,
+            inicio: inicio,
+            duracionS: segundos,
+            bytes: huella.bytes,
+            sha256: huella.sha256,
+            uri: copia?.uri,
+          ),
+        );
+        _guardarBitacora(ya: true);
+        // El último fragmento llega después del cierre: la constancia se rehace con él
+        if (b.fin != null) unawaited(_escribirConstancia(b));
+      }
+    }
     _cola.add(
       _Fragmento(
         emergencia: id,
         ruta: ruta,
         nombre: '${DateTime.now().millisecondsSinceEpoch}.$extension',
-        duracion: math.max(1, duracion.inSeconds),
+        duracion: segundos,
         tipo: tipo,
         contentType: contentType,
+        sha256: huella?.sha256,
       ),
     );
     await _guardarCola();
@@ -675,7 +846,15 @@ class ControlEmergencia extends ChangeNotifier {
           continue;
         }
         try {
-          await servicio.subirEvidencia(f.emergencia, f.nombre, bytes, duracionS: f.duracion);
+          await servicio.subirEvidencia(
+            f.emergencia,
+            f.nombre,
+            bytes,
+            tipo: f.tipo,
+            contentType: f.contentType,
+            duracionS: f.duracion,
+            sha256: f.sha256,
+          );
           enviados++;
           _cola.removeAt(0);
           _borrar(f.ruta);

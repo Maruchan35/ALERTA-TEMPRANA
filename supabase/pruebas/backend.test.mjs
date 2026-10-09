@@ -1109,15 +1109,15 @@ test('SOS: la persona indica qué pasa y lo termina; los validadores reciben cad
   await assert.rejects(env.sos(persona), /demasiadas veces en la última hora\. Si estás en peligro, llama al 911/);
 });
 
-test('SOS: la evidencia solo se sube a la carpeta de la emergencia propia y abierta; la ven la persona y los validadores', async () => {
+test('SOS: la evidencia solo se sube a la carpeta de la emergencia propia y abierta, con su huella SHA-256; la ven la persona y los validadores', async () => {
   const persona = await env.crearUsuario({ anonimo: true });
   const vecino = await env.crearUsuario();
   const validador = await env.crearUsuario({ rol: 'validador' });
   const { emergencia_id: id } = await env.sos(persona);
   const subir = (usuario, nombre) => env.como(usuario, (tx) => tx.query(
     `insert into storage.objects (bucket_id, name, owner) values ('evidencias', $1, $2)`, [nombre, usuario.id]));
-  const registrar = (usuario, ruta) => env.rpc(usuario, 'registrar_evidencia',
-    { p_emergencia: id, p_tipo: 'video', p_ruta: ruta, p_duracion_s: 20 });
+  const registrar = (usuario, ruta, huella = 'AB'.repeat(32)) => env.rpc(usuario, 'registrar_evidencia',
+    { p_emergencia: id, p_tipo: 'video', p_ruta: ruta, p_duracion_s: 20, p_sha256: huella });
   const video = `${persona.id}/${id}/0001.mp4`;
 
   await subir(persona, video);
@@ -1125,26 +1125,36 @@ test('SOS: la evidencia solo se sube a la carpeta de la emergencia propia y abie
   await assert.rejects(subir(persona, `${persona.id}/${vecino.id}/x.mp4`), /row-level security/, 'emergencia inexistente');
   await assert.rejects(subir(vecino, `${persona.id}/${id}/x.mp4`), /row-level security/, 'carpeta ajena');
 
+  await assert.rejects(registrar(persona, video, 'no-es-una-huella'), /Huella SHA-256 inválida/);
   await registrar(persona, video);
-  await registrar(persona, video);   // reintento: no duplica
+  await registrar(persona, video, 'cd'.repeat(32));   // reintento: no duplica ni cambia la huella
   await assert.rejects(registrar(persona, `${persona.id}/${id}/no-subida.mp4`), /no se ha subido/);
   await assert.rejects(registrar(persona, `otra-carpeta/${id}/0001.mp4`), /carpeta de tu emergencia/);
   await assert.rejects(registrar(vecino, video), /Emergencia no encontrada/);
+  // La app 1.2 no manda huella (ni distingue el audio): se sigue aceptando
+  const audio = `${persona.id}/${id}/0002.m4a`;
+  await subir(persona, audio);
+  await env.rpc(persona, 'registrar_evidencia', { p_emergencia: id, p_tipo: 'audio', p_ruta: audio });
+  assert.deepEqual(
+    await env.sql(`select tipo, sha256 from emergencia_evidencias order by ruta`),
+    [{ tipo: 'video', sha256: 'ab'.repeat(32) }, { tipo: 'audio', sha256: null }],
+    'la huella se guarda en minúsculas y la del primer registro no cambia',
+  );
 
   const ver = (usuario) => env.como(usuario, async (tx) => ({
     archivos: (await tx.query(`select name from storage.objects where bucket_id = 'evidencias'`)).rows.length,
     registro: (await tx.query(`select ruta from emergencia_evidencias`)).rows.length,
   }));
-  assert.deepEqual(await ver(persona), { archivos: 1, registro: 1 });
-  assert.deepEqual(await ver(validador), { archivos: 1, registro: 1 });
+  assert.deepEqual(await ver(persona), { archivos: 2, registro: 2 });
+  assert.deepEqual(await ver(validador), { archivos: 2, registro: 2 });
   assert.deepEqual(await ver(vecino), { archivos: 0, registro: 0 });
 
   // Después de "Estoy a salvo" el último fragmento tiene 15 min para terminar de subir
   await env.rpc(persona, 'terminar_emergencia', { p_emergencia: id });
-  await subir(persona, `${persona.id}/${id}/0002.mp4`);
+  await subir(persona, `${persona.id}/${id}/0003.mp4`);
   await env.sql(`update emergencias set cerrada_en = now() - interval '16 minutes'`);
-  await assert.rejects(subir(persona, `${persona.id}/${id}/0003.mp4`), /row-level security/);
-  await assert.rejects(registrar(persona, `${persona.id}/${id}/0002.mp4`), /ya está cerrada/);
+  await assert.rejects(subir(persona, `${persona.id}/${id}/0004.mp4`), /row-level security/);
+  await assert.rejects(registrar(persona, `${persona.id}/${id}/0003.mp4`), /ya está cerrada/);
 });
 
 test('SOS: si el teléfono deja de mandar señal se avisa UNA vez a los validadores y se rearma al volver', async () => {

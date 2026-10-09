@@ -428,6 +428,22 @@ void main() {
       expect(mia.estado.abierta, isFalse);
       expect(mia.cierre, CierreEmergencia.localizada);
       expect(mia.policiaAvisada, isTrue);
+
+      final v = EvidenciaEmergencia.desdeMapa({
+        'tipo': 'audio',
+        'ruta': 'u/e1/1.m4a',
+        'duracion_s': 6,
+        'creada_en': '2026-10-08T22:00:00Z',
+        'sha256': 'ab' * 32,
+      });
+      expect(v.tipo, 'audio');
+      expect(v.sha256, hasLength(64));
+      expect(
+        EvidenciaEmergencia.desdeMapa({'tipo': 'video', 'ruta': 'u/e1/0.mp4', 'creada_en': '2026-10-08T22:00:00Z'})
+            .sha256,
+        isNull,
+        reason: 'la app 1.2 no mandaba huella',
+      );
     });
 
     test('demo: la persona pide ayuda, el validador la sigue en vivo y la cierra', () async {
@@ -459,9 +475,13 @@ void main() {
       expect(paraLaPersona.atendidaPor, 'Protección Civil (demo)');
       expect(paraLaPersona.policiaAvisada, isTrue);
 
+      await s.subirEvidencia(r.id, '0001.mp4', Uint8List(4), duracionS: 20, sha256: 'AB' * 32);
       await s.subirEvidencia(r.id, '0001.mp4', Uint8List(4), duracionS: 20);
-      await s.subirEvidencia(r.id, '0001.mp4', Uint8List(4), duracionS: 20);
-      expect(await s.evidenciasEmergencia(r.id), hasLength(1), reason: 'un reintento no duplica');
+      await s.subirEvidencia(r.id, '0002.m4a', Uint8List(4), tipo: 'audio', contentType: 'audio/mp4', duracionS: 6);
+      final evidencias = await s.evidenciasEmergencia(r.id);
+      expect(evidencias, hasLength(2), reason: 'un reintento no duplica');
+      expect(evidencias.first.sha256, 'ab' * 32);
+      expect(evidencias.last.tipo, 'audio');
       expect((await s.metricas()).emergenciasAbiertas, 1);
 
       await s.atenderEmergencia(r.id, AccionEmergencia.localizada, nota: 'Patrulla 12 la encontró');

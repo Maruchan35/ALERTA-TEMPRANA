@@ -49,6 +49,9 @@ export interface EvidenciaEmergencia {
   ruta: string;
   duracion_s: number | null;
   creada_en: string;
+  /** Huella que calculó el teléfono al grabarlo (null en la app 1.2): prueba que la copia que la
+   *  persona guardó en su teléfono, para una denuncia, no se editó. */
+  sha256: string | null;
 }
 
 export const TIPO_LEGIBLE: Record<TipoEmergencia, string> = {
@@ -126,24 +129,21 @@ function mensajeServidor(mensaje: string): string {
 }
 
 export const emergencyService = {
+  /** Si falla, LANZA el error para que el panel lo muestre: una lista vacía haría creer al
+   *  validador que nadie está pidiendo ayuda. */
   async listar(): Promise<Emergencia[]> {
     if (!supabase) return [];
-    try {
-      await ensureAuthSession();
-      const { data, error } = await supabase
-        .from('emergencias_panel')
-        .select('*')
-        .order('creada_en', { ascending: false })
-        .limit(100);
-      if (error) {
-        console.warn('Error listando emergencias en Supabase:', error.message);
-        return [];
-      }
-      return ((data ?? []) as Emergencia[]).sort(ordenarEmergencias);
-    } catch (e) {
-      console.warn('Excepción listando emergencias:', e);
-      return [];
+    await ensureAuthSession();
+    const { data, error } = await supabase
+      .from('emergencias_panel')
+      .select('*')
+      .order('creada_en', { ascending: false })
+      .limit(100);
+    if (error) {
+      console.warn('Error listando emergencias en Supabase:', error.message);
+      throw new Error(mensajeServidor(error.message));
     }
+    return ((data ?? []) as Emergencia[]).sort(ordenarEmergencias);
   },
 
   /** Recorrido (los 5,000 puntos más recientes, en orden). */
@@ -168,7 +168,7 @@ export const emergencyService = {
     try {
       const { data, error } = await supabase
         .from('emergencia_evidencias')
-        .select('tipo, ruta, duracion_s, creada_en')
+        .select('tipo, ruta, duracion_s, creada_en, sha256')
         .eq('emergencia_id', emergenciaId)
         .order('creada_en');
       if (error) throw new Error(mensajeServidor(error.message));

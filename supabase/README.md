@@ -15,6 +15,7 @@ Roles R1 (base de datos) y R2 (funciones y notificaciones). Despliegue: [docs/de
 | `migrations/009_whatsapp.sql` | Verificación por WhatsApp: Auth Hook `enviar_codigo_whatsapp`, WhatsApp simulado (`whatsapp_simulado()`) y bandeja privada `privado.mensajes_whatsapp` (1 día) |
 | `migrations/008_colmena_ajustes.sql` | Límite de reportes configurable (10 por hora; los duplicados no cuentan) y teléfonos registrados en las métricas del panel |
 | `migrations/011_emergencias.sql` | **Modo emergencia (SOS)**: emergencias, recorrido en vivo y evidencia (bucket privado `evidencias`), alarma a validadores, seguimiento (`atender_emergencia`), aviso de “sin señal” (pg_cron, 30 s) y retención de 30 días |
+| `migrations/012_evidencia_huella.sql` | Huella SHA-256 de cada fragmento de evidencia del SOS (`registrar_evidencia(…, p_sha256)`): comprueba que la copia que la persona guarda en su teléfono, para una denuncia, no se editó |
 | `seed.sql` | Catálogo: 12 categorías, niveles, vigencias, instrucciones y escalones de radio (idempotente) |
 | `functions/` | Edge Functions `notificar`, `telegram-webhook`, `cap`, `mantenimiento` y el código compartido con sus pruebas |
 | `configurar_vault.sql` | Guarda en Vault la URL de las funciones y el secreto compartido |

@@ -1050,11 +1050,20 @@ class ServicioDemo implements ServicioAlertas {
     String tipo = 'video',
     String contentType = 'video/mp4',
     int? duracionS,
+    String? sha256,
   }) async {
     final e = _emergencia(emergenciaId);
     final ruta = '${e.usuario}/$emergenciaId/$nombre';
     if (!e.evidencias.any((v) => v.ruta == ruta)) {
-      e.evidencias.add(EvidenciaEmergencia(tipo: tipo, ruta: ruta, duracionS: duracionS, creadaEn: ahora));
+      e.evidencias.add(
+        EvidenciaEmergencia(
+          tipo: tipo,
+          ruta: ruta,
+          duracionS: duracionS,
+          creadaEn: ahora,
+          sha256: sha256?.toLowerCase(),
+        ),
+      );
       _emitirEmergencias(emergenciaId);
     }
     return ruta;

@@ -24,6 +24,13 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- Mostrar la cuenta regresiva del SOS aunque el teléfono esté bloqueado (como una alarma) -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <!-- Copia de la evidencia del SOS en el teléfono (Descargas/ALERTA CERCA), para una denuncia.
+         Android 10+ la guarda sin permiso; leer copias de antes de reinstalar la app sí lo pide.
+         Android 9 o menos necesita el permiso para guardarla. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
 
     <application
         android:label="ALERTA CERCA"

@@ -417,6 +417,7 @@ class ServicioSupabase implements ServicioAlertas {
     String tipo = 'video',
     String contentType = 'video/mp4',
     int? duracionS,
+    String? sha256,
   }) async {
     final uid = cliente.auth.currentUser?.id;
     if (uid == null) throw const ErrorServicio('Sin sesión: la evidencia se queda en el teléfono.', sinConexion: true);
@@ -438,7 +439,13 @@ class ServicioSupabase implements ServicioAlertas {
     await _intentar(
       () => cliente.rpc(
         'registrar_evidencia',
-        params: {'p_emergencia': emergenciaId, 'p_tipo': tipo, 'p_ruta': ruta, 'p_duracion_s': duracionS},
+        params: {
+          'p_emergencia': emergenciaId,
+          'p_tipo': tipo,
+          'p_ruta': ruta,
+          'p_duracion_s': duracionS,
+          'p_sha256': ?sha256,
+        },
       ),
     );
     return ruta;
@@ -573,7 +580,7 @@ class ServicioSupabase implements ServicioAlertas {
   Future<List<EvidenciaEmergencia>> evidenciasEmergencia(String emergenciaId) => _intentar(() async {
     final filas = await cliente
         .from('emergencia_evidencias')
-        .select('tipo, ruta, duracion_s, creada_en')
+        .select('tipo, ruta, duracion_s, creada_en, sha256')
         .eq('emergencia_id', emergenciaId)
         .order('creada_en');
     return filas.map(EvidenciaEmergencia.desdeMapa).toList();

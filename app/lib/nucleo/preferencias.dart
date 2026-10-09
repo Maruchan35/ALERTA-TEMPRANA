@@ -39,6 +39,9 @@ abstract final class Claves {
 
   /// Pedir huella o PIN para cancelar o terminar un SOS (para que un ladrón no lo quite).
   static const sosPinCancelar = 'sos_pin_cancelar';
+
+  /// Guardar una copia de la evidencia del SOS en el teléfono (Descargas/ALERTA CERCA). Activada por defecto.
+  static const sosCopiaTelefono = 'sos_copia_telefono';
 }
 
 /// Una zona guardada: el servidor conoce su celda; el teléfono, su punto exacto.

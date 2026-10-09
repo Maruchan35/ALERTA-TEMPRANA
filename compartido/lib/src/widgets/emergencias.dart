@@ -697,21 +697,41 @@ class _DetalleEmergenciaState extends State<DetalleEmergencia> {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 6),
                 child: Text(
-                  'Todavía no llega video. El teléfono graba mientras la pantalla del SOS está abierta y sube '
-                  'cada fragmento en cuanto termina.',
+                  'Todavía no llega evidencia. El teléfono graba video mientras la pantalla del SOS está abierta '
+                  '(y audio cuando está apagada) y sube cada fragmento en cuanto termina.',
                   style: TextStyle(fontSize: 13),
                 ),
               );
             }
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (lista.any((v) => v.sha256 != null))
+                  const Text(
+                    'La huella SHA-256 la calculó el teléfono al grabar: con ella se comprueba que la copia que la '
+                    'persona guardó en su teléfono (para una denuncia) no se editó.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
                 for (final (i, v) in lista.indexed)
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(v.tipo == 'video' ? Icons.videocam : Icons.mic),
-                    title: Text('${v.tipo == 'video' ? 'Video' : 'Audio'} ${i + 1}'),
-                    subtitle: Text('${fechaHora(v.creadaEn)}${v.duracionS == null ? '' : ' · ${v.duracionS} s'}'),
+                    // Se numeran por tipo: Video 1, 2…; Audio 1, 2…
+                    title: Text(
+                      '${v.tipo == 'video' ? 'Video' : 'Audio'} ${lista.take(i + 1).where((x) => x.tipo == v.tipo).length}',
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${fechaHora(v.creadaEn)}${v.duracionS == null ? '' : ' · ${v.duracionS} s'}'),
+                        if (v.sha256 != null)
+                          SelectableText(
+                            'SHA-256 ${v.sha256}',
+                            style: const TextStyle(fontSize: 10.5, fontFamily: 'monospace'),
+                          ),
+                      ],
+                    ),
                     trailing: TextButton(onPressed: () => _verEvidencia(v), child: const Text('Ver')),
                   ),
               ],

@@ -192,7 +192,10 @@ app. Leer `emergencias_panel` (abiertas primero), escuchar Realtime en `emergenc
 `rpc('atender_emergencia', { p_emergencia, p_accion: 'tomar' | 'policia' | 'nota' | 'localizada' | 'falsa_alarma', p_nota, p_folio })`.
 Colores: rojo `activa` (nadie la ha tomado), naranja `en_seguimiento`, morado si `ultima_senal_en` tiene más de 2 min
 (el teléfono no responde), gris `cerrada`. Ya está hecho en el portal React (`web/src/services/emergencyService.ts`,
-`hooks/useEmergencies.ts`, `components/admin/EmergencyPanel.tsx`) y en el panel Flutter (pestaña *SOS*).
+`hooks/useEmergencies.ts`, `components/admin/EmergencyPanel.tsx`) y en el panel Flutter (pestaña *SOS*). La evidencia
+trae `tipo` (`video` o `audio`) y `sha256` (huella que calculó el teléfono, [012](../supabase/migrations/012_evidencia_huella.sql));
+el portal reproduce todos los fragmentos seguidos con enlaces firmados de 10 min. Si leer `emergencias_panel` falla, se
+muestra el error: una lista vacía haría creer que nadie pide ayuda.
 
 **Colmena**: el panel ya no es un cuello de botella. Un reporte `pendiente` que nunca se publicó sale solo como
 `no_confirmada` si nadie lo revisa en 5 minutos, o al instante si otra persona reporta lo mismo cerca. El validador

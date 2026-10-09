@@ -32,7 +32,12 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
           'mientras la pantalla del SOS está abierta y el audio del micrófono todo el tiempo (también con la '
           'pantalla apagada). Los ven únicamente Protección Civil y los validadores del CCE que dan seguimiento '
           '(nunca tus vecinos), para localizarte y avisar al 911. Si verificaste tu número, también lo ven, para '
-          'poder llamarte. Al terminar se deja de compartir, y todo se borra a los 30 días.',
+          'poder llamarte. Al terminar se deja de compartir, y lo del servidor se borra a los 30 días.\n\n'
+          'Salvo que lo desactives, también guardamos una copia de ese video y audio EN TU TELÉFONO (Descargas › '
+          'ALERTA CERCA), con una constancia y la huella SHA-256 de cada archivo, para que puedas presentarla en una '
+          'denuncia. Esa copia es tuya: no sale de tu teléfono si tú no la compartes y no se borra sola. Para '
+          'guardarla en Android 9 o anterior y encontrar copias de antes de reinstalar la app, pedimos permiso de '
+          'almacenamiento; solo buscamos en esa carpeta.',
     ),
     (
       'Para qué',
@@ -61,7 +66,8 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
       '• A quién se envió cada alerta: 30 días.\n'
           '• Alertas cerradas: se anonimizan a los 90 días.\n'
           '• Teléfonos sin actividad: se desactivan a los 60 días.\n'
-          '• Emergencias SOS (recorrido y video): se borran a los 30 días de cerrarse.',
+          '• Emergencias SOS (recorrido, video, audio y huellas): se borran del servidor a los 30 días de '
+          'cerrarse. La copia en tu teléfono la borras tú.',
     ),
     (
       'Tus derechos (ARCO)',

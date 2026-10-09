@@ -34,6 +34,9 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 | P27 | SOS: sacudida | *detector de sacudidas* (`compartido`): caminar y correr no la disparan | Con *Sacudir el teléfono* activado, 4 sacudidas fuertes → cuenta regresiva; con el modo protección, también con la app cerrada y el teléfono bloqueado |
 | P28 | SOS: cancelar con PIN | *SOS: con la protección por PIN pero sin bloqueo…* (app): sin bloqueo no deja a la persona atrapada | Con bloqueo puesto, tocar CANCELAR o "Estoy a salvo" pide huella/PIN; otra persona no puede apagarlo |
 | P29 | SOS: audio en vivo | el grabador se coordina con la cámara (no graban a la vez) | Con el SOS activo y la pantalla apagada, en el panel llegan segmentos de audio cada ~6 s |
+| P30 | SOS: copia en el teléfono | *SOS: cada fragmento se copia al teléfono con su huella y el audio llega al servidor como audio* (app) | Tras un SOS, en *Descargas › ALERTA CERCA › SOS <fecha>* están los videos (también en la galería), los audios y `constancia.txt`; en el portal cada fragmento dice Video o Audio y *Reproducir todo seguido* los pasa en orden |
+| P31 | SOS: huella SHA-256 | *SOS: la evidencia… con su huella SHA-256* (SQL): se guarda, una inválida se rechaza y un reintento no la cambia | En una computadora, `certutil -hashfile "archivo" SHA256` da la misma huella que muestra el portal |
+| P32 | SOS: constancia para denuncia | *constancia…*, *bitácora…* y *mis evidencias…* (app): revisa cada archivo contra su huella y comparte todo | *Mis evidencias → Compartir para la denuncia* manda los archivos y la constancia; si se edita un archivo, la constancia dice “NO COINCIDE” |
 
 ## Además de la propuesta
 
@@ -67,6 +70,9 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
   único de “sin señal” que se rearma; retención de 30 días que nunca toca una emergencia abierta; textos de la alarma
   (`mensajes_test.ts`); detector de sacudidas, flujo completo y simulador en el motor de demostración; cuenta
   regresiva, cancelar, simulacro y “Estoy a salvo” (app); alarma, banner, recorrido y “Tomar el caso” (panel).
+  Copia en el teléfono (`012_evidencia_huella.sql`, P30–P32): la huella SHA-256 se registra con cada fragmento (una
+  inválida se rechaza y un reintento no la cambia); el audio se registra como audio; la constancia revisa cada archivo
+  contra su huella; la bitácora se guarda completa y *Mis evidencias* agrupa y comparte por emergencia (app).
 
 ## Cómo ejecutarlas
 

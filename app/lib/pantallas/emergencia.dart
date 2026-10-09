@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../app.dart';
+import '../nucleo/copia_evidencia.dart';
 import '../nucleo/emergencia.dart';
 import '../widgets/comunes.dart';
 
@@ -413,11 +414,13 @@ class _EvidenciaState extends State<_Evidencia> with WidgetsBindingObserver {
   Future<void> _abrir() async {
     if (_abriendo || _camara != null || _camaras.isEmpty || !mounted) return;
     _abriendo = true;
+    // 720p: se distinguen rostros y placas. El teléfono ya lo comprime (H.264, como WhatsApp) a un
+    // bitrate fijo: ~3 MB cada 15 s, que se suben con datos móviles y el portal reproduce tal cual.
     final camara = CameraController(
       _camaras[_indice],
-      ResolutionPreset.medium,
+      ResolutionPreset.high,
       enableAudio: true,
-      videoBitrate: 1000000, // ~2 MB cada 15 s: sube rápido aun con datos móviles
+      videoBitrate: 1500000,
       audioBitrate: 64000,
     );
     try {
@@ -494,7 +497,8 @@ class _EvidenciaState extends State<_Evidencia> with WidgetsBindingObserver {
         : _problema ??
               (c.etapa == EtapaSos.enviando
                   ? 'El video empieza a subir en cuanto tu alerta llegue.'
-                  : 'Videos enviados: ${c.enviados}${c.pendientes > 0 ? ' · por subir: ${c.pendientes}' : ''}');
+                  : 'Evidencia enviada: ${c.enviados}${c.pendientes > 0 ? ' · por subir: ${c.pendientes}' : ''}'
+                        '${c.copias > 0 ? ' · copia en tu teléfono: ${c.copias}' : ''}');
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -600,7 +604,15 @@ class _Final extends StatelessWidget {
               if (c.pendientes > 0) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Terminando de subir ${c.pendientes} ${c.pendientes == 1 ? 'video' : 'videos'} de evidencia…',
+                  'Terminando de subir ${c.pendientes} ${c.pendientes == 1 ? 'archivo' : 'archivos'} de evidencia…',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              if (c.copias > 0) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Guardamos una copia de la evidencia en tu teléfono (${CopiaEvidencia.ubicacion}) para que la '
+                  'presentes si haces una denuncia. La encuentras en Ajustes › Modo emergencia › Mis evidencias.',
                   textAlign: TextAlign.center,
                 ),
               ],

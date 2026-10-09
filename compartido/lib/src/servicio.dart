@@ -109,8 +109,9 @@ abstract class ServicioAlertas {
   /// "Estoy a salvo" o "Fue sin querer".
   Future<EstadoMiEmergencia> terminarEmergencia(String id, CierreEmergencia cierre);
 
-  /// Sube un fragmento de evidencia (video con audio) y lo registra. Devuelve su ruta.
+  /// Sube un fragmento de evidencia (video o audio) y lo registra. Devuelve su ruta.
   /// [nombre] es estable (p. ej. `0003.mp4`): si se reintenta, no se duplica.
+  /// [sha256] es la huella que el teléfono calculó al grabarlo (queda registrada con la hora).
   Future<String> subirEvidencia(
     String emergenciaId,
     String nombre,
@@ -118,6 +119,7 @@ abstract class ServicioAlertas {
     String tipo = 'video',
     String contentType = 'video/mp4',
     int? duracionS,
+    String? sha256,
   });
 
   /// Mi emergencia abierta (al volver a abrir la app), o null.

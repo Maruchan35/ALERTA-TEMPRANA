@@ -10,6 +10,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.view.WindowManager
+import androidx.activity.result.contract.ActivityResultContracts
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -20,6 +21,8 @@ import io.flutter.plugin.common.MethodChannel
  *    protección y atajo del ícono) y se los pasa a Flutter, que muestra la cuenta regresiva.
  *  - Mientras hay una emergencia, la app se muestra sobre la pantalla de bloqueo (como una alarma).
  *  - Enciende el servicio de micrófono para que el audio del SOS siga con la pantalla apagada.
+ *  - Guarda la copia de la evidencia en el teléfono y pide el permiso de almacenamiento
+ *    (canal "alerta_cerca/evidencia", CopiaEvidencia.kt).
  * Es FlutterFragmentActivity porque el aviso de huella o PIN (local_auth) lo necesita.
  */
 class MainActivity : FlutterFragmentActivity() {
@@ -27,6 +30,13 @@ class MainActivity : FlutterFragmentActivity() {
 
     /** Disparo que llegó antes de que Flutter estuviera listo (lo pide con "pendiente"). */
     private var pendiente: String? = null
+
+    /** Permiso de almacenamiento (Ajustes → Modo emergencia): la respuesta se le da a Flutter. */
+    private var respuestaPermiso: MethodChannel.Result? = null
+    private val pedirAlmacenamiento = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        respuestaPermiso?.success(CopiaEvidencia.tienePermiso(this))
+        respuestaPermiso = null
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -69,6 +79,20 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                     else -> resultado.notImplemented()
                 }
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CopiaEvidencia.CANAL).setMethodCallHandler { llamada, resultado ->
+            when (llamada.method) {
+                "permiso" -> resultado.success(CopiaEvidencia.tienePermiso(this))
+                "puedeGuardar" -> resultado.success(CopiaEvidencia.puedeGuardar(this))
+                "pedirPermiso" -> if (CopiaEvidencia.tienePermiso(this)) {
+                    resultado.success(true)
+                } else {
+                    respuestaPermiso?.success(false) // una petición anterior que quedó sin respuesta
+                    respuestaPermiso = resultado
+                    pedirAlmacenamiento.launch(CopiaEvidencia.permisos())
+                }
+                else -> CopiaEvidencia.atender(this, llamada, resultado)
             }
         }
     }

@@ -24,7 +24,7 @@ en el mapa hasta que la localizan
 |---|---|---|
 | [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, verificación por WhatsApp, **modo emergencia (SOS)**, pg_cron, Vault | **62 pruebas automáticas** (PGlite + PostGIS reales) |
 | [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram, y la alarma SOS a validadores), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento`, `whatsapp` | **22 pruebas** Deno, tipos y lint |
-| [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push, **SOS** (botón, sacudida, modo protección con la app cerrada, ubicación en vivo, video y audio de evidencia, cancelar con huella/PIN, 911) | Pruebas de widgets; analizada sin errores |
+| [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push, **SOS** (botón, sacudida, modo protección con la app cerrada, ubicación en vivo, video y audio de evidencia con copia en el teléfono para una denuncia, cancelar con huella/PIN, 911) | Pruebas de widgets; analizada sin errores |
 | [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **emergencias SOS en vivo con alarma**, **simulador de 4 teléfonos** | Pruebas de widgets; analizado sin errores |
 | [`web/`](web) | Portal Web Comunitario y Consola CCE (React + Vite + Leaflet + Tailwind): Radar en vivo, geocercas, avistamientos, modo moderador oscuro y **Emergencias SOS** | Compila con candado contra escrituras directas |
 | [`puente-whatsapp/`](puente-whatsapp) | Envía los códigos de verificación desde un WhatsApp normal vinculado como dispositivo (sin WhatsApp Business) | Pruebas de Node |
@@ -94,7 +94,10 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
   que pasa *afuera*. Ahora quien está en peligro pide ayuda (botón, sacudida, atajo; 5 s para cancelar; también sin
   cuenta), los validadores reciben una alarma de prioridad máxima, ven su recorrido en vivo, velocidad (¿va en un
   vehículo?), batería, video y audio en vivo, y registran el aviso al 911; si el teléfono deja de responder, otra
-  alarma. Cancelar el SOS pide huella o PIN, para que un ladrón no lo apague. Es la única
+  alarma. Cancelar el SOS pide huella o PIN, para que un ladrón no lo apague. Una copia del video y el audio queda en
+  el propio teléfono (*Descargas › ALERTA CERCA*) con una constancia y la huella SHA-256 de cada archivo, que el
+  servidor registra al grabarlo ([012](supabase/migrations/012_evidencia_huella.sql)): la persona la presenta en una
+  denuncia y se puede comprobar que no se editó. Es la única
   excepción a "no guardamos tu ubicación exacta": la pide la propia persona, solo la ven los validadores (nunca los
   vecinos) y se borra a los 30 días.
 

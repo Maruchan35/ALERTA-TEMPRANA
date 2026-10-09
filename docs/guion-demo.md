@@ -93,6 +93,8 @@ Costo del prototipo: $0 (planes gratuitos). Piloto con empresas del CCE, escuela
 | ¿Se dispara solo al correr o en un bache? | Hace falta una sacudida deliberada (4 golpes fuertes en 1 s; correr da ~3 por segundo), y siempre hay 5 s para cancelar. Hay simulacro para practicar. |
 | ¿Y si el ladrón ve "cancelar" y lo apaga? | Cancelar pide la huella o el PIN del dueño; el ladrón no puede. La cuenta regresiva no se pausa mientras tanto, así que si no pasa el PIN, el SOS se dispara igual. |
 | ¿Y si el teléfono queda en la bolsa o le apagan la pantalla? | La cámara no graba en segundo plano, pero el micrófono sí: el audio se sube en segmentos de ~6 s y el validador oye lo que pasa casi en vivo, además de la ubicación. |
+| ¿Sirve como prueba en una denuncia? | El teléfono guarda una copia de cada video y audio en *Descargas › ALERTA CERCA* con una constancia (horas, lugares, lo que pasó) y la huella SHA-256 de cada archivo, que el servidor registró al grabarlo. Si alguien edita un archivo, su huella cambia. *Mis evidencias → Compartir para la denuncia* lo manda todo junto. |
+| ¿No pesa mucho grabar video todo el tiempo? | Se graba en 720p y el teléfono lo comprime al momento (H.264, como WhatsApp): unos 3 MB cada 15 s. Con la pantalla apagada solo va audio (~50 KB cada 6 s). El portal lo reproduce tal cual, sin convertir nada. |
 
 ## Lista de verificación (Anexo C)
 

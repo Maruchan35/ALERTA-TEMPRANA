@@ -11,7 +11,9 @@ import {
   Footprints,
   Gauge,
   Hand,
+  Mic,
   PhoneCall,
+  Play,
   ShieldCheck,
   SignalZero,
   Siren,
@@ -343,24 +345,125 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
           <p className="font-bold text-slate-800 uppercase tracking-wide text-[11px]">Evidencia ({e.n_evidencias})</p>
           {evidencias.length === 0 ? (
             <p className="text-slate-400">
-              Todavía no llega video. El teléfono graba mientras la pantalla del SOS está abierta y sube cada fragmento al
-              terminarlo.
+              Todavía no llega evidencia. El teléfono graba video mientras la pantalla del SOS está abierta (y audio cuando
+              está apagada) y sube cada fragmento al terminarlo.
             </p>
           ) : (
-            evidencias.map((v, i) => (
-              <div key={v.ruta} className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                  <Video className="w-3.5 h-3.5 text-red-600" /> Video {i + 1} · {hora(v.creada_en)}
-                  {v.duracion_s != null ? ` · ${v.duracion_s} s` : ''}
-                </span>
-                <button type="button" onClick={() => verEvidencia(v)} className="text-red-600 hover:underline font-semibold cursor-pointer">
-                  Ver
-                </button>
-              </div>
-            ))
+            <>
+              <ReproductorEvidencia evidencias={evidencias} />
+              {evidencias.some((v) => v.sha256) && (
+                <p className="text-slate-400">
+                  La huella SHA-256 la calculó el teléfono al grabar: con ella se comprueba que la copia que la persona guardó
+                  en su teléfono (para una denuncia) no se editó.
+                </p>
+              )}
+              {evidencias.map((v, i) => (
+                <div key={v.ruta} className="flex items-center justify-between gap-2">
+                  <span className="flex flex-wrap items-center gap-1.5 text-slate-700 font-medium">
+                    {v.tipo === 'audio' ? <Mic className="w-3.5 h-3.5 text-red-600" /> : <Video className="w-3.5 h-3.5 text-red-600" />}
+                    {v.tipo === 'audio' ? 'Audio' : 'Video'} {numeroPorTipo(evidencias, i)} · {hora(v.creada_en)}
+                    {v.duracion_s != null ? ` · ${v.duracion_s} s` : ''}
+                    {v.sha256 && (
+                      <button
+                        type="button"
+                        title={`SHA-256 ${v.sha256} (clic para copiar)`}
+                        onClick={() => copiarHuella(v.sha256!)}
+                        className="font-mono text-[10px] font-normal text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        SHA-256 {v.sha256.slice(0, 12)}…
+                      </button>
+                    )}
+                  </span>
+                  <button type="button" onClick={() => verEvidencia(v)} className="text-red-600 hover:underline font-semibold cursor-pointer">
+                    Ver
+                  </button>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+/** Video 1, 2…; Audio 1, 2… (se numeran por tipo). */
+const numeroPorTipo = (lista: EvidenciaEmergencia[], i: number) =>
+  lista.slice(0, i + 1).filter((x) => x.tipo === lista[i].tipo).length;
+
+const copiarHuella = async (sha256: string) => {
+  try {
+    await navigator.clipboard.writeText(sha256);
+    window.alert('Huella SHA-256 copiada.');
+  } catch {
+    window.prompt('Copia la huella SHA-256:', sha256);
+  }
+};
+
+/**
+ * Todos los fragmentos seguidos (video y audio, en el orden en que se grabaron), como una sola
+ * grabación. Cada enlace firmado se pide al momento de reproducirlo (duran 10 min). El navegador
+ * reproduce el MP4 (H.264/AAC) que manda el teléfono tal cual: ya viene comprimido.
+ */
+const ReproductorEvidencia: React.FC<{ evidencias: EvidenciaEmergencia[] }> = ({ evidencias }) => {
+  const [indice, setIndice] = useState<number | null>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Depende de la ruta, no de la lista: si llegan fragmentos nuevos, el actual no se reinicia
+  const ruta = indice === null ? null : (evidencias[indice]?.ruta ?? null);
+
+  useEffect(() => {
+    if (ruta === null) return;
+    let vivo = true;
+    setUrl(null);
+    emergencyService.urlEvidencia(ruta).then((u) => {
+      if (!vivo) return;
+      if (u) setUrl(u);
+      else setError('No se pudo abrir la evidencia. Revisa la conexión.');
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [ruta]);
+
+  const siguiente = () => setIndice((i) => (i !== null && i + 1 < evidencias.length ? i + 1 : null));
+
+  if (indice === null) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setError(null);
+          setIndice(0);
+        }}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-white font-semibold cursor-pointer"
+      >
+        <Play className="w-3.5 h-3.5" /> Reproducir todo seguido
+      </button>
+    );
+  }
+  const actual = evidencias[indice];
+  return (
+    <div className="space-y-1">
+      <p className="text-slate-600 font-medium">
+        {actual.tipo === 'audio' ? 'Audio' : 'Video'} · fragmento {indice + 1} de {evidencias.length} · {hora(actual.creada_en)}
+      </p>
+      {url && (
+        <video
+          key={url}
+          src={url}
+          controls
+          autoPlay
+          playsInline
+          onEnded={siguiente}
+          onError={siguiente}
+          className="w-full max-h-72 rounded-lg bg-black"
+        />
+      )}
+      {error && <p className="text-red-600">{error}</p>}
+      <button type="button" onClick={() => setIndice(null)} className="text-slate-500 hover:underline cursor-pointer">
+        Cerrar reproductor
+      </button>
     </div>
   );
 };

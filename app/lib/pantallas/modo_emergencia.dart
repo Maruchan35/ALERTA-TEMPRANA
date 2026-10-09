@@ -3,12 +3,14 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../nucleo/copia_evidencia.dart';
 import '../nucleo/emergencia.dart';
 import '../nucleo/notificaciones.dart';
 import '../nucleo/preferencias.dart';
 import '../nucleo/proteccion.dart';
 import '../nucleo/ubicacion.dart';
 import '../widgets/comunes.dart';
+import 'evidencias.dart';
 
 /// Ajustes → Modo emergencia (SOS): cómo pedir ayuda, formas de activarlo, permisos y simulacro.
 class PantallaModoEmergencia extends StatefulWidget {
@@ -25,6 +27,8 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
   PermisoUbicacion? _ubicacion;
   bool? _notificaciones;
   bool? _camara;
+  bool? _almacenamiento;
+  var _puedeGuardar = true;
 
   @override
   void initState() {
@@ -59,6 +63,8 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
     try {
       notificaciones = await Notificaciones.permitidas();
     } catch (_) {}
+    final almacenamiento = await CopiaEvidencia.permiso();
+    final puedeGuardar = await CopiaEvidencia.puedeGuardar();
     if (!mounted) return;
     setState(() {
       _proteccion = proteccion;
@@ -66,6 +72,8 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
       _pantallaCompleta = pantallaCompleta;
       _ubicacion = ubicacion;
       _notificaciones = notificaciones;
+      _almacenamiento = almacenamiento;
+      _puedeGuardar = puedeGuardar;
     });
   }
 
@@ -118,7 +126,8 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
                     'Tendrás 5 segundos para cancelar (con tu huella o PIN, para que nadie más lo apague). Después '
                     'avisamos a Protección Civil y a los validadores de guardia, compartimos tu ubicación en vivo '
                     '(también con la pantalla apagada), grabamos video mientras la pantalla del SOS está abierta y '
-                    'audio todo el tiempo (aunque la pantalla esté apagada), y puedes llamar al 911 con un toque.',
+                    'audio todo el tiempo (aunque la pantalla esté apagada), guardamos una copia en tu teléfono para '
+                    'una denuncia y puedes llamar al 911 con un toque.',
                   ),
                 ],
               ),
@@ -165,6 +174,26 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
                   }
                 : null,
           ),
+          if (CopiaEvidencia.disponible) ...[
+            const Seccion('Evidencia en tu teléfono (beta)'),
+            SwitchListTile(
+              secondary: const Icon(Icons.save_alt),
+              title: const Text('Guardar una copia en mi teléfono'),
+              subtitle: const Text(
+                'Los videos y audios del SOS también se guardan en ${CopiaEvidencia.ubicacion} (los videos salen en '
+                'tu galería) para que los presentes en una denuncia. La copia del servidor se borra 30 días después.',
+              ),
+              value: c.copiaActivada,
+              onChanged: c.configurarCopia,
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_shared_outlined),
+              title: const Text('Mis evidencias (para denuncia)'),
+              subtitle: const Text('Compártelas con su constancia: horas, lugares y la huella SHA-256 de cada archivo'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const PantallaEvidencias())),
+            ),
+          ],
           const Seccion('Permisos (revísalos antes de necesitarlos)'),
           _Permiso(
             icono: Icons.location_on_outlined,
@@ -207,6 +236,19 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
               detalle: 'Para que la cuenta regresiva salga sola, como una alarma',
               accion: Proteccion.abrirAjustePantallaCompleta,
             ),
+          if (CopiaEvidencia.disponible)
+            _Permiso(
+              icono: Icons.sd_storage_outlined,
+              titulo: 'Almacenamiento (leer y guardar)',
+              listo: _almacenamiento ?? false,
+              detalle: _puedeGuardar
+                  ? 'La copia ya se guarda; con este permiso también encuentras la de antes de reinstalar la app'
+                  : 'Sin él, la copia de la evidencia no se puede guardar en tu teléfono',
+              accion: () async {
+                await CopiaEvidencia.pedirPermiso();
+                await _revisar();
+              },
+            ),
           const Seccion('Practica'),
           ListTile(
             leading: const Icon(Icons.science_outlined, color: Colores.morado),
@@ -218,8 +260,9 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
-              'Tu ubicación exacta y el video se comparten SOLO durante una emergencia que tú actives, solo con '
-              'Protección Civil y los validadores del CCE (nunca con tus vecinos), y se borran a los 30 días. '
+              'Tu ubicación exacta, el video y el audio se comparten SOLO durante una emergencia que tú actives, '
+              'solo con Protección Civil y los validadores del CCE (nunca con tus vecinos), y el servidor los borra '
+              'a los 30 días. La copia en tu teléfono es tuya: solo tú decides con quién compartirla. '
               'ALERTA CERCA no sustituye al 911: si puedes, llama al 911.',
               style: TextStyle(fontSize: 12.5),
             ),
