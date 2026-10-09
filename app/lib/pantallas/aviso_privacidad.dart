@@ -23,9 +23,9 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
           '• Solo si quieres reportar o confirmar: tu número de teléfono verificado.\n'
           '• En los reportes: la ubicación del suceso (un lugar, no una persona), la descripción y, si la '
           'agregas, una foto sin metadatos.\n'
-          '• Si reportas por WhatsApp con el asistente: tu número y la conversación, solo 24 horas, para responderte y limitar '
-          'los reportes. El reporte publicado no lleva tu número.',
-      '• Solo si TÚ activas el modo emergencia (SOS): ubicación en vivo, video y audio (ver la sección siguiente).',
+          '• Si reportas por WhatsApp con el asistente: tu número y la conversación, solo 24 horas, para '
+          'responderte y limitar los reportes. El reporte publicado no lleva tu número.\n'
+          '• Solo si TÚ activas el modo emergencia (SOS): ubicación en vivo, video y audio (ver la sección siguiente).',
     ),
     (
       'Modo emergencia (SOS)',
