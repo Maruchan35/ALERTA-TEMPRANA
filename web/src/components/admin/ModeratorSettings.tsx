@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ModeratorUser } from '../../types/auth';
+import { Button } from '../ui/Button';
 import {
   adminSettingsService,
   AdminAccount,
@@ -23,6 +24,7 @@ import {
   Trash2,
   Check,
   X,
+  AlertTriangle,
   Download,
   Plus,
   Sparkles,
@@ -246,20 +248,21 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
+          <Button
+            variant="danger"
+            size="sm"
             onClick={onLogout}
-            className="px-3 py-1.5 rounded-xl bg-white hover:bg-red-50 text-red-600 border border-red-200/90 text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+            icon={<LogOut className="w-3.5 h-3.5" />}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold self-start sm:self-auto cursor-pointer"
           >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Cerrar Sesión de Mando</span>
-          </button>
+            Cerrar Sesión de Mando
+          </Button>
         </div>
 
         {/* Resumen del Operador Conectado */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
-          <div className="p-3.5 rounded-xl bg-slate-50/60 border border-slate-200/80">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold font-mono">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
               Sesión Activa
             </span>
             <span className="text-sm font-bold text-slate-900 mt-0.5 block truncate">
@@ -267,8 +270,8 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
             </span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50/60 border border-slate-200/80">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold font-mono">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
               Entidad Asignada
             </span>
             <span className="text-sm font-bold text-slate-800 mt-0.5 block truncate">
@@ -276,13 +279,13 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
             </span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50/60 border border-slate-200/80 flex items-center justify-between">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold font-mono">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
                 Operadores Habilitados
               </span>
-              <span className="text-sm font-bold text-slate-900 mt-0.5 block font-mono tabular-nums">
-                {accounts.filter((a) => a.active).length} <span className="text-xs font-sans text-slate-500 font-normal">de</span> {accounts.length} Activos
+              <span className="text-sm font-black text-emerald-700 mt-0.5 block">
+                {accounts.filter((a) => a.active).length} de {accounts.length} Activos
               </span>
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -290,40 +293,93 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
         </div>
 
         {/* Pestañas de Navegación de Ajustes */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-4 border-t border-slate-100 mt-4">
-          {[
-            { id: 'operators', label: 'Operadores & Roles', icon: Users, count: accounts.length },
-            { id: 'protocols', label: 'Radio Adaptativo', icon: Sliders },
-            { id: 'contacts', label: 'Directorio 911', icon: PhoneCall, count: contacts.length },
-            { id: 'cabin', label: 'Sonidos & Pantalla', icon: Volume2 },
-            { id: 'audit', label: 'Auditoría Forense', icon: FileText, count: auditLogs.length },
-            { id: 'security', label: 'Seguridad & Clave', icon: Lock },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as SettingsTab)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all select-none cursor-pointer active:scale-[0.98] ${
-                  isActive
-                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] tabular-nums ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-1.5 pt-5 border-t border-slate-200 mt-5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('operators')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'operators'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Operadores & Super Admin</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white font-mono">
+              {accounts.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('protocols')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'protocols'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            <span>Radio Adaptativo & Tiempos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('contacts')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'contacts'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <PhoneCall className="w-4 h-4" />
+            <span>Enlaces 911 & Directorio</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white font-mono">
+              {contacts.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('cabin')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'cabin'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Volume2 className="w-4 h-4" />
+            <span>Sonidos & Pantalla de Cabina</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('audit')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'audit'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Auditoría Forense</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white font-mono">
+              {auditLogs.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'security'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Lock className="w-4 h-4" />
+            <span>Seguridad & Clave</span>
+          </button>
         </div>
       </div>
 
@@ -332,7 +388,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
       ======================================================== */}
       {activeTab === 'operators' && (
         <div className="space-y-4">
-          <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-5">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -344,20 +400,21 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 </p>
               </div>
 
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => setShowNewUserModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                icon={<UserPlus className="w-3.5 h-3.5" />}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Dar de Alta Operador</span>
-              </button>
+                Dar de Alta Operador
+              </Button>
             </div>
 
             {/* Tabla de Operadores */}
-            <div className="overflow-x-auto border border-slate-200/80 rounded-xl">
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200/80 text-slate-500 uppercase text-[10px] font-semibold font-mono tracking-wider">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
                   <tr>
                     <th className="px-4 py-3">Operador / Correo</th>
                     <th className="px-4 py-3">Rol & Autorización</th>
@@ -377,16 +434,16 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
 
                       <td className="px-4 py-3">
                         {acc.role === 'superadmin' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-200 font-bold text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-100 text-red-800 font-black text-[10px]">
                             <Sparkles className="w-3 h-3 text-red-600" />
                             Super Admin
                           </span>
                         ) : acc.role === 'operador' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 font-bold text-[10px]">
                             Validador CCE
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[10px]">
                             Observador 911
                           </span>
                         )}
@@ -399,12 +456,12 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
 
                       <td className="px-4 py-3">
                         {acc.active ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                             Activo
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-semibold text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px]">
                             Suspendido
                           </span>
                         )}
@@ -414,9 +471,9 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(acc.id)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all active:scale-[0.98] cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
                             acc.active
-                              ? 'border-slate-200/80 text-slate-700 hover:bg-slate-100'
+                              ? 'border-slate-300 text-slate-700 hover:bg-slate-100'
                               : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
                           }`}
                         >
@@ -448,7 +505,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
       ======================================================== */}
       {activeTab === 'protocols' && (
         <form onSubmit={handleSavePrefs} className="space-y-4">
-          <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-6">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-6">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-red-600" />
@@ -460,7 +517,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 space-y-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
                 <label className="block text-xs font-bold text-slate-800">
                   Tiempo entre Fases de Expansión (Minutos)
                 </label>
@@ -477,15 +534,15 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                     onChange={(e) =>
                       setPrefs({ ...prefs, autoExpandRadioMinutes: parseInt(e.target.value) })
                     }
-                    className="flex-1 accent-slate-900 cursor-pointer"
+                    className="flex-1 accent-red-600 cursor-pointer"
                   />
-                  <span className="font-mono font-bold text-xs text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs tabular-nums">
+                  <span className="font-mono font-black text-sm text-red-600 bg-white px-3 py-1 rounded-lg border border-slate-200">
                     {prefs.autoExpandRadioMinutes} min
                   </span>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 space-y-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
                 <label className="block text-xs font-bold text-slate-800">
                   Radio Límite Máximo Permitido (Kilómetros)
                 </label>
@@ -502,9 +559,9 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                     onChange={(e) =>
                       setPrefs({ ...prefs, maxAdaptiveRadiusKm: parseInt(e.target.value) })
                     }
-                    className="flex-1 accent-slate-900 cursor-pointer"
+                    className="flex-1 accent-red-600 cursor-pointer"
                   />
-                  <span className="font-mono font-bold text-xs text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs tabular-nums">
+                  <span className="font-mono font-black text-sm text-red-600 bg-white px-3 py-1 rounded-lg border border-slate-200">
                     {prefs.maxAdaptiveRadiusKm} km
                   </span>
                 </div>
@@ -512,43 +569,29 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
             </div>
 
             {/* Explicación de Fases Oficiales */}
-            <div className="p-4 rounded-xl border border-slate-200/80 bg-white space-y-3">
-              <div className="font-semibold text-xs text-slate-900 flex items-center gap-1.5">
-                <Sliders className="w-3.5 h-3.5 text-slate-700" />
+            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/70 text-xs text-amber-900 space-y-2">
+              <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
                 <span>Protocolo Oficial CCE de Expansión Geodésica:</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/70">
-                  <div className="font-mono text-[10px] font-bold uppercase text-slate-500">Fase 1 · Barrial</div>
-                  <div className="font-bold text-slate-900 mt-0.5">1.0 km a 3.0 km</div>
-                  <div className="text-[10px] text-slate-500 mt-1 font-mono">0 a {prefs.autoExpandRadioMinutes} min</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/70">
-                  <div className="font-mono text-[10px] font-bold uppercase text-slate-500">Fase 2 · Sector</div>
-                  <div className="font-bold text-slate-900 mt-0.5">5.0 km</div>
-                  <div className="text-[10px] text-slate-500 mt-1 font-mono">{prefs.autoExpandRadioMinutes} a {prefs.autoExpandRadioMinutes * 2} min</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/70">
-                  <div className="font-mono text-[10px] font-bold uppercase text-slate-500">Fase 3 · Periferia</div>
-                  <div className="font-bold text-slate-900 mt-0.5">10.0 km</div>
-                  <div className="text-[10px] text-slate-500 mt-1 font-mono">{prefs.autoExpandRadioMinutes * 2} a {prefs.autoExpandRadioMinutes * 3} min</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/70">
-                  <div className="font-mono text-[10px] font-bold uppercase text-slate-500">Fase 4 · Filtros</div>
-                  <div className="font-bold text-slate-900 mt-0.5">{prefs.maxAdaptiveRadiusKm}.0 km</div>
-                  <div className="text-[10px] text-slate-500 mt-1 font-mono">+{prefs.autoExpandRadioMinutes * 3} min</div>
-                </div>
-              </div>
+              <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-700">
+                <li><strong>Fase 1 (0-{prefs.autoExpandRadioMinutes}m):</strong> Radio inicial barrial inmediato (1.0 km a 3.0 km).</li>
+                <li><strong>Fase 2 ({prefs.autoExpandRadioMinutes}-{prefs.autoExpandRadioMinutes * 2}m):</strong> Sector urbano ampliado y avenidas principales (5.0 km).</li>
+                <li><strong>Fase 3 ({prefs.autoExpandRadioMinutes * 2}-{prefs.autoExpandRadioMinutes * 3}m):</strong> Zona conurbada, accesos portuarios y periferia (10.0 km).</li>
+                <li><strong>Fase 4 (+{prefs.autoExpandRadioMinutes * 3}m):</strong> Cobertura municipal total, filtros carreteros y salidas ({prefs.maxAdaptiveRadiusKm}.0 km).</li>
+              </ul>
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <button
+              <Button
                 type="submit"
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                variant="primary"
+                size="md"
+                icon={<Check className="w-4 h-4" />}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
               >
-                <Check className="w-4 h-4" />
-                <span>Guardar Parámetros de Protocolo</span>
-              </button>
+                Guardar Parámetros de Protocolo
+              </Button>
 
               {savePrefsSuccess && (
                 <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
@@ -566,7 +609,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
       ======================================================== */}
       {activeTab === 'contacts' && (
         <div className="space-y-4">
-          <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-5">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -578,46 +621,47 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 </p>
               </div>
 
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => setShowNewContactModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                icon={<Plus className="w-3.5 h-3.5" />}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Agregar Número Oficial</span>
-              </button>
+                Agregar Número Oficial
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {contacts.map((c) => (
                 <div
                   key={c.id}
-                  className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 shadow-2xs transition-all relative flex flex-col justify-between"
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white transition-colors relative flex flex-col justify-between"
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                         {c.department}
                       </span>
                       {c.isPrimary && (
-                        <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono text-[9px] font-semibold">
+                        <span className="px-1.5 py-0.2 rounded bg-red-100 text-red-800 font-bold text-[9px]">
                           Principal
                         </span>
                       )}
                     </div>
-                    <div className="font-semibold text-sm text-slate-900">{c.name}</div>
-                    <div className="text-base font-mono font-bold text-slate-900 mt-2 flex items-center gap-1.5 tabular-nums">
-                      <PhoneCall className="w-3.5 h-3.5 text-slate-500" />
+                    <div className="font-bold text-sm text-slate-900">{c.name}</div>
+                    <div className="text-base font-mono font-black text-red-600 mt-2 flex items-center gap-1.5">
+                      <PhoneCall className="w-4 h-4 text-red-600" />
                       <span>{c.phone}</span>
                     </div>
                   </div>
 
                   {!c.isPrimary && (
-                    <div className="pt-3 border-t border-slate-100 mt-3 flex justify-end">
+                    <div className="pt-3 border-t border-slate-200 mt-3 flex justify-end">
                       <button
                         type="button"
                         onClick={() => handleDeleteContact(c.id)}
-                        className="text-[11px] text-slate-400 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-1"
+                        className="text-[11px] text-red-600 hover:text-red-800 font-bold flex items-center gap-1 cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />
                         <span>Eliminar</span>
@@ -636,7 +680,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
       ======================================================== */}
       {activeTab === 'cabin' && (
         <form onSubmit={handleSavePrefs} className="space-y-4">
-          <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-6">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-6">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Volume2 className="w-4 h-4 text-red-600" />
@@ -648,7 +692,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-start justify-between gap-4">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start justify-between gap-4">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900">
                     Alerta Sonora Continua en Código Rojo
@@ -663,11 +707,11 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   onChange={(e) =>
                     setPrefs({ ...prefs, soundCodeRedContinuous: e.target.checked })
                   }
-                  className="w-4 h-4 accent-slate-900 rounded cursor-pointer mt-0.5"
+                  className="w-5 h-5 accent-red-600 rounded cursor-pointer"
                 />
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-start justify-between gap-4">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start justify-between gap-4">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900">
                     Modo Pantalla Activa (Anti-Suspensión)
@@ -682,16 +726,16 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   onChange={(e) =>
                     setPrefs({ ...prefs, kioskKeepScreenAlive: e.target.checked })
                   }
-                  className="w-4 h-4 accent-slate-900 rounded cursor-pointer mt-0.5"
+                  className="w-5 h-5 accent-red-600 rounded cursor-pointer"
                 />
               </div>
             </div>
 
             {/* Selector de Volumen de Sirena SOS */}
-            <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 space-y-2">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-800">
                 <span>Nivel de Volumen Sirena SOS ({prefs.sosSirenVolume}%)</span>
-                <span className="text-[11px] text-slate-500 font-normal">Alerta de pánico ciudadana</span>
+                <span className="text-[11px] text-slate-500">Alerta de pánico ciudadana</span>
               </div>
               <input
                 type="range"
@@ -702,17 +746,19 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 onChange={(e) =>
                   setPrefs({ ...prefs, sosSirenVolume: parseInt(e.target.value) })
                 }
-                className="w-full accent-slate-900 cursor-pointer"
+                className="w-full accent-red-600 cursor-pointer"
               />
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+              variant="primary"
+              size="md"
+              icon={<Check className="w-4 h-4" />}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
             >
-              <Check className="w-4 h-4" />
-              <span>Guardar Preferencias de Cabina</span>
-            </button>
+              Guardar Preferencias de Cabina
+            </Button>
           </div>
         </form>
       )}
@@ -722,7 +768,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
       ======================================================== */}
       {activeTab === 'audit' && (
         <div className="space-y-4">
-          <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-5">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -735,14 +781,15 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleExportAudit}
-                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 font-medium text-xs transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                  icon={<Download className="w-3.5 h-3.5" />}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-300 cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Exportar Auditoría (.JSON)</span>
-                </button>
+                  Exportar Auditoría (.JSON)
+                </Button>
               </div>
             </div>
 
@@ -752,7 +799,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
               value={auditSearch}
               onChange={(e) => setAuditSearch(e.target.value)}
               placeholder="Filtrar por operador, acción o palabra clave..."
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 transition-colors"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500"
             />
 
             <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
@@ -760,27 +807,27 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 filteredLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-3 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50/50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors shadow-2xs"
+                    className="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-200 text-slate-800">
                           {log.action}
                         </span>
                         <span className="font-bold text-slate-900">{log.operatorName}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">({log.operatorRole})</span>
+                        <span className="text-[10px] text-slate-400">({log.operatorRole})</span>
                       </div>
                       <p className="text-slate-600 text-[11px] leading-relaxed">{log.details}</p>
                     </div>
 
-                    <div className="text-[10px] font-mono text-slate-400 sm:text-right shrink-0 tabular-nums">
+                    <div className="text-[10px] font-mono text-slate-400 sm:text-right shrink-0">
                       <div>{new Date(log.timestamp).toLocaleString('es-MX')}</div>
                       <div>{log.ipOrDevice}</div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-200/80 rounded-xl">
+                <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">
                   No se encontraron registros que coincidan con la búsqueda.
                 </div>
               )}
@@ -793,7 +840,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
           PESTAÑA 6: SEGURIDAD & CONTRASEÑA
       ======================================================== */}
       {activeTab === 'security' && (
-        <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-5">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-amber-600" />
@@ -805,21 +852,21 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
           </div>
 
           {passwordSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Contraseña actualizada satisfactoriamente.</span>
             </div>
           )}
 
           {passwordError && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
               <span>{passwordError}</span>
             </div>
           )}
 
           <form onSubmit={handleSavePassword} className="space-y-4 max-w-md">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Contraseña Actual
               </label>
               <input
@@ -827,13 +874,13 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Ingresa clave actual (ej. admin123 o cce2026)"
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Nueva Contraseña
               </label>
               <input
@@ -841,13 +888,13 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Confirmar Nueva Contraseña
               </label>
               <input
@@ -855,18 +902,20 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repite la nueva contraseña"
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500"
                 required
               />
             </div>
 
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+              icon={<Lock className="w-3.5 h-3.5" />}
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold cursor-pointer"
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Guardar Nueva Contraseña</span>
-            </button>
+              Guardar Nueva Contraseña
+            </Button>
           </form>
         </div>
       )}
@@ -875,19 +924,19 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
           MODAL: DAR DE ALTA NUEVO OPERADOR (SUPER ADMIN)
       ======================================================== */}
       {showNewUserModal && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-red-600" />
-                <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                <h3 className="text-base font-bold text-slate-900">
                   Alta de Operador / Administrador CCE
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowNewUserModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -904,7 +953,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   onChange={(e) => setNewUserName(e.target.value)}
                   placeholder="Ej. Ing. Martín Valenzuela (CCE)"
                   required
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500"
                 />
               </div>
 
@@ -918,7 +967,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   onChange={(e) => setNewUserEmail(e.target.value)}
                   placeholder="ej. operador1@cce.org.mx"
                   required
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 font-mono transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono"
                 />
               </div>
 
@@ -930,7 +979,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   <select
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value as AdminRole)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 cursor-pointer transition-colors"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-bold focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
                   >
                     <option value="operador">Validador CCE (Operativo)</option>
                     <option value="superadmin">Super Administrador</option>
@@ -947,7 +996,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                     value={newUserPhone}
                     onChange={(e) => setNewUserPhone(e.target.value)}
                     placeholder="Ej. 753-123-4567"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500"
                   />
                 </div>
               </div>
@@ -961,25 +1010,27 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   value={newUserEntity}
                   onChange={(e) => setNewUserEntity(e.target.value)}
                   placeholder="Ej. CCE Lázaro Cárdenas / Protección Civil"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200/80 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowNewUserModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-slate-600 font-medium hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-lg text-slate-600 font-bold hover:bg-slate-100 cursor-pointer"
                 >
                   Cancelar
                 </button>
-                <button
+                <Button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                  variant="primary"
+                  size="md"
+                  icon={<UserPlus className="w-3.5 h-3.5" />}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Crear y Habilitar Acceso</span>
-                </button>
+                  Crear y Habilitar Acceso
+                </Button>
               </div>
             </form>
           </div>
@@ -990,19 +1041,19 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
           MODAL: AGREGAR CONTACTO DE EMERGENCIA
       ======================================================== */}
       {showNewContactModal && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
                 <PhoneCall className="w-5 h-5 text-red-600" />
-                <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                <h3 className="text-base font-bold text-slate-900">
                   Agregar Contacto de Emergencia Oficial
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowNewContactModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1019,7 +1070,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   onChange={(e) => setNewContactName(e.target.value)}
                   placeholder="Ej. Centro Regulador de Urgencias Médicas (CRUM)"
                   required
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500"
                 />
               </div>
 
@@ -1033,7 +1084,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   onChange={(e) => setNewContactPhone(e.target.value)}
                   placeholder="Ej. 753-532-0000 o 911"
                   required
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-red-500"
                 />
               </div>
 
@@ -1046,25 +1097,27 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                   value={newContactDept}
                   onChange={(e) => setNewContactDept(e.target.value)}
                   placeholder="Ej. Paramédicos / Policía / Tránsito"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200/80 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowNewContactModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-slate-600 font-medium hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-lg text-slate-600 font-bold hover:bg-slate-100 cursor-pointer"
                 >
                   Cancelar
                 </button>
-                <button
+                <Button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                  variant="primary"
+                  size="md"
+                  icon={<Plus className="w-3.5 h-3.5" />}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Guardar en Directorio</span>
-                </button>
+                  Guardar en Directorio
+                </Button>
               </div>
             </form>
           </div>
