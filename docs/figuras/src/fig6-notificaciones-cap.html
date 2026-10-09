@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; background: #F1F5F9; font-family: 'Segoe UI', Inter, Arial, sans-serif; color: #0F172A; }
+  #lienzo { position: relative; width: 1440px; height: 800px; }
+  h1 { position: absolute; left: 40px; top: 24px; margin: 0; font-size: 22px; }
+  p.sub { position: absolute; left: 40px; top: 56px; margin: 0; font-size: 13px; color: #475569; }
+  .col { position: absolute; top: 100px; width: 420px; height: 640px; background: #fff; border: 1px solid #CBD5E1;
+         border-radius: 12px; padding: 20px; box-sizing: border-box; }
+  .col h3 { margin: 0 0 14px; font-size: 15px; }
+  .nota { font-size: 12.5px; color: #475569; margin-top: 14px; line-height: 1.45; }
+  .notif { background: #F8FAFC; border-radius: 16px; padding: 14px; border: 1px solid #E2E8F0; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+  .notif .app { font-size: 11px; color: #475569; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .notif .icono { width: 18px; height: 18px; border-radius: 4px; background: #D62828; }
+  .notif .t { font-weight: 800; font-size: 15px; }
+  .notif .b { font-size: 13.5px; color: #334155; margin-top: 2px; line-height: 1.35; }
+  .wa { background: #E5DDD5; border-radius: 12px; padding: 18px 14px; }
+  .burbuja { background: #DCF8C6; border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.4;
+             max-width: 92%; box-shadow: 0 1px 1px rgba(0, 0, 0, .1); }
+  .hora { font-size: 11px; color: #667781; text-align: right; margin-top: 4px; }
+  pre { background: #0F172A; color: #E2E8F0; border-radius: 10px; padding: 14px; font-size: 11px; line-height: 1.45;
+        margin: 0; white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<div id="lienzo">
+  <h1>Figura 6. Notificaciones sonoras, verificación por WhatsApp y alertas CAP 1.2</h1>
+  <p class="sub">Texto real generado con el código del servidor (supabase/functions/_compartido). Datos de ejemplo, no son personas reales.</p>
+
+  <div class="col" style="left: 40px;">
+    <h3>Notificación en el teléfono</h3>
+    <div class="notif">
+      <div class="app"><span class="icono"></span>ALERTA CERCA · ahora</div>
+      <div class="t">ROBO DE VEHÍCULO</div>
+      <div class="b">Verificada · Robo de vehículo: Nissan Versa gris</div>
+    </div>
+    <p class="nota">Llega como notificación push aunque la app esté cerrada. El sonido depende del nivel de peligro (canales del 1 al 4).</p>
+  </div>
+
+  <div class="col" style="left: 510px;">
+    <h3>Verificación por WhatsApp</h3>
+    <div class="wa">
+      <div class="burbuja">ALERTA CERCA: tu código de verificación es 482913. No lo compartas con nadie.
+        <div class="hora">21:41</div>
+      </div>
+    </div>
+    <p class="nota">Es el texto que se envía al verificar el número (009_whatsapp.sql). El envío puede ser simulado, por el puente de WhatsApp o por la API oficial de WhatsApp Business (Meta), según la configuración del servidor. El código de la imagen es de ejemplo.</p>
+  </div>
+
+  <div class="col" style="left: 980px; width: 420px;">
+    <h3>Alerta CAP 1.2 (formato de alertas oficiales)</h3>
+<pre>&lt;alert xmlns="urn:oasis:names:tc:emergency:cap:1.2"&gt;
+  &lt;identifier&gt;alertacerca-6f1c2b7e-3a9d-4e51-9b0a-2d8e7f4c1a55&lt;/identifier&gt;
+  &lt;sender&gt;alertacerca&lt;/sender&gt;
+  &lt;sent&gt;2026-10-08T21:40:00+00:00&lt;/sent&gt;
+  &lt;status&gt;Actual&lt;/status&gt;
+  &lt;msgType&gt;Alert&lt;/msgType&gt;
+  &lt;scope&gt;Public&lt;/scope&gt;
+  &lt;info&gt;
+    &lt;language&gt;es-MX&lt;/language&gt;
+    &lt;category&gt;Security&lt;/category&gt;
+    &lt;event&gt;Robo de vehículo&lt;/event&gt;
+    &lt;urgency&gt;Immediate&lt;/urgency&gt;
+    &lt;severity&gt;Severe&lt;/severity&gt;
+    &lt;certainty&gt;Observed&lt;/certainty&gt;
+    &lt;expires&gt;2026-10-09T03:40:00+00:00&lt;/expires&gt;
+    &lt;senderName&gt;ALERTA CERCA · CCE Lázaro Cárdenas&lt;/senderName&gt;
+    &lt;headline&gt;Robo de vehículo: Nissan Versa gris&lt;/headline&gt;
+    &lt;instruction&gt;No te acerques. Llama al 911 y anota placas y dirección.&lt;/instruction&gt;
+    &lt;area&gt;
+      &lt;areaDesc&gt;Radio de 3.0 km alrededor del suceso&lt;/areaDesc&gt;
+      &lt;circle&gt;17.9581,-102.1942 3.0&lt;/circle&gt;
+    &lt;/area&gt;
+  &lt;/info&gt;
+&lt;/alert&gt;</pre>
+    <p class="nota">Fragmento abreviado. Es el estándar OASIS CAP 1.2, el formato con el que las autoridades retransmiten alertas. Lo genera el servidor en cada alerta verificada.</p>
+  </div>
+</div>
+</body>
+</html>

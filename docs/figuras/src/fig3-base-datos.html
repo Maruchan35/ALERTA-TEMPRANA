@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; background: #F8FAFC; font-family: 'Segoe UI', Inter, Arial, sans-serif; color: #0F172A; }
+  #lienzo { position: relative; width: 1440px; height: 1100px; }
+  h1 { position: absolute; left: 40px; top: 22px; margin: 0; font-size: 22px; }
+  p.sub { position: absolute; left: 40px; top: 54px; margin: 0; font-size: 13px; color: #475569; }
+  .caja { position: absolute; width: 230px; background: #fff; border: 1px solid #CBD5E1; border-radius: 8px;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, .06); overflow: hidden; }
+  .caja h2 { margin: 0; font: 700 13px/1.2 Consolas, monospace; color: #fff; padding: 7px 10px; }
+  .caja ul { margin: 0; padding: 7px 10px 9px; list-style: none; font-size: 11.5px; line-height: 1.5; color: #334155; }
+  .caja li.fk { color: #B45309; font-weight: 600; }
+  svg { position: absolute; left: 0; top: 0; }
+  .leyenda { position: absolute; left: 40px; bottom: 18px; font-size: 12px; color: #475569; }
+</style>
+</head>
+<body>
+<div id="lienzo">
+  <h1>Figura 3. Base de datos: Supabase (PostgreSQL 17 + PostGIS)</h1>
+  <p class="sub">Tablas principales y sus llaves foráneas, generadas a partir de supabase/migrations (001 a 011). auth.users son las cuentas de Supabase Auth.</p>
+  <svg id="lineas" width="1440" height="1100"></svg>
+  <div class="leyenda">Naranja: llave foránea (FOREIGN KEY). Las columnas que no son llaves se muestran de forma resumida.</div>
+</div>
+<script>
+  const COLOR = { cuentas: '#1F3B66', alertas: '#C2410C', mensajes: '#15803D', sos: '#B91C1C', sistema: '#475569', privado: '#6D28D9' };
+  const OFF = 70; // espacio del título
+
+  const T = [
+    { n: 'config', g: 'sistema', x: 40, y: 90, c: ['ajustes: límites, retención, modo de WhatsApp'] },
+    { n: 'perfiles', g: 'cuentas', x: 340, y: 90, c: ['id → auth.users', 'nombre · rol · institución', 'reputación (+1 verificado)'] },
+    { n: 'dispositivos', g: 'cuentas', x: 640, y: 90, c: ['usuario_id → auth.users', 'registro de cada teléfono'] },
+    { n: 'zonas_usuario', g: 'cuentas', x: 940, y: 90, c: ['usuario_id → auth.users', 'celda de cada zona (casa, escuela…)'] },
+    { n: 'categorias', g: 'alertas', x: 40, y: 330, c: ['clave · nombre · nivel 1–4', 'vigencia · radio máximo'] },
+    { n: 'alertas', g: 'alertas', x: 340, y: 330, c: ['categoria → categorias', 'creada_por → perfiles', 'verificada_por → perfiles', 'lat · lon · radio_actual_m', 'estado · expira_en'] },
+    { n: 'entregas', g: 'alertas', x: 640, y: 330, c: ['alerta_id → alertas', 'dispositivo_id → dispositivos'] },
+    { n: 'emergencias', g: 'sos', x: 940, y: 330, c: ['usuario_id → auth.users', 'atendida_por → perfiles', 'cerrada_por → perfiles', 'estado · tipo · origen', 'ultima_senal_en'] },
+    { n: 'escalones_radio', g: 'alertas', x: 40, y: 530, c: ['categoria → categorias', 'minuto · radio por escalón'] },
+    { n: 'confirmaciones', g: 'alertas', x: 640, y: 530, c: ['alerta_id → alertas', 'usuario_id → auth.users', 'confirmación u objeción'] },
+    { n: 'emergencia_evidencias', g: 'sos', x: 940, y: 530, c: ['emergencia_id → emergencias', 'tipo · ruta · sha256'] },
+    { n: 'emergencia_puntos', g: 'sos', x: 1180, y: 530, c: ['emergencia_id → emergencias', 'lat · lon · registrada_en'] },
+    { n: 'bitacora', g: 'alertas', x: 340, y: 730, c: ['alerta_id → alertas', 'registro de cambios'] },
+    { n: 'entregas_telegram', g: 'mensajes', x: 40, y: 730, c: ['alerta_id → alertas', 'chat_id → suscriptores_telegram'] },
+    { n: 'suscriptores_telegram', g: 'mensajes', x: 40, y: 900, c: ['chat_id', 'alertas por Telegram (opcional)'] },
+    { n: 'privado.mensajes_whatsapp', g: 'privado', x: 640, y: 730, c: ['telefono · codigo · texto', 'se borra a 1 día (cola interna)'] },
+    { n: 'privado.puente_whatsapp', g: 'privado', x: 940, y: 730, c: ['cola del puente de WhatsApp', 'sin llaves foráneas'] },
+  ];
+
+  const RELACIONES = [
+    ['alertas', 'categorias'], ['escalones_radio', 'categorias'], ['alertas', 'perfiles'],
+    ['entregas', 'alertas'], ['entregas', 'dispositivos'], ['confirmaciones', 'alertas'], ['bitacora', 'alertas'],
+    ['entregas_telegram', 'alertas'], ['entregas_telegram', 'suscriptores_telegram'],
+    ['emergencias', 'perfiles'], ['emergencia_evidencias', 'emergencias'], ['emergencia_puntos', 'emergencias'],
+  ];
+
+  const lienzo = document.getElementById('lienzo');
+  const svg = document.getElementById('lineas');
+  const cajas = {};
+  for (const t of T) {
+    const d = document.createElement('div');
+    d.className = 'caja';
+    d.style.left = t.x + 'px';
+    d.style.top = (t.y + OFF) + 'px';
+    const filas = t.c.map((c) => `<li class="${c.includes('→') ? 'fk' : ''}">${c}</li>`).join('');
+    d.innerHTML = `<h2 style="background:${COLOR[t.g]}">${t.n}</h2><ul>${filas}</ul>`;
+    lienzo.appendChild(d);
+    cajas[t.n] = d;
+  }
+  // Las líneas van debajo de las cajas (el SVG está antes en el DOM)
+  for (const [a, b] of RELACIONES) {
+    const A = cajas[a], B = cajas[b];
+    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l.setAttribute('x1', A.offsetLeft + A.offsetWidth / 2);
+    l.setAttribute('y1', A.offsetTop + A.offsetHeight / 2);
+    l.setAttribute('x2', B.offsetLeft + B.offsetWidth / 2);
+    l.setAttribute('y2', B.offsetTop + B.offsetHeight / 2);
+    l.setAttribute('stroke', '#94A3B8');
+    l.setAttribute('stroke-width', '1.6');
+    svg.appendChild(l);
+  }
+</script>
+</body>
+</html>

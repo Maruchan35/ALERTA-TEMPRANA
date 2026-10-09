@@ -1,0 +1,7 @@
+{
+  "notificacion": {
+    "title": "ROBO DE VEHÍCULO",
+    "body": "Verificada · Robo de vehículo: Nissan Versa gris"
+  },
+  "cap": "<alert xmlns=\"urn:oasis:names:tc:emergency:cap:1.2\"><identifier>alertacerca-6f1c2b7e-3a9d-4e51-9b0a-2d8e7f4c1a55</identifier><sender>alertacerca</sender><sent>2026-10-08T21:40:00+00:00</sent><status>Actual</status><msgType>Alert</msgType><scope>Public</scope><info><language>es-MX</language><category>Security</category><event>Robo de vehículo</event><responseType>Monitor</responseType><urgency>Immediate</urgency><severity>Severe</severity><certainty>Observed</certainty><expires>2026-10-09T03:40:00+00:00</expires><senderName>ALERTA CERCA · CCE Lázaro Cárdenas</senderName><headline>Robo de vehículo: Nissan Versa gris</headline><description>Nissan Versa gris, placas DEMO-123, visto por última vez sobre Av. Lázaro Cárdenas. Referencia: Av. Lázaro Cárdenas, Centro</description><instruction>No te acerques. Llama al 911 y anota placas y dirección.</instruction><area><areaDesc>Radio de 3.0 km alrededor del suceso</areaDesc><circle>17.9581,-102.1942 3.0</circle></area></info></alert>"
+}
