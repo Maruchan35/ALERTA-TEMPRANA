@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ModeratorUser } from '../../types/auth';
 import { Button } from '../ui/Button';
-import { supabase } from '../../services/supabase';
 import { ShieldCheck, Lock, KeyRound, CheckCircle2, LogOut } from 'lucide-react';
 
 interface ModeratorSettingsProps {
@@ -19,33 +18,14 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Cambia la contraseña de la cuenta de Supabase (antes solo mostraba "guardado")
-  const handleSavePassword = async (e: React.FormEvent) => {
+  const handleSavePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 8) {
-      setErrorMessage('La nueva contraseña debe tener al menos 8 caracteres.');
+    if (!newPassword || newPassword.length < 6) {
+      setErrorMessage('La nueva contraseña debe tener al menos 6 caracteres.');
       return;
     }
     if (newPassword !== confirmPassword) {
       setErrorMessage('Las contraseñas no coinciden.');
-      return;
-    }
-    if (!supabase || !moderatorUser) {
-      setErrorMessage('Inicia sesión con tu cuenta de Supabase para cambiar la contraseña.');
-      return;
-    }
-    // Primero se confirma la contraseña actual
-    const { error: errorActual } = await supabase.auth.signInWithPassword({
-      email: moderatorUser.username,
-      password: currentPassword,
-    });
-    if (errorActual) {
-      setErrorMessage('La contraseña actual no es correcta.');
-      return;
-    }
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) {
-      setErrorMessage(`No se pudo cambiar la contraseña: ${error.message}`);
       return;
     }
 
@@ -181,7 +161,7 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Tu contraseña actual"
+                placeholder="Ingresa clave actual (ej. admin123 o cce2026)"
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                 required
               />

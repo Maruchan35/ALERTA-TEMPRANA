@@ -70,7 +70,7 @@ export interface SupabaseAlertaRow {
   cerrada_en: string | null;
   expira_en: string;
   motivo_cierre: string | null;
-  // Campos agregados por joins o vistas (alertas_publicas, alertas_panel)
+  // Campos agregados por joins o vistas
   validada_por?: string | null;
   validador_institucion?: string | null;
   validador_nombre?: string | null;

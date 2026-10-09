@@ -6,6 +6,7 @@ import {
   CATEGORIAS_OFICIALES,
   TipoConfirmacion,
 } from '../types/alert';
+import { archiveService } from './archiveService';
 
 const LOCAL_STORAGE_KEY = 'alerta_cerca_real_alerts';
 
@@ -336,12 +337,20 @@ class AlertService {
 
   // Resolver una alerta (Caso atendido con éxito)
   public async resolveAlert(id: string, reason: string = 'Situación resuelta y atendida'): Promise<boolean> {
+    const targetAlert = this.alertsCache.find((a) => a.id === id);
+    if (targetAlert) {
+      archiveService.archivarAlerta(targetAlert, reason, 'resuelta');
+    }
     await this.validar(id, 'resolver', { motivo: reason });
     return true;
   }
 
   // Descartar una alerta falsa o inválida
   public async discardAlert(id: string, reason: string = 'Descartada por reporte falso o duplicado'): Promise<boolean> {
+    const targetAlert = this.alertsCache.find((a) => a.id === id);
+    if (targetAlert) {
+      archiveService.archivarAlerta(targetAlert, reason, 'descartada');
+    }
     await this.validar(id, 'descartar', { motivo: reason });
     return true;
   }
@@ -354,6 +363,51 @@ class AlertService {
     if (error) throw new Error(mensajeServidor(error.message));
     await this.fetchAll();
     return true;
+  }
+
+  // Subir foto a Supabase Storage o generar base64 local
+  public async uploadPhoto(file: File): Promise<{ success: boolean; path?: string; previewUrl?: string; error?: string }> {
+    if (!file) return { success: false, error: 'Archivo no válido' };
+
+    if (supabase && isSupabaseConfigured) {
+      try {
+        await ensureAuthSession();
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        const filePath = `reportes/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('fotos')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (!uploadError) {
+          const previewUrl = URL.createObjectURL(file);
+          return { success: true, path: filePath, previewUrl };
+        }
+      } catch (e: any) {
+        console.warn('Error subiendo foto a Supabase Storage:', e);
+      }
+    }
+
+    // Fallback: Si no hay Supabase o falla el storage, usar Base64 local
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        resolve({
+          success: true,
+          path: base64String,
+          previewUrl: base64String,
+        });
+      };
+      reader.onerror = () => {
+        resolve({ success: false, error: 'Error leyendo la imagen seleccionada' });
+      };
+      reader.readAsDataURL(file);
+    });
   }
 }
 

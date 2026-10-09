@@ -79,7 +79,7 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ emergencias, err
     <div className="w-full space-y-4">
       <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-100">
         <div className="flex items-center gap-2">
-          <Siren className="w-5 h-5 text-red-500" />
+          <Siren className="w-5 h-5 text-red-500 animate-pulse" />
           <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">Emergencias SOS · en vivo</h2>
         </div>
         <p className="text-xs text-zinc-400 mt-1">
@@ -204,7 +204,7 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
     else window.alert('No se pudo abrir la evidencia. Revisa la conexión.');
   };
 
-  const boton = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50';
+  const boton = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50 cursor-pointer';
 
   return (
     <div className={`rounded-2xl bg-zinc-900 border-2 ${c.borde} text-zinc-100 overflow-hidden`}>
@@ -250,9 +250,9 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800">
           <button type="button" onClick={copiarUbicacion} className={`${boton} bg-zinc-800 hover:bg-zinc-700`}>
-            <Copy className="w-3.5 h-3.5" /> Copiar ubicación
+            <Copy className="w-3.5 h-3.5" /> Copiar ubicación para el 911
           </button>
           <a href={enlaceMapa(e.lat, e.lon)} target="_blank" rel="noopener noreferrer" className={`${boton} bg-zinc-800 hover:bg-zinc-700`}>
             <ExternalLink className="w-3.5 h-3.5" /> Abrir en mapas
@@ -269,7 +269,7 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
         {abierta(e) && (
           <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800">
             {e.estado === 'activa' && (
-              <button type="button" disabled={ocupado} onClick={() => atender('tomar')} className={`${boton} bg-red-600 hover:bg-red-500 text-white`}>
+              <button type="button" disabled={ocupado} onClick={() => atender('tomar')} className={`${boton} bg-red-600 hover:bg-red-500 text-white font-bold`}>
                 <Hand className="w-3.5 h-3.5" /> Tomar el caso
               </button>
             )}
@@ -353,7 +353,7 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
                   <Video className="w-3.5 h-3.5 text-red-400" /> Video {i + 1} · {hora(v.creada_en)}
                   {v.duracion_s != null ? ` · ${v.duracion_s} s` : ''}
                 </span>
-                <button type="button" onClick={() => verEvidencia(v)} className="text-amber-300 hover:underline">
+                <button type="button" onClick={() => verEvidencia(v)} className="text-amber-300 hover:underline cursor-pointer">
                   Ver
                 </button>
               </div>
@@ -402,8 +402,6 @@ const MapaRecorrido: React.FC<{ emergencia: Emergencia; puntos: PuntoEmergencia[
       m.remove();
       mapa.current = null;
     };
-    // El mapa se crea una vez por emergencia (el componente se monta con key = id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -431,7 +429,7 @@ const MapaRecorrido: React.FC<{ emergencia: Emergencia; puntos: PuntoEmergencia[
         <button
           type="button"
           onClick={() => setSeguir(true)}
-          className="absolute top-3 right-3 z-[400] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-red-700 text-xs font-bold shadow"
+          className="absolute top-3 right-3 z-[400] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-red-700 text-xs font-bold shadow cursor-pointer"
         >
           <Crosshair className="w-3.5 h-3.5" /> Seguir a la persona
         </button>

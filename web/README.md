@@ -3,8 +3,9 @@
 Portal web de alta fidelidad para el sistema **ALERTA CERCA (HackaITLAC 2026)**.
 
 ## ✨ Características Principales
-- **Cartografía y Radar Territorial en Tiempo Real**: Visualización interactiva con Leaflet, dispersión anti-colisión (*spiderfy*) para incidentes en la misma coordenada, círculos de geocercas dinámicos (1 km, 3 km, 10 km, 25 km).
-- **Consola de Operaciones del CCE (Modo Moderador)**: Tema oscuro ejecutivo (`zinc-950`), gestión y validación de alertas, ajuste de radio, cierre de incidentes y bitácora en vivo.
+- **Cartografía y Radar Territorial en Tiempo Real (v1.1.0)**: Visualización interactiva con Leaflet, dispersión anti-colisión (*spiderfy*), protocolo adaptativo de búsqueda concéntrica y **aislamiento inteligente de rango** (al seleccionar una alerta se ocultan los demás rangos para claridad perimetral; al deseleccionar vuelven todos).
+- **Consola de Operaciones y Base de Datos CCE (v1.1.0)**: Tema oscuro ejecutivo (`zinc-950`), **fichas técnicas emergentes con fotografía** en alta resolución al hacer clic en cualquier incidente, y **configurador táctico de radio territorial** (presets de 1 km a 25 km, slider milimétrico y restablecimiento adaptativo).
+- **📁 Carpetas de Investigación y Expedientes Forenses (v1.1.0)**: Resguardo permanente de alertas resueltas y descartadas (cero pérdida de datos). Generación y copiado en 1 clic de oficios formales para el Ministerio Público / 911 con coordenadas WGS84, motivo de cierre y Hash SHA de integridad forense, además de descarga completa en JSON.
 - **Acceso Comunitario y Reportes Ciudadanos**: Reporte de incidentes en 3 pasos con validación estricta, geolocalización en tiempo real y botón colaborativo *"Lo he visto"* para registrar avistamientos ciudadanos.
 - **Sincronización Total con Supabase**: Subscripciones en tiempo real (`postgres_changes`), mapeo PostGIS, soporte multi-bucket para fotos y evidencias.
 - **Emergencias SOS (Modo Moderador)**: alarma crítica y banner rojo en cualquier vista cuando alguien pide ayuda desde la app; recorrido en vivo en el mapa, velocidad, batería, video de evidencia y seguimiento (tomar el caso, aviso al 911, cerrar). Código: `services/emergencyService.ts`, `hooks/useEmergencies.ts`, `components/admin/EmergencyPanel.tsx`.

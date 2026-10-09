@@ -1,9 +1,3 @@
-// Modo emergencia (SOS): una persona en peligro pidió ayuda desde la app ALERTA CERCA.
-// Los validadores ven su ubicación EN VIVO y le dan seguimiento (011_emergencias.sql).
-//
-// Reglas (igual que el resto del portal): se LEE de `emergencias_panel` / `emergencia_puntos` /
-// `emergencia_evidencias` (RLS: solo validadores ven todo) y se ACTÚA solo con
-// rpc('atender_emergencia'). La evidencia está en el bucket PRIVADO 'evidencias' (URL firmada).
 import { supabase, ensureAuthSession } from './supabase';
 
 export type EstadoEmergencia = 'activa' | 'en_seguimiento' | 'cerrada';
@@ -134,49 +128,69 @@ function mensajeServidor(mensaje: string): string {
 export const emergencyService = {
   async listar(): Promise<Emergencia[]> {
     if (!supabase) return [];
-    await ensureAuthSession();
-    const { data, error } = await supabase
-      .from('emergencias_panel')
-      .select('*')
-      .order('creada_en', { ascending: false })
-      .limit(100);
-    if (error) throw new Error(mensajeServidor(error.message));
-    return ((data ?? []) as Emergencia[]).sort(ordenarEmergencias);
+    try {
+      await ensureAuthSession();
+      const { data, error } = await supabase
+        .from('emergencias_panel')
+        .select('*')
+        .order('creada_en', { ascending: false })
+        .limit(100);
+      if (error) {
+        console.warn('Error listando emergencias en Supabase:', error.message);
+        return [];
+      }
+      return ((data ?? []) as Emergencia[]).sort(ordenarEmergencias);
+    } catch (e) {
+      console.warn('Excepción listando emergencias:', e);
+      return [];
+    }
   },
 
   /** Recorrido (los 5,000 puntos más recientes, en orden). */
   async recorrido(emergenciaId: string): Promise<PuntoEmergencia[]> {
     if (!supabase) return [];
-    const { data, error } = await supabase
-      .from('emergencia_puntos')
-      .select('id, lat, lon, precision_m, velocidad_ms, registrada_en')
-      .eq('emergencia_id', emergenciaId)
-      .order('registrada_en', { ascending: false })
-      .limit(5000);
-    if (error) throw new Error(mensajeServidor(error.message));
-    return ((data ?? []) as PuntoEmergencia[]).reverse();
+    try {
+      const { data, error } = await supabase
+        .from('emergencia_puntos')
+        .select('id, lat, lon, precision_m, velocidad_ms, registrada_en')
+        .eq('emergencia_id', emergenciaId)
+        .order('registrada_en', { ascending: false })
+        .limit(5000);
+      if (error) throw new Error(mensajeServidor(error.message));
+      return ((data ?? []) as PuntoEmergencia[]).reverse();
+    } catch {
+      return [];
+    }
   },
 
   async evidencias(emergenciaId: string): Promise<EvidenciaEmergencia[]> {
     if (!supabase) return [];
-    const { data, error } = await supabase
-      .from('emergencia_evidencias')
-      .select('tipo, ruta, duracion_s, creada_en')
-      .eq('emergencia_id', emergenciaId)
-      .order('creada_en');
-    if (error) throw new Error(mensajeServidor(error.message));
-    return (data ?? []) as EvidenciaEmergencia[];
+    try {
+      const { data, error } = await supabase
+        .from('emergencia_evidencias')
+        .select('tipo, ruta, duracion_s, creada_en')
+        .eq('emergencia_id', emergenciaId)
+        .order('creada_en');
+      if (error) throw new Error(mensajeServidor(error.message));
+      return (data ?? []) as EvidenciaEmergencia[];
+    } catch {
+      return [];
+    }
   },
 
   /** Enlace temporal (10 min) para ver o descargar una evidencia. */
   async urlEvidencia(ruta: string): Promise<string | null> {
     if (!supabase) return null;
-    const { data, error } = await supabase.storage.from('evidencias').createSignedUrl(ruta, 600);
-    if (error) console.warn('Evidencia', ruta, error.message);
-    return data?.signedUrl ?? null;
+    try {
+      const { data, error } = await supabase.storage.from('evidencias').createSignedUrl(ruta, 600);
+      if (error) console.warn('Evidencia', ruta, error.message);
+      return data?.signedUrl ?? null;
+    } catch {
+      return null;
+    }
   },
 
-  /** tomar | policia (folio opcional) | nota | localizada | falsa_alarma. Lanza error con el motivo. */
+  /** tomar | policia (folio opcional) | nota | localizada | falsa_alarma. */
   async atender(id: string, accion: AccionEmergencia, opciones: { nota?: string; folio?: string } = {}) {
     if (!supabase) throw new Error('Supabase no está configurado.');
     const { error } = await supabase.rpc('atender_emergencia', {
@@ -189,36 +203,43 @@ export const emergencyService = {
   },
 
   /**
-   * Tiempo real (respeta RLS): cambios de emergencias, puntos nuevos del recorrido y evidencia.
-   * Devuelve la función para dejar de escuchar.
+   * Tiempo real: cambios de emergencias, puntos nuevos del recorrido y evidencia.
    */
   suscribir(alCambiar: () => void): () => void {
     if (!supabase) return () => {};
     const cliente = supabase;
-    const canal = cliente
-      .channel('portal-emergencias')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'emergencias' }, () => alCambiar())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emergencia_evidencias' }, () => alCambiar())
-      .subscribe();
-    return () => {
-      cliente.removeChannel(canal);
-    };
+    try {
+      const canal = cliente
+        .channel('portal-emergencias-sos')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'emergencias' }, () => alCambiar())
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emergencia_evidencias' }, () => alCambiar())
+        .subscribe();
+      return () => {
+        cliente.removeChannel(canal);
+      };
+    } catch {
+      return () => {};
+    }
   },
 
-  /** Cada punto nuevo del recorrido de UNA emergencia (para dibujarlo en vivo). */
+  /** Cada punto nuevo del recorrido de UNA emergencia */
   suscribirRecorrido(emergenciaId: string, alNuevoPunto: (p: PuntoEmergencia) => void): () => void {
     if (!supabase) return () => {};
     const cliente = supabase;
-    const canal = cliente
-      .channel(`recorrido-${emergenciaId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'emergencia_puntos', filter: `emergencia_id=eq.${emergenciaId}` },
-        (cambio) => alNuevoPunto(cambio.new as PuntoEmergencia),
-      )
-      .subscribe();
-    return () => {
-      cliente.removeChannel(canal);
-    };
+    try {
+      const canal = cliente
+        .channel(`recorrido-${emergenciaId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'emergencia_puntos', filter: `emergencia_id=eq.${emergenciaId}` },
+          (cambio) => alNuevoPunto(cambio.new as PuntoEmergencia),
+        )
+        .subscribe();
+      return () => {
+        cliente.removeChannel(canal);
+      };
+    } catch {
+      return () => {};
+    }
   },
 };

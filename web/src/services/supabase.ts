@@ -16,20 +16,16 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
-// Asegura que exista una sesión de autenticación (anónima o de moderador) para acceder al Storage privado con RLS.
-// Si varias partes la piden a la vez, se crea UNA sola sesión anónima (no una por llamada).
-let sesionAnonimaEnCurso: Promise<unknown> | null = null;
-
+// Asegura que exista una sesión de autenticación (anónima o de moderador) para acceder al Storage privado con RLS
 export async function ensureAuthSession() {
   if (!supabase) return null;
   try {
     const { data } = await supabase.auth.getSession();
-    if (data?.session) return data.session;
-    sesionAnonimaEnCurso ??= supabase.auth.signInAnonymously().finally(() => {
-      sesionAnonimaEnCurso = null;
-    });
-    await sesionAnonimaEnCurso;
-    return (await supabase.auth.getSession()).data.session;
+    if (!data?.session) {
+      const { data: anonData } = await supabase.auth.signInAnonymously();
+      return anonData?.session || null;
+    }
+    return data.session;
   } catch (err) {
     console.warn('Error asegurando sesión de Supabase:', err);
     return null;

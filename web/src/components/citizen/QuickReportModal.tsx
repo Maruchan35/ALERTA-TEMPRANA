@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CategoriaAlerta, Coordinates, CATEGORIAS_OFICIALES } from '../../types/alert';
 import { Button } from '../ui/Button';
 import { alertService } from '../../services/alertService';
@@ -11,7 +11,10 @@ import {
   CheckCircle, 
   AlertTriangle,
   ShieldCheck,
-  FileText
+  FileText,
+  Upload,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 
 interface QuickReportModalProps {
@@ -39,6 +42,10 @@ export const QuickReportModal: React.FC<QuickReportModalProps> = ({
   const [folio911, setFolio911] = useState('');
   const [consent, setConsent] = useState(false);
   const [photoUrl, setPhotoUrl] = useState('');
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoInputMode, setPhotoInputMode] = useState<'file' | 'url'>('file');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Location
   const [lat, setLat] = useState<number>(currentUserCoords.lat);
@@ -54,6 +61,41 @@ export const QuickReportModal: React.FC<QuickReportModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFormError('La imagen supera el límite de 5 MB.');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    setFormError(null);
+
+    try {
+      const res = await alertService.uploadPhoto(file);
+      if (res.success && res.path) {
+        setPhotoUrl(res.path);
+        setPhotoPreview(res.previewUrl || URL.createObjectURL(file));
+      } else {
+        setFormError(res.error || 'No se pudo procesar la imagen.');
+      }
+    } catch (err: any) {
+      setFormError(err.message || 'Error al procesar la imagen del equipo.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoUrl('');
+    setPhotoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -127,6 +169,10 @@ export const QuickReportModal: React.FC<QuickReportModalProps> = ({
     setFolio911('');
     setConsent(false);
     setPhotoUrl('');
+    setPhotoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     setIsSuccess(false);
     setFormError(null);
     onClose();
@@ -259,17 +305,113 @@ export const QuickReportModal: React.FC<QuickReportModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Enlace de Fotografía o Ficha (opcional):
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://ejemplo.com/foto-alerta.jpg"
-                    value={photoUrl}
-                    onChange={(e) => setPhotoUrl(e.target.value)}
-                    className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                {/* Sección de Fotografía o Ficha */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Fotografía, Ficha o Evidencia (opcional):
+                    </label>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setPhotoInputMode('file')}
+                        className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                          photoInputMode === 'file' ? 'bg-blue-100 text-blue-800 font-bold' : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        📁 Mis Archivos
+                      </button>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        onClick={() => setPhotoInputMode('url')}
+                        className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                          photoInputMode === 'url' ? 'bg-blue-100 text-blue-800 font-bold' : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        🔗 URL Web
+                      </button>
+                    </div>
+                  </div>
+
+                  {photoInputMode === 'file' ? (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/jpg"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+
+                      {!photoPreview ? (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingPhoto}
+                          className="w-full py-4 px-3 border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/50 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs text-slate-600 transition-all cursor-pointer"
+                        >
+                          {isUploadingPhoto ? (
+                            <div className="flex items-center gap-2 text-blue-600">
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              <span>Subiendo archivo al servidor...</span>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="p-2 rounded-full bg-blue-100 text-blue-600">
+                                <Upload className="w-4 h-4" />
+                              </div>
+                              <span className="font-semibold text-slate-800">
+                                Haz clic para abrir tu Galería o Documentos
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                JPG, PNG o WebP (Máx. 5 MB)
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 overflow-hidden">
+                            <img
+                              src={photoPreview}
+                              alt="Vista previa"
+                              className="w-12 h-12 object-cover rounded-lg border border-slate-300 shrink-0"
+                            />
+                            <div className="truncate">
+                              <span className="text-xs font-bold text-slate-800 block truncate">
+                                Foto lista para adjuntar
+                              </span>
+                              <span className="text-[10px] text-emerald-700 font-medium">
+                                ✓ Cargada con éxito
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemovePhoto}
+                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+                            title="Quitar foto"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="url"
+                        placeholder="https://ejemplo.com/foto-alerta.jpg"
+                        value={photoUrl}
+                        onChange={(e) => {
+                          setPhotoUrl(e.target.value);
+                          setPhotoPreview(e.target.value);
+                        }}
+                        className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Consentimiento legal si es menor o persona */}

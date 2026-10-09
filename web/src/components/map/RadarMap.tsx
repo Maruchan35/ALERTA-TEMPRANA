@@ -2,14 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { AlertWithDistance } from '../../hooks/useNearbyAlerts';
 import { Coordinates, CATEGORIAS_OFICIALES } from '../../types/alert';
-import { formatDistance } from '../../services/geo';
-import { Navigation, Crosshair, Radio } from 'lucide-react';
+import { formatDistance, getAdaptiveCoverageInfo } from '../../services/geo';
+import { Navigation, Crosshair, Radio, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface RadarMapProps {
   userCoords: Coordinates;
   alerts: AlertWithDistance[];
   selectedAlertId?: string | null;
-  onSelectAlert?: (alertId: string) => void;
+  onSelectAlert?: (alertId: string | null) => void;
   onUpdateUserCoords?: (lat: number, lng: number) => void;
   onMapClickCoordinates?: (coords: { lat: number; lng: number }) => void;
 }
@@ -140,13 +140,19 @@ export const RadarMap: React.FC<RadarMapProps> = ({
     layerGroup.addLayer(userMarker);
     userMarkerRef.current = userMarker;
 
-    // 3. Dibujar Geocercas y Marcadores para cada Alerta con Anti-Solapamiento
+    // 3. Dibujar Geocercas Adaptativas y Marcadores para cada Alerta
     const validCoords: L.LatLngExpression[] = [[userCoords.lat, userCoords.lng]];
     const coordOccurrences = new Map<string, number>();
 
-    // Primero dibujar las geocercas en el fondo (si están habilitadas)
+    // Primero dibujar las geocercas concéntricas en el fondo (si están habilitadas)
+    // REGLA CLAVE: Si una alerta está seleccionada, se dibuja EXCLUSIVAMENTE su rango de búsqueda.
+    // Al deseleccionarla, se vuelven a mostrar todos los rangos automáticamente.
     if (showGeofences) {
-      alerts.forEach((alert) => {
+      const alertsToRenderGeofences = selectedAlertId
+        ? alerts.filter((a) => a.id === selectedAlertId)
+        : alerts;
+
+      alertsToRenderGeofences.forEach((alert) => {
         try {
           const lat = Number(alert.coordinates?.lat);
           const lng = Number(alert.coordinates?.lng);
@@ -154,32 +160,63 @@ export const RadarMap: React.FC<RadarMapProps> = ({
 
           const isResolved = alert.status === 'resuelta' || alert.status === 'descartada';
           const isSelected = selectedAlertId === alert.id;
+          const isPrioritySearch =
+            alert.category === 'menor_desaparecido' ||
+            alert.category === 'persona_desaparecida' ||
+            alert.category === 'persona_vulnerable' ||
+            alert.level === 4;
 
-          const colorHex = isResolved
-            ? '#64748b'
-            : alert.level === 4
-            ? '#dc2626'
-            : alert.level === 3
-            ? '#ea580c'
-            : alert.level === 2
-            ? '#2563eb'
-            : '#059669';
+          const adaptive = alert.adaptiveInfo || getAdaptiveCoverageInfo(alert);
 
-          const radiusMeters = Math.max(100, Number(alert.currentRadiusMeters) || 1000);
+          // Si es búsqueda prioritaria o está seleccionada, dibujar TODOS los anillos concéntricos del protocolo
+          if (!isResolved && (isPrioritySearch || isSelected) && adaptive.allStages && adaptive.allStages.length > 1) {
+            // Dibujar desde el anillo más grande al más pequeño
+            const stagesReversed = [...adaptive.allStages].reverse();
 
-          // Geocerca de fondo sutil y no bloqueante (interactive: false para no tapar clics)
-          const dynamicCircle = L.circle([lat, lng], {
-            radius: radiusMeters,
-            color: colorHex,
-            weight: isSelected ? 2.5 : 1.2,
-            opacity: isResolved ? 0.25 : 0.6,
-            fillColor: colorHex,
-            fillOpacity: isResolved ? 0.02 : isSelected ? 0.12 : 0.05,
-            dashArray: alert.status === 'no_confirmada' ? '4, 6' : undefined,
-            interactive: false,
-          });
+            stagesReversed.forEach((stage) => {
+              const isActive = stage.radiusKm === adaptive.currentRadiusKm;
+              const isPastOrCurrent = stage.radiusKm <= adaptive.currentRadiusKm;
 
-          layerGroup.addLayer(dynamicCircle);
+              const stageCircle = L.circle([lat, lng], {
+                radius: stage.radiusMeters,
+                color: stage.color,
+                weight: isActive ? 2.5 : isSelected ? 1.8 : 1.2,
+                opacity: isActive ? 0.8 : isPastOrCurrent ? 0.45 : 0.25,
+                fillColor: stage.color,
+                fillOpacity: isActive ? 0.09 : isPastOrCurrent ? 0.04 : 0.015,
+                dashArray: isActive ? undefined : '5, 8',
+                interactive: false,
+              });
+
+              layerGroup.addLayer(stageCircle);
+            });
+          } else {
+            // Alerta estándar: dibujar su geocerca adaptativa activa
+            const colorHex = isResolved
+              ? '#64748b'
+              : alert.level === 4
+              ? '#dc2626'
+              : alert.level === 3
+              ? '#ea580c'
+              : alert.level === 2
+              ? '#eab308'
+              : '#059669';
+
+            const radiusMeters = Math.max(100, Number(alert.currentRadiusMeters) || adaptive.currentRadiusMeters || 1000);
+
+            const dynamicCircle = L.circle([lat, lng], {
+              radius: radiusMeters,
+              color: colorHex,
+              weight: isSelected ? 2.5 : 1.2,
+              opacity: isResolved ? 0.25 : 0.6,
+              fillColor: colorHex,
+              fillOpacity: isResolved ? 0.02 : isSelected ? 0.12 : 0.05,
+              dashArray: alert.status === 'no_confirmada' ? '4, 6' : undefined,
+              interactive: false,
+            });
+
+            layerGroup.addLayer(dynamicCircle);
+          }
         } catch {
           // ignore
         }
@@ -224,7 +261,7 @@ export const RadarMap: React.FC<RadarMapProps> = ({
         // Color estricto según nivel de importancia:
         // Nivel 4: Única en Rojo (#dc2626)
         // Nivel 3: Naranja/Ámbar (#ea580c)
-        // Nivel 2: Azul (#2563eb)
+        // Nivel 2: Amarillo (#eab308)
         // Nivel 1: Esmeralda (#059669)
         const colorHex = isResolved
           ? '#64748b'
@@ -233,7 +270,7 @@ export const RadarMap: React.FC<RadarMapProps> = ({
           : alert.level === 3
           ? '#ea580c'
           : alert.level === 2
-          ? '#2563eb'
+          ? '#eab308'
           : '#059669';
 
         // Marcador de la Alerta con icono representativo
@@ -262,8 +299,10 @@ export const RadarMap: React.FC<RadarMapProps> = ({
           zIndexOffset: alert.level * 250 + (isCritical ? 1000 : 0),
         });
 
+        const adaptive = alert.adaptiveInfo || getAdaptiveCoverageInfo(alert);
+
         const popupContent = `
-          <div style="font-size: 12px; line-height: 1.4; min-width: 220px; font-family: sans-serif;">
+          <div style="font-size: 12px; line-height: 1.4; min-width: 240px; font-family: sans-serif;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-size: 10px; font-weight: 700; color: ${colorHex}; text-transform: uppercase;">
                 ${catConfig.nombre_corto} (Nivel ${alert.level})
@@ -273,14 +312,27 @@ export const RadarMap: React.FC<RadarMapProps> = ({
               </span>
             </div>
             <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px; font-size: 13px;">${alert.title}</div>
-            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">
-              Folio: <strong style="color: #334155;">${alert.folio}</strong> | Radio: <strong style="color: ${colorHex};">${alert.currentRadiusKm} km</strong>
-            </div>
+            
+            ${
+              adaptive.isAdaptive
+                ? `<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 11px;">
+                    <strong style="color: #92400e; display: flex; align-items: center; gap: 4px;">
+                      🎯 Protocolo Adaptativo: ${adaptive.stageBadge}
+                    </strong>
+                    <span style="color: #78350f; font-size: 10px; display: block; margin-top: 2px;">
+                      ${adaptive.stageName} (⏱️ ${adaptive.elapsedMinutes}m de evolución)
+                    </span>
+                   </div>`
+                : `<div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">
+                    Folio: <strong style="color: #334155;">${alert.folio}</strong> | Radio: <strong style="color: ${colorHex};">${alert.currentRadiusKm} km</strong>
+                   </div>`
+            }
+            
             <div style="color: #475569; margin-bottom: 6px;">${alert.description.substring(0, 110)}...</div>
             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 6px; font-size: 11px;">
               <span style="color: #0284c7; font-weight: 600;">📍 A ${formatDistance(alert.distanceKm)} de ti</span>
               <span style="color: ${alert.isWithinCoverage ? colorHex : '#64748b'}; font-weight: 700;">
-                ${alert.isWithinCoverage ? '● EN PERÍMETRO' : 'FUERA DE RANGO'}
+                ${alert.isWithinCoverage ? '● EN TU PERÍMETRO' : 'FUERA DE RANGO'}
               </span>
             </div>
           </div>
@@ -290,7 +342,11 @@ export const RadarMap: React.FC<RadarMapProps> = ({
 
         alertMarker.on('click', () => {
           if (onSelectAlert) {
-            onSelectAlert(alert.id);
+            if (selectedAlertId === alert.id) {
+              onSelectAlert(null); // Deseleccionar para volver a mostrar todos los rangos
+            } else {
+              onSelectAlert(alert.id);
+            }
           }
         });
 
@@ -359,9 +415,30 @@ export const RadarMap: React.FC<RadarMapProps> = ({
     }
   };
 
+  const [isLegendExpanded, setIsLegendExpanded] = useState(true);
+  const selectedAlert = alerts.find((a) => a.id === selectedAlertId);
+
   return (
     <div className="relative w-full h-full min-h-[520px] rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
       <div ref={mapContainerRef} className="w-full h-full min-h-[520px]" />
+
+      {/* Indicador flotante cuando hay una emergencia seleccionada (Aislamiento de Rango) */}
+      {selectedAlert && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-900/95 text-white backdrop-blur-md shadow-xl border border-amber-500/60 text-xs animate-fade-in max-w-[90%] sm:max-w-md">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+          <span className="font-bold truncate">
+            Rango enfocado: {selectedAlert.title}
+          </span>
+          <button
+            type="button"
+            onClick={() => onSelectAlert?.(null)}
+            className="ml-auto px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-amber-300 hover:text-white text-[11px] font-bold border border-zinc-600 cursor-pointer transition-all shrink-0"
+            title="Mostrar los rangos de todas las alertas"
+          >
+            ✕ Ver todos los rangos
+          </button>
+        </div>
+      )}
 
       {/* Botones flotantes de navegación cartográfica */}
       <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-2">
@@ -408,28 +485,65 @@ export const RadarMap: React.FC<RadarMapProps> = ({
         <span>💡 Arrastra el marcador azul para calibrar tu calle exacta.</span>
       </div>
 
-      {/* Indicador de Leyenda del Radar con colores por Nivel */}
-      <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-md border border-slate-200 rounded-lg p-2.5 text-[11px] text-slate-700 shadow-md space-y-1.5 select-none max-w-xs">
-        <div className="font-bold text-slate-900 text-[12px] flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-          <span>Radar Territorial Lázaro Cárdenas</span>
+      {/* Indicador de Leyenda del Radar con Protocolo Adaptativo Oficial */}
+      <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl p-3 text-[11px] text-slate-700 shadow-lg space-y-2 select-none max-w-sm">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+          <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
+            <span>Protocolo Adaptativo de Búsqueda</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsLegendExpanded(!isLegendExpanded)}
+            className="text-slate-400 hover:text-slate-700 cursor-pointer"
+          >
+            {isLegendExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
-          <span className="font-bold text-red-700">Nivel 4: Menor Desaparecido / Evacuación</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-          <span className="font-semibold text-orange-800">Nivel 3: Asalto / Robo / Incendio</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-          <span className="text-blue-800 font-semibold">Nivel 2: Accidente / Riesgo Ambiental</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-          <span className="text-emerald-800">Nivel 1: Preventivo / Otro</span>
-        </div>
+
+        {isLegendExpanded && (
+          <div className="space-y-1.5 pt-0.5">
+            <div className="p-2 rounded-lg bg-red-50/80 border border-red-200/80 space-y-1 text-[10px]">
+              <div className="font-extrabold text-red-900 flex items-center justify-between">
+                <span>Rango Adaptativo (Menores y Desaparecidos):</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-200 text-red-900">Prioridad</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1 text-slate-700 pt-0.5">
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
+                  <span><strong>min 0:</strong> radio 1 km</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                  <span><strong>min 15:</strong> radio 3 km</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" />
+                  <span><strong>min 60:</strong> radio 10 km</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-600 shrink-0" />
+                  <span><strong>min 180:</strong> radio 25 km</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1 text-[10px] pt-1 text-slate-600">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                <span>Nivel 3: Asalto / Robo / Incendio (1 km a 5 km)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" />
+                <span>Nivel 2: Accidente / Riesgo Ambiental (1 a 2 km)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
+                <span>Nivel 1: Resuelta / Aviso preventivo</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

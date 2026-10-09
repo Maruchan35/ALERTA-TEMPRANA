@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { abierta, Emergencia, emergencyService } from '../services/emergencyService';
 import { audioAlert } from '../services/audioAlert';
 
-const TITULO = document.title;
+const TITULO = 'ALERTA CERCA';
 
 /**
  * Emergencias SOS en vivo para el moderador, en CUALQUIER vista del portal: cuando alguien pide
@@ -18,13 +18,20 @@ export function useEmergencies(activo: boolean) {
     try {
       const lista = await emergencyService.listar();
       const abiertas = lista.filter(abierta);
-      // Al entrar suenan las que nadie ha tomado; después, cada una que llegue
+      
+      // Al recibir alertas SOS nuevas que nadie ha tomado, sonar alarma crítica
       const nuevas = conocidas.current === null
         ? abiertas.filter((e) => e.estado === 'activa')
         : abiertas.filter((e) => !conocidas.current!.has(e.id));
-      if (nuevas.length > 0) audioAlert.playCriticalAlert();
+        
+      if (nuevas.length > 0) {
+        audioAlert.playCriticalAlert();
+      }
+      
       conocidas.current = new Set(lista.map((e) => e.id));
-      document.title = abiertas.length > 0 ? `(${abiertas.length}) SOS · ${TITULO}` : TITULO;
+      if (typeof document !== 'undefined') {
+        document.title = abiertas.length > 0 ? `(${abiertas.length}) 🚨 SOS · ${TITULO}` : TITULO;
+      }
       setEmergencias(lista);
       setError(null);
     } catch (e) {
@@ -36,7 +43,9 @@ export function useEmergencies(activo: boolean) {
     if (!activo) {
       setEmergencias([]);
       conocidas.current = null;
-      document.title = TITULO;
+      if (typeof document !== 'undefined') {
+        document.title = TITULO;
+      }
       return;
     }
     recargar();
@@ -45,13 +54,14 @@ export function useEmergencies(activo: boolean) {
       espera.current = window.setTimeout(recargar, 400);
     };
     const dejar = emergencyService.suscribir(programar);
-    // "Sin señal desde hace X" y los conteos cambian aunque nadie toque la fila
     const periodico = window.setInterval(recargar, 15000);
     return () => {
       dejar();
       window.clearInterval(periodico);
       window.clearTimeout(espera.current);
-      document.title = TITULO;
+      if (typeof document !== 'undefined') {
+        document.title = TITULO;
+      }
     };
   }, [activo, recargar]);
 

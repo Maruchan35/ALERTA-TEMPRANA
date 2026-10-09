@@ -38,8 +38,8 @@ export const SightingReportModal: React.FC<SightingReportModalProps> = ({
         setIsSubmitted(false);
         onClose();
       }, 1800);
-    } catch (e) {
-      setError((e as Error).message || 'No se pudo enviar la confirmación. Intenta de nuevo.');
+    } catch {
+      setError('No se pudo enviar la confirmación. Intenta de nuevo.');
     }
   };
 

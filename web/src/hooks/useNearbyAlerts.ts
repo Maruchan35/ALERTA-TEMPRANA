@@ -1,19 +1,30 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AlertUI, Coordinates } from '../types/alert';
 import { alertService } from '../services/alertService';
-import { calculateDistanceKm } from '../services/geo';
+import { calculateDistanceKm, getAdaptiveCoverageInfo, AdaptiveCoverageInfo } from '../services/geo';
 import { audioAlert } from '../services/audioAlert';
 
 export interface AlertWithDistance extends AlertUI {
   distanceKm: number;
   effectiveRadiusKm: number;
+  effectiveRadiusMeters: number;
   isWithinCoverage: boolean;
+  adaptiveInfo: AdaptiveCoverageInfo;
 }
 
 export function useNearbyAlerts(userCoords: Coordinates) {
   const [alerts, setAlerts] = useState<AlertUI[]>([]);
+  const [ticker, setTicker] = useState<number>(0);
   const previousNearbyIdsRef = useRef<Set<string>>(new Set());
   const isFirstMountRef = useRef(true);
+
+  // Recalcular periodicamente cada 30 segundos para actualización de etapas adaptativas
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTicker((prev) => prev + 1);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     // 1. Cargar alertas iniciales desde Supabase
@@ -27,21 +38,27 @@ export function useNearbyAlerts(userCoords: Coordinates) {
     return unsubscribe;
   }, []);
 
-  // Procesar distancia física y cobertura para cada alerta
+  // Procesar distancia física y cobertura adaptativa para cada alerta
   const processedAlerts = useMemo<AlertWithDistance[]>(() => {
     return alerts.map((alert) => {
       const distanceKm = calculateDistanceKm(userCoords, alert.coordinates);
-      const effectiveRadiusKm = alert.currentRadiusKm;
+      const adaptiveInfo = getAdaptiveCoverageInfo(alert);
+      const effectiveRadiusKm = adaptiveInfo.currentRadiusKm;
+      const effectiveRadiusMeters = adaptiveInfo.currentRadiusMeters;
       const isWithinCoverage = distanceKm <= effectiveRadiusKm;
 
       return {
         ...alert,
+        currentRadiusKm: effectiveRadiusKm,
+        currentRadiusMeters: effectiveRadiusMeters,
         distanceKm,
         effectiveRadiusKm,
+        effectiveRadiusMeters,
         isWithinCoverage,
+        adaptiveInfo,
       };
     });
-  }, [alerts, userCoords]);
+  }, [alerts, userCoords, ticker]);
 
   // Alertas activas y verificadas que cubren al ciudadano (Ordenadas por NIVEL DE IMPORTANCIA primero)
   const nearbyActiveAlerts = useMemo(() => {

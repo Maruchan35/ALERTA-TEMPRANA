@@ -1,130 +1,65 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Coordinates, PresetLocation } from '../types/alert';
+import { Coordinates } from '../types/alert';
+import { calculateDistanceKm } from '../services/geo';
 
-// Coordenadas centrales oficiales de Lázaro Cárdenas, Michoacán
+// Coordenadas centrales oficiales para Lázaro Cárdenas, Michoacán
 export const LAZARO_CARDENAS_CENTRO: Coordinates = {
   lat: 17.9581,
   lng: -102.1942,
-  address: 'Av. Lázaro Cárdenas, Centro, Lázaro Cárdenas',
-  referencePoint: 'Presidencia Municipal de Lázaro Cárdenas',
+  address: 'Centro, Lázaro Cárdenas, Michoacán',
+  referencePoint: 'Centro',
   accuracyMeters: 10,
 };
 
-export const PRESETS_LAZARO_CARDENAS: PresetLocation[] = [
-  {
-    id: 'centro',
-    name: 'Presidencia / Centro',
-    coords: LAZARO_CARDENAS_CENTRO,
-  },
-  {
-    id: 'malecon',
-    name: 'Malecón de la Cultura',
-    coords: {
-      lat: 17.9442,
-      lng: -102.2038,
-      address: 'Malecón Costero, Río Balsas',
-      referencePoint: 'Obelisco del Malecón',
-      accuracyMeters: 10,
-    },
-  },
-  {
-    id: 'guacamayas',
-    name: 'Las Guacamayas',
-    coords: {
-      lat: 17.9942,
-      lng: -102.2155,
-      address: 'Av. Circunvalación, Las Guacamayas',
-      referencePoint: 'Glorieta de Las Guacamayas',
-      accuracyMeters: 10,
-    },
-  },
-  {
-    id: 'puerto',
-    name: 'Recinto Portuario ASIPONA',
-    coords: {
-      lat: 17.9312,
-      lng: -102.1810,
-      address: 'Isla del Cayacal, Recinto Portuario',
-      referencePoint: 'Edificio Corporativo ASIPONA',
-      accuracyMeters: 10,
-    },
-  },
-  {
-    id: 'playa_erendira',
-    name: 'Playa Eréndira / Jardín',
-    coords: {
-      lat: 17.9698,
-      lng: -102.2612,
-      address: 'Blvd. Playero, Playa Eréndira',
-      referencePoint: 'Zona Turística Playera',
-      accuracyMeters: 10,
-    },
-  },
-  {
-    id: 'la_mira',
-    name: 'La Mira',
-    coords: {
-      lat: 18.0402,
-      lng: -102.3255,
-      address: 'Carretera Costera, La Mira',
-      referencePoint: 'Zona Minera / Poblado La Mira',
-      accuracyMeters: 10,
-    },
-  },
+const STORAGE_COORDS_KEY = 'alerta_cerca_user_coords';
+
+// Colonias y avenidas de referencia rápida en el municipio de Lázaro Cárdenas
+export const PUNTOS_REFERENCIA_LC: Array<{ name: string; lat: number; lng: number; desc: string }> = [
+  { name: 'Centro / Palacio Municipal', lat: 17.9581, lng: -102.1942, desc: 'Av. Lázaro Cárdenas, Primer Sector' },
+  { name: 'Las Guacamayas', lat: 17.9985, lng: -102.2156, desc: 'Tenencia Las Guacamayas' },
+  { name: 'Buenos Aires', lat: 17.9712, lng: -102.2084, desc: 'Col. Buenos Aires / Libramiento' },
+  { name: 'Primer Sector', lat: 17.9620, lng: -102.1980, desc: 'Sector Residencial / Malecón' },
+  { name: 'Segundo Sector', lat: 17.9530, lng: -102.2050, desc: 'Col. Segundo Sector' },
+  { name: 'Colonia 600 Casas', lat: 17.9655, lng: -102.2025, desc: 'Zona Habitacional Magisterial' },
+  { name: 'La Mira', lat: 18.0432, lng: -102.3256, desc: 'Tenencia La Mira' },
+  { name: 'Playa Azul', lat: 17.9824, lng: -102.3512, desc: 'Costera Playa Azul' },
+  { name: 'Caleta de Campos', lat: 18.0734, lng: -102.7541, desc: 'Bahía de Caleta de Campos' },
+  { name: 'Puerto Interior / Isla del Cayacal', lat: 17.9350, lng: -102.1720, desc: 'Zona Portuaria ASIPONA' },
 ];
 
-// Geocodificación inversa real usando OpenStreetMap Nominatim
 export async function reverseGeocodeCoords(lat: number, lng: number): Promise<string> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      { headers: { 'User-Agent': 'AlertaCerca-Web/1.0 (HackaITLAC)' } }
+      { 
+        headers: { 'User-Agent': 'AlertaCerca-Web/1.0 (HackaITLAC-LazaroCardenas)' },
+        signal: controller.signal
+      }
     );
+    clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
       const road = data.address?.road || data.address?.pedestrian || '';
-      const suburb = data.address?.suburb || data.address?.neighbourhood || '';
-      const city = data.address?.city || data.address?.town || 'Lázaro Cárdenas';
+      const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.residential || '';
+      const city = data.address?.city || data.address?.town || data.address?.municipality || 'Lázaro Cárdenas';
       if (road && suburb) return `${road}, Col. ${suburb}, ${city}`;
       if (road) return `${road}, ${city}`;
+      if (suburb) return `Col. ${suburb}, ${city}`;
       return data.display_name?.split(',').slice(0, 3).join(',') || `${city}, Mich.`;
     }
   } catch {
     // fallback
   }
-  return `Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-}
-
-// Búsqueda de calles y lugares en Lázaro Cárdenas con Nominatim
-export async function searchPlacesInLazaroCardenas(query: string): Promise<
-  Array<{ name: string; lat: number; lng: number }>
-> {
-  if (!query || query.trim().length < 3) return [];
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        query.trim() + ', Lázaro Cárdenas, Michoacán'
-      )}&limit=5&addressdetails=1`,
-      { headers: { 'User-Agent': 'AlertaCerca-Web/1.0 (HackaITLAC)' } }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      return data.map((item: any) => ({
-        name: item.display_name.split(',').slice(0, 3).join(','),
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon),
-      }));
-    }
-  } catch {
-    // fallback
-  }
-  return [];
+  return `Lázaro Cárdenas (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
 }
 
 export type AccuracyLevel = 'satellite' | 'good' | 'moderate' | 'coarse';
 
 export function getAccuracyLevel(accuracyMeters?: number): AccuracyLevel {
-  if (!accuracyMeters) return 'coarse';
+  if (!accuracyMeters) return 'good';
   if (accuracyMeters <= 25) return 'satellite';
   if (accuracyMeters <= 100) return 'good';
   if (accuracyMeters <= 1000) return 'moderate';
@@ -132,149 +67,207 @@ export function getAccuracyLevel(accuracyMeters?: number): AccuracyLevel {
 }
 
 export function useGeolocation() {
+  // 1. Inicializar desde localStorage si ya se calibró previamente
   const [coords, setCoords] = useState<Coordinates>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_COORDS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.lat && parsed.lng) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
     return LAZARO_CARDENAS_CENTRO;
   });
 
-  const [activePresetId, setActivePresetId] = useState<string | null>('centro');
   const [isGPSActive, setIsGPSActive] = useState<boolean>(false);
-  const [isManualPin, setIsManualPin] = useState<boolean>(false);
+  const [isManualPin, setIsManualPin] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_COORDS_KEY) !== null;
+  });
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
-  const watchIdRef = useRef<number | null>(null);
-  const bestAccuracyRef = useRef<number>(Infinity);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
 
-  // Detener el rastreo GPS
+  const watchIdRef = useRef<number | null>(null);
+  const isCancelledRef = useRef<boolean>(false);
+
+  // Detener escucha de GPS
   const stopWatchingGPS = useCallback(() => {
-    if (watchIdRef.current !== null && navigator.geolocation) {
+    if (watchIdRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
   }, []);
 
-  // Solicitar GPS Real del dispositivo con alta precisión y escucha activa
-  const requestRealGPS = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGpsError('La geolocalización no está soportada por este navegador.');
+  // Procesar posición validando que pertenezca a Lázaro Cárdenas (Anti-Salto ISP a Morelia/CDMX)
+  const handlePositionSuccess = useCallback(async (pos: GeolocationPosition) => {
+    if (isCancelledRef.current) return;
+    const lat = Number(pos.coords.latitude.toFixed(6));
+    const lng = Number(pos.coords.longitude.toFixed(6));
+    const accuracy = Math.round(pos.coords.accuracy) || 15;
+
+    // Protección Geodésica Haversine:
+    // Si la distancia a Lázaro Cárdenas es > 65km (ej: Morelia está a ~220km),
+    // es un salto de nodo ISP en laptop. No saltar a Morelia; mantener en Lázaro Cárdenas.
+    const distanceKmToLC = calculateDistanceKm(
+      { lat, lng, address: '', referencePoint: '' },
+      LAZARO_CARDENAS_CENTRO
+    );
+
+    if (distanceKmToLC > 65) {
+      console.warn(
+        `[GPS-Protection] Se detectó IP de red a ${distanceKmToLC.toFixed(0)}km (Morelia/CDMX). Manteniendo anclaje en Lázaro Cárdenas.`
+      );
+      setLocationNotice('Red de laptop detectada en Morelia. Se mantuvo tu ubicación en Lázaro Cárdenas.');
+      setIsLocating(false);
+      setIsGPSActive(false);
       return;
     }
 
+    // Coordenadas locales genuinas dentro de Lázaro Cárdenas
+    const address = await reverseGeocodeCoords(lat, lng);
+    const newCoords: Coordinates = {
+      lat,
+      lng,
+      address,
+      referencePoint: `GPS en Vivo (±${accuracy}m)`,
+      accuracyMeters: accuracy,
+    };
+
+    setCoords(newCoords);
+    try {
+      localStorage.setItem(STORAGE_COORDS_KEY, JSON.stringify(newCoords));
+    } catch {
+      // ignore
+    }
+
+    setIsGPSActive(true);
+    setIsManualPin(false);
+    setIsLocating(false);
+    setGpsError(null);
+    setLocationNotice(null);
+  }, []);
+
+  // Solicitar y activar GPS en tiempo real
+  const requestRealGPS = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationNotice('Navegador sin API de ubicación. Usando ubicación calibrada.');
+      setIsLocating(false);
+      return;
+    }
+
+    isCancelledRef.current = false;
     setIsLocating(true);
     setGpsError(null);
+    setLocationNotice(null);
     stopWatchingGPS();
-    bestAccuracyRef.current = Infinity;
 
-    // Iniciar watchPosition con maximumAge: 0 para forzar lecturas frescas de satélite/sensores
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const lat = Number(pos.coords.latitude.toFixed(6));
-        const lng = Number(pos.coords.longitude.toFixed(6));
-        const accuracy = Math.round(pos.coords.accuracy);
-
-        // Si la precisión es mejor o si es la primera lectura
-        if (accuracy < bestAccuracyRef.current || bestAccuracyRef.current === Infinity) {
-          bestAccuracyRef.current = accuracy;
-
-          const address = await reverseGeocodeCoords(lat, lng);
-          const accuracyDesc =
-            accuracy <= 25
-              ? `GPS Satelital Alta Precisión (±${accuracy} m)`
-              : accuracy <= 100
-              ? `GPS Bueno (±${accuracy} m)`
-              : accuracy <= 1000
-              ? `GPS Red Local (±${accuracy} m)`
-              : `Ubicación Celular/IP aproximada (±${accuracy} m)`;
-
-          setCoords({
-            lat,
-            lng,
-            address,
-            referencePoint: accuracyDesc,
-            accuracyMeters: accuracy,
-          });
-
-          setIsGPSActive(true);
-          setIsManualPin(false);
-          setActivePresetId(null);
-          setIsLocating(false);
+    // Iniciar escucha con watchPosition (excelente para teléfonos/móviles con chip satelital)
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          handlePositionSuccess(pos);
+        },
+        (err) => {
+          if (err.code === 1) {
+            setGpsError('Permiso de GPS bloqueado. Permítelo en el ícono de candado del navegador.');
+            setIsLocating(false);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 10000,
         }
+      );
+    } catch (e) {
+      console.warn('Error al iniciar watchPosition:', e);
+    }
+
+    // Obtener primera posición inmediata
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        handlePositionSuccess(pos);
       },
       (err) => {
-        setIsLocating(false);
-        let errorMsg = 'No se pudo obtener la señal GPS.';
-        if (err.code === err.PERMISSION_DENIED) {
-          errorMsg = 'Permiso de ubicación denegado en el navegador.';
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          errorMsg = 'Señal GPS no disponible en este dispositivo.';
-        } else if (err.code === err.TIMEOUT) {
-          errorMsg = 'Tiempo de espera de GPS agotado.';
-        }
-        setGpsError(errorMsg);
+        console.info('GPS de alta precisión no devolvió datos inmediatos (común en laptops), probando red...', err.message);
+        navigator.geolocation.getCurrentPosition(
+          (pos2) => {
+            handlePositionSuccess(pos2);
+          },
+          () => {
+            // En laptops sin chip GPS satelital esto es normal
+            setIsLocating(false);
+            // No congelamos la app en error rojo; garantizamos que el usuario esté en Lázaro Cárdenas
+            setIsGPSActive(false);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 6000,
+            maximumAge: 60000,
+          }
+        );
       },
       {
         enableHighAccuracy: true,
-        timeout: 25000,
-        maximumAge: 0, // Nunca usar caché vieja de IP/antena
+        timeout: 8000,
+        maximumAge: 5000,
       }
     );
-  }, [stopWatchingGPS]);
+  }, [handlePositionSuccess, stopWatchingGPS]);
 
-  // Fijar manualmente la posición (por arrastre en mapa, clic o búsqueda de calle)
+  // Calibración manual o arrastre en mapa
   const setLocationManually = useCallback(
     async (lat: number, lng: number, manualAddress?: string) => {
+      isCancelledRef.current = true;
       stopWatchingGPS();
       setIsLocating(true);
+
       const fixedLat = Number(lat.toFixed(6));
       const fixedLng = Number(lng.toFixed(6));
-
       const address = manualAddress || (await reverseGeocodeCoords(fixedLat, fixedLng));
 
-      setCoords({
+      const newCoords: Coordinates = {
         lat: fixedLat,
         lng: fixedLng,
         address,
-        referencePoint: 'Fijado con precisión en el mapa',
+        referencePoint: 'Posición calibrada',
         accuracyMeters: 5,
-      });
+      };
+
+      setCoords(newCoords);
+      try {
+        localStorage.setItem(STORAGE_COORDS_KEY, JSON.stringify(newCoords));
+      } catch {
+        // ignore
+      }
 
       setIsGPSActive(false);
       setIsManualPin(true);
-      setActivePresetId(null);
       setIsLocating(false);
       setGpsError(null);
+      setLocationNotice(null);
     },
     [stopWatchingGPS]
   );
 
-  // Seleccionar preset de Lázaro Cárdenas
-  const selectPreset = useCallback(
-    (preset: PresetLocation) => {
-      stopWatchingGPS();
-      setCoords(preset.coords);
-      setActivePresetId(preset.id);
-      setIsGPSActive(false);
-      setIsManualPin(false);
-      setGpsError(null);
-    },
-    [stopWatchingGPS]
-  );
+  // Reintento de GPS
+  const retryGeolocation = useCallback(() => {
+    requestRealGPS();
+  }, [requestRealGPS]);
 
-  // Centrar en Presidencia / Centro
-  const centerInLazaroCardenas = useCallback(() => {
-    stopWatchingGPS();
-    setCoords(LAZARO_CARDENAS_CENTRO);
-    setActivePresetId('centro');
-    setIsGPSActive(false);
-    setIsManualPin(false);
-    setGpsError(null);
-  }, [stopWatchingGPS]);
-
-  // Limpieza al desmontar
   useEffect(() => {
+    // Solicitar GPS automáticamente al cargar
+    requestRealGPS();
+
     return () => {
+      isCancelledRef.current = true;
       stopWatchingGPS();
     };
-  }, [stopWatchingGPS]);
+  }, [requestRealGPS, stopWatchingGPS]);
 
   return {
     currentCoords: coords,
@@ -282,13 +275,12 @@ export function useGeolocation() {
     isManualPin,
     isLocating,
     gpsError,
+    locationNotice,
     accuracyLevel: getAccuracyLevel(coords.accuracyMeters),
     requestRealGPS,
+    retryGeolocation,
     setLocationManually,
     stopWatchingGPS,
-    centerInLazaroCardenas,
-    presets: PRESETS_LAZARO_CARDENAS,
-    activePresetId,
-    selectPreset,
   };
 }
+
