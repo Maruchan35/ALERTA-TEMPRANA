@@ -39,7 +39,6 @@ interface HeaderProps {
   onOpenModeratorLogin: () => void;
   onLogoutModerator: () => void;
   onRetryGPS?: () => void;
-  isModSection?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -58,7 +57,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenModeratorLogin,
   onLogoutModerator,
   onRetryGPS,
-  isModSection = false,
 }) => {
   const [isMuted, setIsMuted] = useState(() => audioAlert.getIsMuted());
 
@@ -73,11 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className={`sticky top-0 z-40 w-full border-b transition-colors duration-200 ${
-      isModSection 
-        ? 'bg-zinc-900 border-zinc-800 text-zinc-100 shadow-md' 
-        : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-    }`}>
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white text-slate-900 shadow-xs transition-colors duration-200">
       {/* Nivel 1: Barra Principal Superior (Identidad, CTA de Emergencia y Acceso) */}
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-20 sm:h-22 flex items-center justify-between gap-4">
         {/* Logo e Identidad del Proyecto */}
@@ -203,9 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Nivel 2: Barra de Pestañas Dedicada */}
-      <div className={`w-full border-t px-4 sm:px-6 lg:px-8 transition-colors duration-200 ${
-        isModSection ? 'bg-zinc-950/80 border-zinc-800' : 'bg-slate-50/90 border-slate-200'
-      }`}>
+      <div className="w-full border-t border-slate-200 bg-slate-50/90 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
         <div className="max-w-[1800px] mx-auto py-2 sm:py-2.5 flex items-center justify-between gap-4 overflow-x-auto">
           <nav className="flex items-center gap-2 sm:gap-3">
             {/* Pestaña 1: Alertas */}
@@ -215,8 +207,6 @@ export const Header: React.FC<HeaderProps> = ({
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 select-none cursor-pointer shrink-0 ${
                 currentView === 'citizen'
                   ? 'bg-white text-slate-900 shadow-xs border border-slate-300 ring-1 ring-slate-200'
-                  : isModSection
-                  ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
@@ -236,8 +226,6 @@ export const Header: React.FC<HeaderProps> = ({
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 select-none cursor-pointer shrink-0 ${
                 currentView === 'map'
                   ? 'bg-white text-slate-900 shadow-xs border border-slate-300 ring-1 ring-slate-200'
-                  : isModSection
-                  ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
@@ -255,16 +243,14 @@ export const Header: React.FC<HeaderProps> = ({
                     currentView === 'sos'
                       ? 'bg-red-600 text-white shadow-xs border border-red-500 font-black ring-1 ring-red-400'
                       : sosCount > 0
-                      ? 'bg-red-950/60 text-red-300 border border-red-800 animate-pulse'
-                      : isModSection
-                      ? 'text-red-400 hover:text-red-200 hover:bg-zinc-800/60'
+                      ? 'bg-red-50 text-red-700 border border-red-300 animate-pulse font-bold'
                       : 'text-red-600 hover:text-red-700 hover:bg-red-50'
                   }`}
                 >
-                  <Siren className={`w-4.5 h-4.5 ${sosCount > 0 ? 'text-red-400 animate-bounce' : 'text-red-500'}`} />
+                  <Siren className={`w-4.5 h-4.5 ${sosCount > 0 ? 'text-red-600 animate-bounce' : 'text-red-500'}`} />
                   <span>Emergencias SOS</span>
                   {sosCount > 0 ? (
-                    <span className="ml-1 px-2 py-0.5 text-xs font-black rounded-full bg-white text-red-700 tabular-nums shadow-xs">
+                    <span className="ml-1 px-2 py-0.5 text-xs font-black rounded-full bg-red-600 text-white tabular-nums shadow-xs">
                       {sosCount}
                     </span>
                   ) : null}
@@ -275,13 +261,11 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => onViewChange('command')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 select-none cursor-pointer shrink-0 ${
                     currentView === 'command'
-                      ? 'bg-amber-500/20 text-amber-300 shadow-xs border border-amber-500/50 font-bold ring-1 ring-amber-500/30'
-                      : isModSection
-                      ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-300 font-bold ring-1 ring-slate-200'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
-                  <SlidersHorizontal className="w-4.5 h-4.5 text-amber-400" />
+                  <SlidersHorizontal className="w-4.5 h-4.5 text-amber-600" />
                   <span>Base de Datos</span>
                 </button>
 
@@ -290,13 +274,11 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => onViewChange('settings')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 select-none cursor-pointer shrink-0 ${
                     currentView === 'settings'
-                      ? 'bg-zinc-800 text-zinc-100 shadow-xs border border-zinc-700 ring-1 ring-zinc-600'
-                      : isModSection
-                      ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-300 ring-1 ring-slate-200 font-bold'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
-                  <Settings className="w-4.5 h-4.5 text-zinc-400" />
+                  <Settings className="w-4.5 h-4.5 text-slate-500" />
                   <span>Ajustes</span>
                 </button>
               </>
@@ -306,7 +288,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Distintivo de conexión CCE en la barra de navegación */}
           <div className="hidden md:flex items-center gap-2 text-xs sm:text-sm font-medium shrink-0">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className={isModSection ? 'text-zinc-400' : 'text-slate-500'}>
+            <span className="text-slate-500">
               Monitoreo Activo · Lázaro Cárdenas, Mich.
             </span>
           </div>

@@ -46,10 +46,10 @@ interface EmergencyPanelProps {
 
 /** Rojo: nadie la ha tomado. Ámbar: en seguimiento. Morado: el teléfono no responde. Gris: cerrada. */
 function colorDe(e: Emergencia, ahora: number) {
-  if (!abierta(e)) return { borde: 'border-zinc-700', texto: 'text-zinc-400', fondo: 'bg-zinc-800', hex: '#6B7280' };
-  if (sinSenal(e, ahora)) return { borde: 'border-purple-500', texto: 'text-purple-300', fondo: 'bg-purple-600', hex: '#7B2CBF' };
-  if (e.estado === 'activa') return { borde: 'border-red-500', texto: 'text-red-300', fondo: 'bg-red-600', hex: '#D62828' };
-  return { borde: 'border-amber-500', texto: 'text-amber-300', fondo: 'bg-amber-600', hex: '#F77F00' };
+  if (!abierta(e)) return { borde: 'border-slate-300', texto: 'text-slate-500', fondo: 'bg-slate-400', hex: '#64748B' };
+  if (sinSenal(e, ahora)) return { borde: 'border-purple-400', texto: 'text-purple-800', fondo: 'bg-purple-600', hex: '#7B2CBF' };
+  if (e.estado === 'activa') return { borde: 'border-red-500', texto: 'text-red-700', fondo: 'bg-red-600', hex: '#D62828' };
+  return { borde: 'border-amber-400', texto: 'text-amber-800', fondo: 'bg-amber-600', hex: '#F77F00' };
 }
 
 const hora = (iso: string | null) =>
@@ -77,22 +77,22 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ emergencias, err
 
   return (
     <div className="w-full space-y-4">
-      <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-100">
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-sm">
         <div className="flex items-center gap-2">
-          <Siren className="w-5 h-5 text-red-500 animate-pulse" />
-          <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">Emergencias SOS · en vivo</h2>
+          <Siren className="w-5 h-5 text-red-600 animate-pulse" />
+          <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">Emergencias SOS · en vivo</h2>
         </div>
-        <p className="text-xs text-zinc-400 mt-1">
+        <p className="text-xs text-slate-500 mt-1">
           Personas que pidieron ayuda desde la app (asalto, secuestro, las siguen). Su ubicación exacta y el video solo
           los ven los validadores, y se borran a los 30 días del cierre. 1) Toma el caso. 2) Llama al 911 y dales la
           ubicación en vivo. 3) Registra el folio. Antes de llamar a la persona, piensa si una llamada puede ponerla en
           riesgo.
         </p>
-        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+        {error && <p className="mt-2 text-xs text-red-600 font-semibold">{error}</p>}
       </div>
 
       {emergencias.length === 0 ? (
-        <div className="p-8 rounded-2xl bg-zinc-900 border border-zinc-800 text-center text-sm text-zinc-400">
+        <div className="p-8 rounded-2xl bg-white border border-slate-200 text-center text-sm text-slate-500 shadow-sm">
           Nadie ha pedido ayuda. Cuando alguien active el SOS sonará una alarma y aparecerá aquí con su ubicación en vivo.
         </div>
       ) : (
@@ -106,8 +106,8 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ emergencias, err
                   key={e.id}
                   type="button"
                   onClick={() => setSeleccionadaId(e.id)}
-                  className={`w-full text-left p-3 rounded-xl bg-zinc-900 border-2 transition ${
-                    seleccionada?.id === e.id ? c.borde : 'border-zinc-800 hover:border-zinc-600'
+                  className={`w-full text-left p-3 rounded-xl bg-white border-2 transition shadow-2xs cursor-pointer ${
+                    seleccionada?.id === e.id ? c.borde + ' shadow-sm' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -122,13 +122,13 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ emergencias, err
                         : 'EN SEGUIMIENTO'}
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Hace {tiempoCorto(Math.round((ahora - Date.parse(e.creada_en)) / 1000))} · {ORIGEN_LEGIBLE[e.origen]}
                     {abierta(e) && kmh != null && kmh > 3 ? ` · ${kmh} km/h` : ''}
                     {e.bateria != null ? ` · batería ${e.bateria} %` : ''}
                   </p>
                   {e.atendida_por_institucion || e.atendida_por_nombre ? (
-                    <p className="text-xs text-zinc-300 mt-0.5">
+                    <p className="text-xs text-slate-700 font-semibold mt-0.5">
                       Lo sigue: {e.atendida_por_institucion ?? e.atendida_por_nombre}
                     </p>
                   ) : null}
@@ -204,17 +204,17 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
     else window.alert('No se pudo abrir la evidencia. Revisa la conexión.');
   };
 
-  const boton = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50 cursor-pointer';
+  const boton = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50 cursor-pointer shadow-2xs';
 
   return (
-    <div className={`rounded-2xl bg-zinc-900 border-2 ${c.borde} text-zinc-100 overflow-hidden`}>
-      <div className="p-4 flex items-center gap-3">
-        <span className={`w-10 h-10 rounded-full ${c.fondo} flex items-center justify-center`}>
+    <div className={`rounded-2xl bg-white border-2 ${c.borde} text-slate-900 shadow-sm overflow-hidden`}>
+      <div className="p-4 flex items-center gap-3 bg-slate-50/80 border-b border-slate-200">
+        <span className={`w-10 h-10 rounded-full ${c.fondo} flex items-center justify-center shadow-xs`}>
           <Siren className="w-5 h-5 text-white" />
         </span>
         <div>
           <h3 className={`text-lg font-black uppercase ${c.texto}`}>{TIPO_LEGIBLE[e.tipo]}</h3>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-slate-500">
             {abierta(e) ? (e.estado === 'activa' ? 'ACTIVA · nadie la ha tomado' : 'EN SEGUIMIENTO') : 'CERRADA'} · pidió ayuda{' '}
             {hora(e.creada_en)} ({ORIGEN_LEGIBLE[e.origen]})
           </p>
@@ -250,26 +250,26 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800">
-          <button type="button" onClick={copiarUbicacion} className={`${boton} bg-zinc-800 hover:bg-zinc-700`}>
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+          <button type="button" onClick={copiarUbicacion} className={`${boton} bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200`}>
             <Copy className="w-3.5 h-3.5" /> Copiar ubicación para el 911
           </button>
-          <a href={enlaceMapa(e.lat, e.lon)} target="_blank" rel="noopener noreferrer" className={`${boton} bg-zinc-800 hover:bg-zinc-700`}>
+          <a href={enlaceMapa(e.lat, e.lon)} target="_blank" rel="noopener noreferrer" className={`${boton} bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200`}>
             <ExternalLink className="w-3.5 h-3.5" /> Abrir en mapas
           </a>
           {tel ? (
-            <a href={`tel:${tel}`} className={`${boton} bg-zinc-800 hover:bg-zinc-700`}>
-              <PhoneCall className="w-3.5 h-3.5" /> Llamar a la persona ({tel})
+            <a href={`tel:${tel}`} className={`${boton} bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200`}>
+              <PhoneCall className="w-3.5 h-3.5 text-blue-600" /> Llamar a la persona ({tel})
             </a>
           ) : (
-            <span className={`${boton} bg-zinc-950 text-zinc-500`}>Pidió ayuda sin número verificado</span>
+            <span className={`${boton} bg-slate-50 text-slate-400 border border-slate-200`}>Pidió ayuda sin número verificado</span>
           )}
         </div>
 
         {abierta(e) && (
-          <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
             {e.estado === 'activa' && (
-              <button type="button" disabled={ocupado} onClick={() => atender('tomar')} className={`${boton} bg-red-600 hover:bg-red-500 text-white font-bold`}>
+              <button type="button" disabled={ocupado} onClick={() => atender('tomar')} className={`${boton} bg-red-600 hover:bg-red-700 text-white font-bold`}>
                 <Hand className="w-3.5 h-3.5" /> Tomar el caso
               </button>
             )}
@@ -280,7 +280,7 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
                 const folio = window.prompt('Aviso al 911 · folio (opcional). La persona verá "La policía ya fue avisada".', e.folio_911 ?? '');
                 if (folio !== null) atender('policia', { folio });
               }}
-              className={`${boton} bg-blue-700 hover:bg-blue-600 text-white`}
+              className={`${boton} bg-blue-600 hover:bg-blue-700 text-white font-bold`}
             >
               <ShieldCheck className="w-3.5 h-3.5" /> {e.policia_avisada_en ? 'Folio del 911' : 'Avisé al 911'}
             </button>
@@ -291,7 +291,7 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
                 const nota = window.prompt('Nota del seguimiento (p. ej. "Patrulla 12 en camino por Av. Lázaro Cárdenas"):');
                 if (nota?.trim()) atender('nota', { nota });
               }}
-              className={`${boton} bg-zinc-800 hover:bg-zinc-700`}
+              className={`${boton} bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200`}
             >
               <StickyNote className="w-3.5 h-3.5" /> Nota
             </button>
@@ -302,7 +302,7 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
                 const nota = window.prompt('¿La localizaron? Qué pasó (opcional):');
                 if (nota !== null) atender('localizada', { nota });
               }}
-              className={`${boton} bg-emerald-700 hover:bg-emerald-600 text-white`}
+              className={`${boton} bg-emerald-600 hover:bg-emerald-700 text-white font-bold`}
             >
               <CheckCircle className="w-3.5 h-3.5" /> Localizada / a salvo
             </button>
@@ -313,47 +313,47 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
                 const nota = window.prompt('Ciérrala como falsa alarma solo si confirmaste que la persona está bien. ¿Cómo lo confirmaste?');
                 if (nota?.trim()) atender('falsa_alarma', { nota });
               }}
-              className={`${boton} bg-zinc-800 hover:bg-zinc-700 text-zinc-300`}
+              className={`${boton} bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200`}
             >
               <XCircle className="w-3.5 h-3.5" /> Falsa alarma
             </button>
           </div>
         )}
 
-        <div className="pt-2 border-t border-zinc-800 text-xs space-y-1">
-          <p className="font-bold text-zinc-300 uppercase tracking-wide text-[11px]">Línea de tiempo</p>
-          <p><span className="text-zinc-500">{hora(e.creada_en)}</span> Pidió ayuda · {ORIGEN_LEGIBLE[e.origen]}</p>
+        <div className="pt-2 border-t border-slate-200 text-xs space-y-1">
+          <p className="font-bold text-slate-800 uppercase tracking-wide text-[11px]">Línea de tiempo</p>
+          <p><span className="text-slate-400">{hora(e.creada_en)}</span> Pidió ayuda · {ORIGEN_LEGIBLE[e.origen]}</p>
           {e.tipo !== 'sos' && <p>Indicó: {LO_QUE_INDICO[e.tipo]}</p>}
           {e.atendida_en && (
-            <p><span className="text-zinc-500">{hora(e.atendida_en)}</span> Tomada por {e.atendida_por_institucion ?? e.atendida_por_nombre ?? 'un validador'}</p>
+            <p><span className="text-slate-400">{hora(e.atendida_en)}</span> Tomada por {e.atendida_por_institucion ?? e.atendida_por_nombre ?? 'un validador'}</p>
           )}
           {e.policia_avisada_en && (
-            <p><span className="text-zinc-500">{hora(e.policia_avisada_en)}</span> Aviso al 911{e.folio_911 ? ` · folio ${e.folio_911}` : ''}</p>
+            <p><span className="text-slate-400">{hora(e.policia_avisada_en)}</span> Aviso al 911{e.folio_911 ? ` · folio ${e.folio_911}` : ''}</p>
           )}
           {e.nota && <p>Nota: {e.nota}</p>}
           {e.cerrada_en && (
             <p>
-              <span className="text-zinc-500">{hora(e.cerrada_en)}</span> Cerrada · {e.cierre ? CIERRE_LEGIBLE[e.cierre] : ''}
+              <span className="text-slate-400">{hora(e.cerrada_en)}</span> Cerrada · {e.cierre ? CIERRE_LEGIBLE[e.cierre] : ''}
               {e.cerrada_por_la_persona ? ' (la cerró la persona)' : ''}
             </p>
           )}
         </div>
 
-        <div className="pt-2 border-t border-zinc-800 text-xs space-y-1">
-          <p className="font-bold text-zinc-300 uppercase tracking-wide text-[11px]">Evidencia ({e.n_evidencias})</p>
+        <div className="pt-2 border-t border-slate-200 text-xs space-y-1">
+          <p className="font-bold text-slate-800 uppercase tracking-wide text-[11px]">Evidencia ({e.n_evidencias})</p>
           {evidencias.length === 0 ? (
-            <p className="text-zinc-500">
+            <p className="text-slate-400">
               Todavía no llega video. El teléfono graba mientras la pantalla del SOS está abierta y sube cada fragmento al
               terminarlo.
             </p>
           ) : (
             evidencias.map((v, i) => (
               <div key={v.ruta} className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5">
-                  <Video className="w-3.5 h-3.5 text-red-400" /> Video {i + 1} · {hora(v.creada_en)}
+                <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+                  <Video className="w-3.5 h-3.5 text-red-600" /> Video {i + 1} · {hora(v.creada_en)}
                   {v.duracion_s != null ? ` · ${v.duracion_s} s` : ''}
                 </span>
-                <button type="button" onClick={() => verEvidencia(v)} className="text-amber-300 hover:underline cursor-pointer">
+                <button type="button" onClick={() => verEvidencia(v)} className="text-red-600 hover:underline font-semibold cursor-pointer">
                   Ver
                 </button>
               </div>
@@ -371,12 +371,12 @@ const Dato: React.FC<{ icono: React.ReactNode; titulo: string; valor: string; al
   valor,
   alerta = false,
 }) => (
-  <div className={`p-2 rounded-lg border ${alerta ? 'border-red-600 bg-red-950/40' : 'border-zinc-800 bg-zinc-950'}`}>
-    <div className={`flex items-center gap-1.5 ${alerta ? 'text-red-300' : 'text-zinc-400'}`}>
+  <div className={`p-2.5 rounded-xl border ${alerta ? 'border-red-300 bg-red-50 text-red-900' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
+    <div className={`flex items-center gap-1.5 ${alerta ? 'text-red-700' : 'text-slate-500'}`}>
       {icono}
-      <span className="font-semibold">{titulo}</span>
+      <span className="font-semibold text-[11px]">{titulo}</span>
     </div>
-    <p className="font-bold text-white mt-0.5">{valor}</p>
+    <p className="font-bold text-slate-900 mt-0.5">{valor}</p>
   </div>
 );
 

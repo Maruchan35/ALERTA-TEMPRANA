@@ -30,7 +30,6 @@ export const AlertCard: React.FC<AlertCardProps> = ({
   alert,
   onOpenSightingModal,
   onSelectOnMap,
-  isAdminTheme = false,
 }) => {
   const [imageError, setImageError] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -78,14 +77,14 @@ export const AlertCard: React.FC<AlertCardProps> = ({
     return `Hace ${hours}h ${elapsedMinutes % 60}m`;
   };
 
-  // Configuración de estilo sobrio y discreto con fondo blanco
+  // Configuración de estilo sobrio con tarjetas blancas, bordes gruesos y badges en colores sólidos
   const getLevelTheme = () => {
     if (isResolved) {
       return {
         levelText: 'RESUELTA',
-        levelBadge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        dotClass: 'bg-emerald-500',
-        cardBorder: 'border-2 border-emerald-400 hover:border-emerald-500',
+        levelBadge: 'bg-slate-700 text-white font-black border-transparent shadow-xs',
+        dotClass: 'bg-white',
+        cardBorder: 'border-2 border-slate-300 hover:border-slate-400',
       };
     }
 
@@ -93,31 +92,31 @@ export const AlertCard: React.FC<AlertCardProps> = ({
       case 4:
         return {
           levelText: 'NIVEL 4 · CRÍTICA',
-          levelBadge: 'bg-red-50 text-red-700 border-red-200 font-bold',
-          dotClass: 'bg-red-600 animate-pulse',
-          cardBorder: 'border-2 border-red-500 hover:border-red-600 shadow-md ring-2 ring-red-400/30',
+          levelBadge: 'bg-red-600 text-white font-black border-transparent shadow-xs',
+          dotClass: 'bg-white animate-pulse',
+          cardBorder: 'border-2 border-red-500 hover:border-red-600 shadow-sm',
         };
       case 3:
         return {
           levelText: 'NIVEL 3 · PRIORIDAD',
-          levelBadge: 'bg-orange-50 text-orange-800 border-orange-200 font-bold',
-          dotClass: 'bg-orange-500',
-          cardBorder: 'border-2 border-orange-400 hover:border-orange-500 shadow-xs ring-1 ring-orange-300/30',
+          levelBadge: 'bg-orange-500 text-white font-black border-transparent shadow-xs',
+          dotClass: 'bg-white',
+          cardBorder: 'border-2 border-orange-500 hover:border-orange-600 shadow-sm',
         };
       case 2:
         return {
           levelText: 'NIVEL 2 · PREVENTIVA',
-          levelBadge: 'bg-yellow-50 text-yellow-800 border-yellow-300 font-bold',
-          dotClass: 'bg-yellow-500',
-          cardBorder: 'border-2 border-yellow-400 hover:border-yellow-500 shadow-xs ring-1 ring-yellow-300/30',
+          levelBadge: 'bg-amber-500 text-white font-black border-transparent shadow-xs',
+          dotClass: 'bg-white',
+          cardBorder: 'border-2 border-amber-400 hover:border-amber-500 shadow-sm',
         };
       case 1:
       default:
         return {
           levelText: 'NIVEL 1 · AVISO',
-          levelBadge: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-bold',
-          dotClass: 'bg-emerald-500',
-          cardBorder: 'border-2 border-emerald-400 hover:border-emerald-500 shadow-xs',
+          levelBadge: 'bg-emerald-600 text-white font-black border-transparent shadow-xs',
+          dotClass: 'bg-white',
+          cardBorder: 'border-2 border-emerald-500 hover:border-emerald-600 shadow-sm',
         };
     }
   };
@@ -126,45 +125,42 @@ export const AlertCard: React.FC<AlertCardProps> = ({
 
   return (
     <article
-      className={`relative rounded-2xl overflow-hidden ${
-        isAdminTheme
-          ? 'bg-zinc-900 text-zinc-100'
-          : 'bg-white text-slate-900 shadow-sm hover:shadow-md'
-      } transition-all duration-200 flex flex-col justify-between ${theme.cardBorder}`}
+      className={`relative rounded-2xl overflow-hidden bg-white text-slate-900 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between ${theme.cardBorder}`}
     >
       <div>
         {/* ========================================================
-            1. CONTENEDOR DE FOTO LIMPIA (EXPANDIDA Y DESTACADA)
+            1. CONTENEDOR DE FOTO UNIFORME Y CONSISTENTE (FONDO CLARO)
         ======================================================== */}
         {alert.photoUrl && !imageError ? (
-          <div className="p-1 pb-0">
+          <div className="p-1.5 pb-0">
             <div 
               onClick={() => setShowImageModal(true)}
-              className="relative w-full h-84 sm:h-96 md:h-[420px] rounded-xl overflow-hidden bg-slate-950 border border-slate-200/80 flex items-center justify-center cursor-pointer group"
+              className="relative w-full h-48 sm:h-52 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center cursor-pointer group"
               title="Clic para ampliar foto en alta resolución"
             >
-              {/* Foto expandida 100% visible sin recortes */}
+              {/* Foto con proporción y encuadre uniforme */}
               <img
                 src={alert.photoUrl}
                 alt={alert.title}
                 onError={() => setImageError(true)}
-                className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
               />
 
+              {/* Overlay sutil al hover */}
+              <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 transition-opacity" />
+
               {/* Botón sutil en esquina para ver pantalla completa */}
-              <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 text-white text-[11px] font-bold backdrop-blur-md border border-white/20 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity shadow-sm">
+              <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-black/75 hover:bg-black/90 text-white text-[11px] font-bold backdrop-blur-md border border-white/20 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity shadow-sm">
                 <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
                 <span>Ampliar</span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="p-1 pb-0">
-            <div className={`w-full h-32 sm:h-36 rounded-xl ${
-              isAdminTheme ? 'bg-zinc-950 border-zinc-800' : 'bg-slate-50 border-slate-200'
-            } border flex items-center justify-center relative overflow-hidden`}>
-              <div className="text-center opacity-25">
+          <div className="p-1.5 pb-0">
+            <div className="w-full h-48 sm:h-52 rounded-xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden gap-1.5">
+              <div className="text-center opacity-30">
                 {alert.level === 4 ? (
                   <AlertTriangle className="w-12 h-12 mx-auto text-red-600" />
                 ) : alert.level === 3 ? (
@@ -173,6 +169,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
                   <ShieldAlert className="w-12 h-12 mx-auto text-blue-600" />
                 )}
               </div>
+              <span className="text-[11px] font-semibold text-slate-400">Sin fotografía adjunta</span>
               <div className="absolute bottom-2 left-2.5 text-[10px] font-mono text-slate-400 font-bold">
                 {alert.folio}
               </div>
@@ -186,7 +183,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
         <div className="p-3.5 space-y-2.5">
           {/* Fila 1: Nivel de Peligro y Distancia GPS */}
           <div className="flex items-center justify-between gap-1 text-xs">
-            <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${theme.levelBadge}`}>
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black tracking-wide ${theme.levelBadge}`}>
               <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${theme.dotClass}`} />
               {theme.levelText}
             </span>
@@ -203,22 +200,18 @@ export const AlertCard: React.FC<AlertCardProps> = ({
           </div>
 
           {/* Título de la Alerta */}
-          <h3 className={`text-sm sm:text-base font-bold tracking-tight leading-snug line-clamp-2 ${
-            isAdminTheme ? 'text-white' : 'text-slate-900'
-          }`}>
+          <h3 className="text-sm sm:text-base font-bold tracking-tight leading-snug line-clamp-2 text-slate-900">
             {alert.title}
           </h3>
 
           {/* Fila de Tags / Píldoras Discretas */}
-          <div className="flex flex-wrap items-center gap-1 text-[10px]">
-            <span className={`px-2 py-0.5 rounded-md font-medium border ${
-              isAdminTheme ? 'bg-zinc-800 text-zinc-300 border-zinc-700' : 'bg-slate-100 text-slate-700 border-slate-200'
-            }`}>
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+            <span className="px-2 py-0.5 rounded-md font-bold border border-slate-200 bg-slate-100 text-slate-800">
               {alert.categoryName}
             </span>
 
             {alert.adaptiveInfo?.isAdaptive ? (
-              <span className={`px-2 py-0.5 rounded-md font-bold border flex items-center gap-1 ${
+              <span className={`px-2 py-0.5 rounded-md font-black border flex items-center gap-1 ${
                 alert.level === 4
                   ? 'bg-red-50 text-red-800 border-red-300'
                   : 'bg-orange-50 text-orange-800 border-orange-300'
@@ -227,22 +220,20 @@ export const AlertCard: React.FC<AlertCardProps> = ({
                 Radio Adaptativo: {alert.adaptiveInfo.stageBadge}
               </span>
             ) : (
-              <span className={`px-2 py-0.5 rounded-md font-medium border flex items-center gap-1 ${
-                isAdminTheme ? 'bg-zinc-800 text-amber-300 border-zinc-700' : 'bg-slate-100 text-slate-700 border-slate-200'
-              }`}>
+              <span className="px-2 py-0.5 rounded-md font-bold border border-slate-200 bg-slate-100 text-slate-800 flex items-center gap-1">
                 <Radio className="w-2.5 h-2.5 text-blue-600" />
                 Radio {alert.currentRadiusKm} km
               </span>
             )}
 
             {alert.folio911 && (
-              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold border border-amber-200">
+              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 font-black border border-amber-300">
                 911: {alert.folio911}
               </span>
             )}
 
             {alert.verifiedBy && (
-              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 flex items-center gap-1">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 font-black border border-emerald-300 flex items-center gap-1">
                 <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
                 CCE
               </span>
@@ -250,22 +241,20 @@ export const AlertCard: React.FC<AlertCardProps> = ({
           </div>
 
           {/* Caja de Descripción / Sinopsis */}
-          <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-            isAdminTheme ? 'bg-zinc-950/60 border-zinc-800 text-zinc-300' : 'bg-slate-50/90 border-slate-200 text-slate-700'
-          }`}>
+          <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs space-y-1.5">
             <p className={`${!isExpanded ? 'line-clamp-2' : ''} leading-relaxed`}>
               {alert.description || 'Sin descripción adicional.'}
             </p>
 
             {alert.reference && (
-              <div className="flex items-center gap-1 text-[11px] text-slate-800 font-semibold pt-1 border-t border-slate-200">
+              <div className="flex items-center gap-1 text-[11px] text-slate-900 font-bold pt-1.5 border-t border-slate-200">
                 <MapPin className="w-3 h-3 text-red-500 shrink-0" />
                 <span className="truncate"><strong>Ref:</strong> {alert.reference}</span>
               </div>
             )}
 
             {alert.instructions && isExpanded && (
-              <div className="mt-1 p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 text-[11px]">
+              <div className="mt-1 p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 text-[11px] font-medium">
                 <strong>Protocolo CCE:</strong> {alert.instructions}
               </div>
             )}
@@ -274,7 +263,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-[10px] text-slate-500 hover:text-slate-900 font-bold flex items-center gap-0.5 pt-1 cursor-pointer"
+                className="text-[10px] text-slate-600 hover:text-slate-900 font-bold flex items-center gap-0.5 pt-1 cursor-pointer"
               >
                 <span>{isExpanded ? 'Ver menos' : 'Ver más'}</span>
                 {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -287,47 +276,37 @@ export const AlertCard: React.FC<AlertCardProps> = ({
       {/* ========================================================
           3. BARRA DE ESTADÍSTICAS Y BOTONES DE ACCIÓN
       ======================================================== */}
-      <div className={`p-3 pt-0 space-y-2.5 border-t ${
-        isAdminTheme ? 'border-zinc-800' : 'border-slate-100'
-      } mt-1`}>
+      <div className="p-3 pt-0 space-y-2.5 border-t border-slate-100 mt-1">
         {/* Estadísticas Compactas: Ojito (Eye) para vistos y Radar (Radio) para alcance */}
-        <div className="grid grid-cols-4 gap-1 text-center text-[10px] select-none pt-2">
+        <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] select-none pt-2">
           {/* 1. Ojito (Eye) para confirmaciones / vistos */}
-          <div className={`p-1 rounded-lg border ${
-            isAdminTheme ? 'bg-zinc-800/40 border-zinc-700 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-          }`}>
+          <div className="p-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-800">
             <Eye className={`w-3.5 h-3.5 mx-auto ${hasVoted ? 'text-blue-600' : 'text-slate-500'}`} />
             <span className="font-bold">{alert.confirmedCount || 0}</span>
-            <div className="text-[8px] text-slate-400">Vistos</div>
+            <div className="text-[8px] text-slate-400 font-semibold">Vistos</div>
           </div>
 
           {/* 2. Estado de validación */}
-          <div className={`p-1 rounded-lg border ${
-            isAdminTheme ? 'bg-zinc-800/40 border-zinc-700 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-          }`}>
+          <div className="p-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-800">
             <BarChart2 className="w-3.5 h-3.5 mx-auto text-emerald-600" />
             <span className="font-bold truncate block">
               {isResolved ? 'Cerrada' : alert.status === 'verificada' ? 'Oficial' : 'En Curso'}
             </span>
-            <div className="text-[8px] text-slate-400">Estado</div>
+            <div className="text-[8px] text-slate-400 font-semibold">Estado</div>
           </div>
 
           {/* 3. Año */}
-          <div className={`p-1 rounded-lg border ${
-            isAdminTheme ? 'bg-zinc-800/40 border-zinc-700 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-          }`}>
+          <div className="p-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-800">
             <Calendar className="w-3.5 h-3.5 mx-auto text-slate-500" />
             <span className="font-bold">2026</span>
-            <div className="text-[8px] text-slate-400">{formatElapsed()}</div>
+            <div className="text-[8px] text-slate-400 font-semibold">{formatElapsed()}</div>
           </div>
 
           {/* 4. Radar (Radio) para el radio de cobertura */}
-          <div className={`p-1 rounded-lg border ${
-            isAdminTheme ? 'bg-zinc-800/40 border-zinc-700 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-          }`}>
+          <div className="p-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-800">
             <Radio className="w-3.5 h-3.5 mx-auto text-blue-600" />
             <span className="font-bold">{alert.currentRadiusKm}k</span>
-            <div className="text-[8px] text-slate-400">Radar</div>
+            <div className="text-[8px] text-slate-400 font-semibold">Radar</div>
           </div>
         </div>
 
@@ -339,10 +318,10 @@ export const AlertCard: React.FC<AlertCardProps> = ({
                 type="button"
                 onClick={handleVoteConfirm}
                 disabled={hasVoted || isVoting}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 border ${
                   hasVoted
-                    ? 'bg-emerald-50 border border-emerald-300 text-emerald-800'
-                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 hover:text-slate-900'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800 hover:text-slate-900'
                 }`}
                 title="Confirmar que has visto al menor o el incidente"
               >
@@ -353,7 +332,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenSightingModal(alert)}
-                className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                 title="Aportar información detallada de avistamiento"
               >
                 <MessageSquarePlus className="w-3.5 h-3.5 text-blue-600" />
@@ -365,7 +344,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
             <button
               type="button"
               onClick={() => onSelectOnMap(alert.id)}
-              className="flex-1 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
+              className="flex-1 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black text-xs transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
             >
               <Radio className="w-3.5 h-3.5 text-white" />
               <span>Ver Radar</span>

@@ -153,12 +153,28 @@ export const LevelBadge: React.FC<{ level: 1 | 2 | 3 | 4; className?: string }> 
 }) => {
   switch (level) {
     case 4:
-      return <Badge variant="danger" className={className}>Nivel 4 · Crítico</Badge>;
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black tracking-wide bg-red-600 text-white shadow-xs select-none ${className}`}>
+          NIVEL 4 · CRÍTICO
+        </span>
+      );
     case 3:
-      return <Badge variant="warning" className={className}>Nivel 3 · Alto</Badge>;
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black tracking-wide bg-orange-500 text-white shadow-xs select-none ${className}`}>
+          NIVEL 3 · ALTO
+        </span>
+      );
     case 2:
-      return <Badge variant="brand" className={className}>Nivel 2 · Medio</Badge>;
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black tracking-wide bg-amber-500 text-white shadow-xs select-none ${className}`}>
+          NIVEL 2 · MEDIO
+        </span>
+      );
     case 1:
-      return <Badge variant="neutral" className={className}>Nivel 1 · Informativo</Badge>;
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black tracking-wide bg-emerald-600 text-white shadow-xs select-none ${className}`}>
+          NIVEL 1 · INFORMATIVO
+        </span>
+      );
   }
 };

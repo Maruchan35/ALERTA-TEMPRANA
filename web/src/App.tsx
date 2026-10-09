@@ -184,9 +184,7 @@ export default function App() {
   const isAdminTheme = isModerator;
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
-      isAdminTheme ? 'bg-zinc-950 text-zinc-100' : 'bg-slate-50 text-slate-900'
-    }`}>
+    <div className="min-h-screen flex flex-col font-sans transition-colors duration-200 bg-slate-50 text-slate-900">
       {/* Navegación y Encabezado */}
       <Header
         currentView={currentView}
@@ -204,7 +202,6 @@ export default function App() {
         moderatorUser={moderatorUser}
         onOpenModeratorLogin={() => setShowModLoginModal(true)}
         onLogoutModerator={handleLogoutModerator}
-        isModSection={isAdminTheme}
       />
 
       {/* Barra de Estado en Tiempo Real y Expansión Dinámica */}
@@ -287,17 +284,13 @@ export default function App() {
         ======================================================== */}
         {currentView === 'map' && (
           <div className="w-full space-y-3 animate-fade-in">
-            <div className={`flex items-center justify-between text-xs px-1 ${
-              isAdminTheme ? 'text-zinc-400' : 'text-slate-600'
-            }`}>
-              <span className={`font-semibold ${isAdminTheme ? 'text-white' : 'text-slate-800'}`}>
+            <div className="flex items-center justify-between text-xs px-1 text-slate-600">
+              <span className="font-semibold text-slate-800">
                 Cartografía en Tiempo Real · Lázaro Cárdenas
               </span>
               <span>Visualizando {allAlerts.length} geocercas registradas</span>
             </div>
-            <div className={`h-[640px] rounded-xl overflow-hidden border shadow-sm relative isolate z-0 ${
-              isAdminTheme ? 'border-zinc-800 bg-zinc-900' : 'border-slate-200 bg-white'
-            }`}>
+            <div className="h-[640px] rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm relative isolate z-0">
               <RadarMap
                 userCoords={currentCoords}
                 alerts={allAlerts}
@@ -349,21 +342,22 @@ export default function App() {
       </main>
 
       {/* Pie de Página Sobrio e Institucional */}
-      <footer className={`mt-auto border-t py-6 text-xs transition-colors duration-200 ${
-        isAdminTheme ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'border-slate-200 bg-white text-slate-500'
-      }`}>
+      <footer className="mt-auto border-t border-slate-200 bg-white py-6 text-xs text-slate-500 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div>
-            <p className={`font-semibold ${isAdminTheme ? 'text-zinc-200' : 'text-slate-700'}`}>
+            <p className="font-semibold text-slate-800">
               ALERTA CERCA — {isModerator ? 'Consola de Operaciones y Mando CCE' : 'Red Comunitaria de Prevención por Proximidad'}
             </p>
-            <p className={`text-[11px] mt-0.5 ${isAdminTheme ? 'text-zinc-500' : 'text-slate-500'}`}>
+            <p className="text-[11px] mt-0.5 text-slate-500">
               Desafío HACKAITLAC 2026 · Consejo Coordinador Empresarial de Lázaro Cárdenas, Michoacán
             </p>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             {isModerator ? (
-              <span className="text-amber-400 font-semibold">Sesión de Moderador Activa</span>
+              <span className="text-red-600 font-semibold flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                Sesión de Moderador Activa
+              </span>
             ) : (
               <button
                 type="button"
