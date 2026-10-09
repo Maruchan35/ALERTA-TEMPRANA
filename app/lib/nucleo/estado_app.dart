@@ -114,11 +114,7 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
     });
     final inicial = await fm.getInitialMessage();
     Notificaciones.pendiente ??= inicial == null ? null : _aAbrir(inicial.data);
-    try {
-      tokenPush = await fm.getToken();
-    } catch (e) {
-      debugPrint('Sin token de FCM: $e');
-    }
+    await _pedirToken();
     fm.onTokenRefresh.listen((t) {
       tokenPush = t;
       actualizarUbicacion(forzar: true);
@@ -168,7 +164,28 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
     _espera = Timer(const Duration(milliseconds: 500), cargarAlertas);
   }
 
+  /// Token de FCM. Falla a veces al abrir la app (la red aún no está lista o los servicios de Google
+  /// tardan): por eso se vuelve a pedir en cada intento de registro, no solo al arrancar.
+  Future<void> _pedirToken() async {
+    if (!firebaseListo || servicio.esDemo || tokenPush != null) return;
+    try {
+      tokenPush = await FirebaseMessaging.instance.getToken().timeout(const Duration(seconds: 10));
+      // Ya llegó: se quita el aviso del intento anterior (y solo ese)
+      if (error != null && error == _errorToken) error = null;
+      _errorToken = null;
+    } catch (e) {
+      debugPrint('Sin token de FCM: $e');
+      error = _errorToken =
+          'Google (Firebase) no entregó el permiso para avisarte con la app cerrada ($e). Revisa tu internet; '
+          'si el teléfono no tiene servicios de Google, solo recibirás alertas con la app abierta.';
+    }
+  }
+
+  String? _errorToken;
+
   Future<void> actualizarUbicacion({bool forzar = false}) async {
+    // "Toca para reintentar" y volver a la app: si el token falló antes, se pide otra vez
+    await _pedirToken();
     try {
       await Ubicacion.actualizarMiCelda(servicio: servicio, token: tokenPush, forzar: forzar);
     } on ErrorServicio catch (e) {
