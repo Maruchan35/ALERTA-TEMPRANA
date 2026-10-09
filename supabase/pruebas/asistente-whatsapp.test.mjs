@@ -174,3 +174,40 @@ test('asistente: la función que crea reportes no se puede llamar desde la app n
   await assert.rejects(env.sql(`select reportar_por_whatsapp($1, 'evacuacion', 17.9, -102.2, null, null)`, [CEL]),
     /no se puede reportar por WhatsApp/);
 });
+
+test('asistente: las opciones son encuestas que se tocan; un toque cuenta como elegir el número', async () => {
+  await escribe(CEL, 'hola');
+  const encuestaActual = async () => (await env.sql(
+    `select encuesta from privado.mensajes_whatsapp where telefono = $1 order by id desc limit 1`, [CEL]))[0].encuesta;
+
+  const categorias = await encuestaActual();
+  assert.equal(categorias.pregunta, '¿Qué pasó?');
+  assert.equal(categorias.opciones.length, 7);
+  assert.equal(categorias.valores[0], 'categoria:1');
+
+  assert.match((await escribe(CEL, 'categoria:1')).respuesta, /Dónde pasó/);
+  assert.equal(await encuestaActual(), null, 'en el paso del lugar no hay encuesta: la ubicación va con el clip');
+  // Un toque de una encuesta vieja (la de confirmar) no envía nada: se repite el paso actual
+  const viejo = await escribe(CEL, 'confirmar:1');
+  assert.equal(viejo.paso, 'lugar');
+  assert.match(viejo.respuesta, /Dónde pasó/);
+  assert.deepEqual(await alertas(), [], 'nada se creó con el toque viejo');
+
+  await escribe(CEL, null, { lat: 17.96, lon: -102.2 });
+  assert.deepEqual((await encuestaActual()).valores, ['descripcion:escribir', 'descripcion:0']);
+  assert.match((await escribe(CEL, 'descripcion:escribir')).respuesta, /Escriba su frase/);
+  assert.equal(await encuestaActual(), null, 'si va a escribir, no se manda encuesta');
+
+  assert.equal((await escribe(CEL, 'descripcion:0')).paso, 'confirmar');
+  assert.deepEqual((await encuestaActual()).valores, ['confirmar:1', 'confirmar:2']);
+  await escribe(CEL, 'confirmar:1');
+  assert.equal((await alertas()).length, 1, 'el toque "Sí, enviar" crea el reporte');
+});
+
+test('asistente: el puente recibe la encuesta junto con el texto de la respuesta', async () => {
+  await escribe(CEL, 'hola');
+  const [fila] = await env.rpc(null, 'whatsapp_pendientes', { p_secreto: SECRETO_PUENTE, p_limite: 5 });
+  assert.match(fila.texto, /911/);
+  assert.equal(fila.encuesta.opciones[0], 'Robo de vehículo');
+  assert.equal(fila.encuesta.valores[6], 'categoria:7');
+});

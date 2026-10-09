@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { candidatosJid, ClienteSupabase, entradaDeMensaje, formatoCodigo, leerConfig, oculto, telefonoDeJid } from './lib.mjs';
+import { createHash } from 'node:crypto';
+import { getAggregateVotesInPollMessage } from 'baileys';
+import {
+  candidatosJid, ClienteSupabase, entradaDeMensaje, formatoCodigo, leerConfig, oculto, telefonoDeJid, valorElegido,
+} from './lib.mjs';
 
 const SECRETO = 'x'.repeat(40);
 
@@ -103,4 +107,29 @@ test('recibido: entrega el mensaje al servidor con el secreto del puente', async
   assert.equal(enviado.cuerpo.p_telefono, '527551234567');
   assert.equal(enviado.cuerpo.p_texto, 'hola');
   assert.deepEqual(respuesta, { respuesta: 'Hola' });
+});
+
+test('valorElegido: la opción tocada se convierte en el valor del paso', () => {
+  const opciones = ['Robo', 'Incendio'];
+  const valores = ['categoria:1', 'categoria:3'];
+  assert.equal(valorElegido([{ name: 'Robo', voters: [] }, { name: 'Incendio', voters: ['5217551234567@s.whatsapp.net'] }],
+    opciones, valores), 'categoria:3');
+  assert.equal(valorElegido([{ name: 'Robo', voters: [] }, { name: 'Incendio', voters: [] }], opciones, valores), null,
+    'sin toque no hay respuesta');
+  assert.equal(valorElegido([{ name: 'Otra', voters: ['5217551234567@s.whatsapp.net'] }], opciones, valores), null,
+    'una opción desconocida no cuenta');
+});
+
+test('getAggregateVotesInPollMessage de Baileys + valorElegido: el toque cifrado llega como la opción correcta', () => {
+  // Así guarda Baileys las opciones (sha256 del nombre) y así llega el voto ya descifrado
+  const hash = (texto) => createHash('sha256').update(Buffer.from(texto)).digest();
+  const encuesta = { pollCreationMessageV3: { options: [{ optionName: 'Robo' }, { optionName: 'Incendio' }] } };
+  const votos = getAggregateVotesInPollMessage({
+    message: encuesta,
+    pollUpdates: [{
+      pollUpdateMessageKey: { remoteJid: '5217551234567@s.whatsapp.net', fromMe: false, id: 'voto-1' },
+      vote: { selectedOptions: [hash('Incendio')] },
+    }],
+  }, '5210000000000@s.whatsapp.net');
+  assert.equal(valorElegido(votos, ['Robo', 'Incendio'], ['categoria:1', 'categoria:3']), 'categoria:3');
 });

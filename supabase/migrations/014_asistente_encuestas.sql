@@ -1,0 +1,247 @@
+-- ════════════════════════════════════════════════════════════════════════════
+-- ALERTA CERCA · 014 · El asistente de WhatsApp se contesta TOCANDO (encuestas)
+-- ════════════════════════════════════════════════════════════════════════════
+-- Con el puente (cuenta normal de WhatsApp, sin la API de Business) no hay botones ni listas, pero sí
+-- encuestas: la persona toca una opción. Cada respuesta del asistente puede traer su encuesta
+-- ("encuesta" en la cola de salida). El puente la envía; cuando la persona toca una opción, Baileys
+-- descifra el voto y el puente manda al servidor el valor "paso:valor" (p. ej. "categoria:1").
+-- Si la encuesta ya no corresponde al paso actual (llegó tarde), el asistente repite el paso actual y
+-- no hace nada más. Escribir el número sigue funcionando igual, para quien no ve las encuestas.
+-- ════════════════════════════════════════════════════════════════════════════
+
+set search_path = public, extensions;
+
+-- 1. La cola de salida puede llevar una encuesta
+alter table privado.mensajes_whatsapp add column if not exists encuesta jsonb;
+
+-- 2. Lo que toma el puente incluye la encuesta (cambia la firma: se recrea)
+drop function if exists whatsapp_pendientes(text, int);
+create function whatsapp_pendientes(p_secreto text, p_limite int default 5)
+returns table (id bigint, telefono text, texto text, encuesta jsonb)
+language plpgsql security definer set search_path = public, privado as $$
+#variable_conflict use_column
+begin
+  if not secreto_puente_valido(p_secreto) then
+    raise exception 'No autorizado' using errcode = '42501';
+  end if;
+  update privado.puente_whatsapp set latido_en = now() where puente_whatsapp.id = 1;
+  update privado.mensajes_whatsapp m set estado = 'error', error = 'El código venció antes de enviarse',
+                                         actualizado_en = now()
+   where m.estado in ('pendiente', 'enviando') and m.enviado_en < now() - interval '10 minutes';
+  return query
+  with tomados as (
+    select m.id from privado.mensajes_whatsapp m
+     where m.modo = 'puente'
+       and (m.estado = 'pendiente'
+            or (m.estado = 'enviando' and m.actualizado_en < now() - interval '1 minute' and m.intentos < 3))
+     order by m.enviado_en
+     limit least(greatest(coalesce(p_limite, 5), 1), 20)
+     for update skip locked)
+  update privado.mensajes_whatsapp m
+     set estado = 'enviando', intentos = m.intentos + 1, actualizado_en = now()
+    from tomados t
+   where m.id = t.id
+  returning m.id, m.telefono, m.texto, m.encuesta;
+end $$;
+
+grant execute on function whatsapp_pendientes(text, int) to anon, authenticated;
+
+-- 3. Las encuestas de cada paso: la pregunta, lo que se ve, y el valor que recibe el asistente
+create or replace function bot_encuesta(p_paso text) returns jsonb
+language sql immutable set search_path = public as $$
+  select case p_paso
+    when 'categoria' then jsonb_build_object(
+      'pregunta', '¿Qué pasó?',
+      'opciones', jsonb_build_array('Robo de vehículo', 'Asalto o situación de riesgo', 'Incendio',
+                                    'Accidente', 'Inundación', 'Persona desaparecida', 'Otra situación'),
+      'valores', jsonb_build_array('categoria:1', 'categoria:2', 'categoria:3', 'categoria:4',
+                                   'categoria:5', 'categoria:6', 'categoria:7'))
+    when 'descripcion' then jsonb_build_object(
+      'pregunta', '¿Quiere escribir una frase sobre lo que pasó?',
+      'opciones', jsonb_build_array('Sí, escribir una frase', 'No quiero escribir nada'),
+      'valores', jsonb_build_array('descripcion:escribir', 'descripcion:0'))
+    when 'confirmar' then jsonb_build_object(
+      'pregunta', '¿Enviamos su reporte?',
+      'opciones', jsonb_build_array('Sí, enviar', 'No, empezar de nuevo'),
+      'valores', jsonb_build_array('confirmar:1', 'confirmar:2'))
+    else null
+  end;
+$$;
+
+-- 4. Textos: el menú ahora menciona la encuesta (la lista de números queda por si no se ven)
+create or replace function bot_menu() returns text
+language sql immutable set search_path = public as $$
+  select E'Elija el número de lo que pasó (o toque la opción de abajo):\n1 Robo de vehículo\n2 Asalto o situación de riesgo\n3 Incendio\n4 Accidente\n5 Inundación\n6 Persona desaparecida\n7 Otra situación';
+$$;
+
+create or replace function bot_texto(p_clave text, p_1 text default null, p_2 text default null,
+                                     p_3 text default null)
+returns text language plpgsql immutable set search_path = public as $$
+declare t text;
+begin
+  t := case p_clave
+    when 'menu' then bot_menu()
+    when 'bienvenida' then 'Hola 👋 Soy el asistente de ALERTA CERCA.'
+      || E'\n\n🚨 Si hay peligro AHORA, llame al 911.\n\n' || bot_menu()
+      || E'\n\nSu número no se muestra a nadie. Para volver a empezar, escriba MENU.'
+    when 'multimedia' then 'Por ahora solo puedo leer textos y ubicaciones. Todavía no recibo fotos ni audios.'
+    when 'ubicacion' then 'Ubicación recibida ✅.'
+    when 'lugar' then E'Anotado: {1}.\n\n¿Dónde pasó?\n📎 Toque el clip y mande su ubicación (elija «Ubicación»).\n✍️ O escriba la calle y la colonia.'
+    when 'lugar_anotado' then 'Anotado: {1}.'
+    when 'lugar_aproximado' then 'Anoté el lugar: {1}. Como no tengo su ubicación exacta, el reporte quedará marcado como aproximado.'
+    when 'descripcion' then 'Si quiere, escriba en una frase qué pasó. Si no quiere escribir nada, escriba 0.'
+    when 'descripcion_escribir' then 'Escriba su frase en un mensaje. Si no quiere escribir nada, escriba 0.'
+    when 'resumen' then E'Revise su reporte:\n\nTipo: {1}\nLugar: {2}\nDetalle: {3}\n\n1 Enviar ✅\n2 Empezar de nuevo'
+    when 'creada' then E'Listo ✅ Su reporte quedó registrado con el folio {1}.\nYa aparece en la app y en el portal de ALERTA CERCA, y las personas cercanas lo verán.\n\nSi hay peligro, llame al 911.'
+    when 'duplicada' then E'Ya hay un reporte igual cerca de ese lugar, hace poco. Gracias: ya quedó registrado.\n\nSi hay peligro, llame al 911.'
+    when 'limite' then 'Ya envió {1} reportes en la última hora. Si hay peligro, llame al 911 ahora mismo. Podrá reportar de nuevo más tarde.'
+    when 'error_categoria' then E'Escriba solo el número de la opción (del 1 al 7).\nPara ver las opciones otra vez, escriba MENU.'
+    when 'error_lugar' then 'Mande su ubicación con el clip 📎 o escriba la calle y la colonia.'
+    when 'error_descripcion' then 'Escriba una frase sobre lo que pasó, o escriba 0 si no quiere escribir nada.'
+    when 'error_confirmar' then 'Escriba 1 para enviar o 2 para empezar de nuevo.'
+    else 'Escriba MENU para empezar.'
+  end;
+  return replace(replace(replace(t, '{1}', coalesce(p_1, '')), '{2}', coalesce(p_2, '')), '{3}', coalesce(p_3, ''));
+end $$;
+
+-- 5. El asistente: igual que en 013, más los toques de encuesta y la encuesta de cada respuesta
+create or replace function whatsapp_recibido(p_secreto text, p_telefono text, p_texto text default null,
+  p_lat double precision default null, p_lon double precision default null)
+returns jsonb language plpgsql security definer set search_path = public, privado, extensions as $$
+declare
+  c            privado.conversaciones_whatsapp;
+  v_t          text := left(btrim(coalesce(p_texto, '')), 500);
+  v_n          text := lower(translate(btrim(coalesce(p_texto, '')), 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'));
+  v_ubic       boolean := coalesce(p_lat between -90 and 90 and p_lon between -180 and 180, false);
+  v_multi      boolean := coalesce(p_texto, '') = '[multimedia]';
+  v_voto       boolean := v_n ~ '^(categoria|descripcion|confirmar):';
+  v_viejo      boolean := false;
+  v_reinicio   boolean := v_n in ('menu', 'inicio', 'empezar', 'reiniciar', 'nuevo', 'hola', 'buenas', 'ayuda');
+  v_limite     int;
+  v_resp       text;
+  v_res        jsonb;
+  v_borrar     boolean := false;
+  v_encuesta   boolean := true;   -- ¿la respuesta lleva la encuesta del paso actual?
+  v_centro_lat constant double precision := 17.9581;   -- centro de Lázaro Cárdenas (Config.latInicial)
+  v_centro_lon constant double precision := -102.1942;
+begin
+  if not secreto_puente_valido(p_secreto) then
+    raise exception 'No autorizado' using errcode = '42501';
+  end if;
+  if coalesce(p_telefono, '') !~ '^[0-9]{8,15}$' then raise exception 'Teléfono inválido'; end if;
+
+  -- Anti-spam: quien escribe demasiado en una hora deja de recibir respuestas (en silencio)
+  select mensajes_whatsapp_por_hora into v_limite from config where id = 1;
+  if (select count(*) from privado.mensajes_entrantes_whatsapp
+      where telefono = p_telefono and recibido_en > now() - interval '1 hour') >= v_limite then
+    return jsonb_build_object('ignorado', true);
+  end if;
+  insert into privado.mensajes_entrantes_whatsapp (telefono) values (p_telefono);
+
+  insert into privado.conversaciones_whatsapp (telefono) values (p_telefono) on conflict (telefono) do nothing;
+  select * into c from privado.conversaciones_whatsapp where telefono = p_telefono for update;
+  -- Si pasaron más de 2 horas sin escribir, la conversación empieza de nuevo
+  if c.actualizado_en < now() - interval '2 hours' then
+    c.paso := 'inicio';
+  end if;
+
+  -- Un toque en la encuesta llega como "paso:valor". Si la encuesta es de otro paso (llegó tarde),
+  -- no cambia nada: se repite el paso actual.
+  if v_voto then
+    if split_part(v_n, ':', 1) = c.paso and c.paso <> 'inicio' then
+      v_n := split_part(v_n, ':', 2);
+      v_t := v_n;
+    else
+      v_viejo := true;
+    end if;
+  end if;
+
+  if v_viejo then
+    v_resp := bot_paso(c);
+  elsif c.paso = 'inicio' or v_reinicio then
+    c.paso := 'categoria';
+    c.categoria := null; c.lat := null; c.lon := null; c.lugar_texto := null; c.descripcion := null;
+    v_resp := bot_texto('bienvenida');
+    if v_ubic then
+      c.lat := p_lat; c.lon := p_lon;
+      v_resp := v_resp || E'\n\n' || bot_texto('ubicacion');
+    end if;
+  elsif v_multi then
+    v_resp := bot_texto('multimedia') || E'\n\n' || bot_paso(c);
+  elsif v_ubic then
+    c.lat := p_lat; c.lon := p_lon;
+    if c.paso = 'lugar' then c.paso := 'descripcion'; end if;
+    v_resp := bot_texto('ubicacion') || E'\n\n' || bot_paso(c);
+  elsif c.paso = 'categoria' then
+    if v_n ~ '^[1-7]$' then
+      c.categoria := bot_categoria(v_n::int);
+      c.paso := 'lugar';
+      v_resp := bot_paso(c);
+    else
+      v_resp := bot_texto('error_categoria');
+    end if;
+  elsif c.paso = 'lugar' then
+    if v_t <> '' then
+      c.lugar_texto := left(v_t, 200);
+      if c.lat is null then
+        -- Sin ubicación exacta: se marca en el centro y se dice que es aproximado
+        c.lat := v_centro_lat; c.lon := v_centro_lon;
+        v_resp := bot_texto('lugar_aproximado', c.lugar_texto);
+      else
+        v_resp := bot_texto('lugar_anotado', c.lugar_texto);
+      end if;
+      c.paso := 'descripcion';
+      v_resp := v_resp || E'\n\n' || bot_paso(c);
+    else
+      v_resp := bot_texto('error_lugar');
+    end if;
+  elsif c.paso = 'descripcion' then
+    if v_n = 'escribir' then
+      v_resp := bot_texto('descripcion_escribir');
+      v_encuesta := false;   -- ahora va a escribir: no hace falta la encuesta
+    elsif v_n in ('0', 'omitir', 'no', 'nada') then
+      c.paso := 'confirmar';
+      v_resp := bot_paso(c);
+    elsif v_t <> '' then
+      c.descripcion := left(v_t, 280);
+      c.paso := 'confirmar';
+      v_resp := bot_paso(c);
+    else
+      v_resp := bot_texto('error_descripcion');
+    end if;
+  elsif c.paso = 'confirmar' then
+    if v_n in ('1', 'si', 'enviar', 'mandar') then
+      v_res := reportar_por_whatsapp(p_telefono, c.categoria, c.lat, c.lon, c.lugar_texto, c.descripcion);
+      if v_res->>'resultado' = 'creada' then
+        v_resp := bot_texto('creada', 'AC-' || upper(left(v_res->>'alerta_id', 8)));
+      elsif v_res->>'resultado' = 'duplicada' then
+        v_resp := bot_texto('duplicada');
+      else
+        v_resp := bot_texto('limite', v_res->>'limite');
+      end if;
+      v_borrar := true;   -- terminó la conversación: sus datos ya no hacen falta
+    elsif v_n in ('2', 'no', 'cambiar') then
+      c.paso := 'categoria';
+      c.categoria := null; c.lat := null; c.lon := null; c.lugar_texto := null; c.descripcion := null;
+      v_resp := bot_texto('menu');
+    else
+      v_resp := bot_texto('error_confirmar');
+    end if;
+  end if;
+
+  if v_borrar then
+    delete from privado.conversaciones_whatsapp where telefono = p_telefono;
+  else
+    update privado.conversaciones_whatsapp
+       set paso = c.paso, categoria = c.categoria, lat = c.lat, lon = c.lon,
+           lugar_texto = c.lugar_texto, descripcion = c.descripcion, actualizado_en = now()
+     where telefono = p_telefono;
+  end if;
+
+  -- La respuesta sale por la misma cola que los códigos (el puente la envía), con la encuesta del paso
+  insert into privado.mensajes_whatsapp (telefono, texto, modo, estado, encuesta)
+  values (p_telefono, v_resp, 'puente', 'pendiente',
+          case when v_encuesta and not v_borrar then bot_encuesta(c.paso) end);
+
+  return jsonb_build_object('respuesta', v_resp, 'paso', case when v_borrar then 'inicio' else c.paso end);
+end $$;

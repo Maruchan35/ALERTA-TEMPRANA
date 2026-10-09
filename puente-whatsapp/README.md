@@ -57,5 +57,6 @@ El puente también **recibe** los mensajes de quien le escribe. No los contesta 
 - Quien escribe más de 30 mensajes por hora deja de recibir respuestas (config `mensajes_whatsapp_por_hora`).
 - Cada número puede levantar 3 reportes por hora (config `reportes_whatsapp_por_hora`).
 - El número no se guarda en las alertas, y la conversación se borra a las 24 h.
+- Las opciones se mandan como **encuestas de WhatsApp** que la persona toca (funcionan en cuentas normales, sin la API de Business). Si no se ven, el mensaje también trae el número de cada opción y se puede escribir.
 
 Un asistente que contesta mensajes es automatizado: usa un número aparte.

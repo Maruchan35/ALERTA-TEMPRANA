@@ -12,10 +12,14 @@
 import { rmSync } from 'node:fs';
 import { setTimeout as esperar } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import makeWASocket, { Browsers, DisconnectReason, useMultiFileAuthState } from 'baileys';
+import makeWASocket, {
+  Browsers, DisconnectReason, getAggregateVotesInPollMessage, useMultiFileAuthState,
+} from 'baileys';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
-import { candidatosJid, ClienteSupabase, entradaDeMensaje, formatoCodigo, leerConfig, oculto } from './lib.mjs';
+import {
+  candidatosJid, ClienteSupabase, entradaDeMensaje, formatoCodigo, leerConfig, oculto, valorElegido,
+} from './lib.mjs';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('.env', import.meta.url)));
@@ -43,6 +47,8 @@ let numeroPropio = null;
 let revisando = false;
 let pidioCodigo = false;
 const jidPorTelefono = new Map();
+// Encuestas enviadas: Baileys necesita el mensaje original para descifrar los toques (se olvidan a las 3 h)
+const encuestas = new Map();
 
 async function conectar() {
   const { state, saveCreds } = await useMultiFileAuthState(CARPETA_SESION);
@@ -53,8 +59,37 @@ async function conectar() {
     markOnlineOnConnect: false, // el teléfono sigue recibiendo sus notificaciones normales
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false, // no hace falta el historial de chats
+    getMessage: async (llave) => encuestas.get(llave.id)?.mensaje, // para descifrar los toques
   });
   sock.ev.on('creds.update', saveCreds);
+  // Toques en las encuestas: Baileys descifra el voto y lo entrega en update.pollUpdates
+  sock.ev.on('messages.update', async (eventos) => {
+    for (const { key, update } of eventos) {
+      if (!update?.pollUpdates?.length) continue;
+      const encuesta = encuestas.get(key.id);
+      if (!encuesta) {
+        // Encuesta de antes de reiniciar el puente: ya no están sus opciones
+        await sock.sendMessage(key.remoteJid, {
+          text: 'No pude leer esa respuesta. Escriba el número de la opción, por favor.',
+        }).catch(() => {});
+        continue;
+      }
+      if (encuesta.respondida) continue; // cuenta la primera respuesta
+      const votos = getAggregateVotesInPollMessage(
+        { message: encuesta.mensaje, pollUpdates: update.pollUpdates },
+        sock.user?.id,
+      );
+      const valor = valorElegido(votos, encuesta.opciones, encuesta.valores);
+      if (!valor) continue;
+      encuesta.respondida = true;
+      try {
+        await servidor.recibido({ telefono: encuesta.telefono, texto: valor, lat: null, lon: null });
+        decir(`Respuesta de ${oculto(encuesta.telefono)} atendida`);
+      } catch (e) {
+        decir(`No se pudo atender una respuesta de ${oculto(encuesta.telefono)}: ${e.message}`);
+      }
+    }
+  });
   // Mensajes de personas (el asistente para reportar): el servidor decide qué responder y lo deja en la
   // cola de salida, que revisarCola envía. No se contesta a grupos, estados ni al historial.
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -129,6 +164,27 @@ async function jidDe(telefono) {
   return null;
 }
 
+/** Manda la encuesta de una respuesta (las opciones se tocan). Si falla, el texto ya trae el número de cada opción. */
+async function enviarEncuesta(jid, m) {
+  try {
+    const enviada = await sock.sendMessage(jid, {
+      poll: { name: m.encuesta.pregunta, values: m.encuesta.opciones, selectableCount: 1 },
+    });
+    const ahora = Date.now();
+    for (const [id, e] of encuestas) if (ahora - e.creada > 3 * 60 * 60 * 1000) encuestas.delete(id);
+    encuestas.set(enviada.key.id, {
+      mensaje: enviada.message,
+      telefono: m.telefono,
+      opciones: m.encuesta.opciones,
+      valores: m.encuesta.valores,
+      respondida: false,
+      creada: ahora,
+    });
+  } catch (e) {
+    decir(`No se pudo mandar la encuesta a ${oculto(m.telefono)}: ${e.message}`);
+  }
+}
+
 async function revisarCola() {
   if (!conectado || revisando) return;
   revisando = true;
@@ -142,6 +198,7 @@ async function revisarCola() {
           continue;
         }
         await sock.sendMessage(jid, { text: m.texto });
+        if (m.encuesta?.opciones?.length) await enviarEncuesta(jid, m);
         await servidor.resultado(m.id, true);
         decir(`Código enviado a ${oculto(m.telefono)}`);
         // Ritmo de persona, no de robot: menos riesgo de que WhatsApp bloquee el número
