@@ -293,93 +293,40 @@ export const ModeratorSettings: React.FC<ModeratorSettingsProps> = ({
         </div>
 
         {/* Pestañas de Navegación de Ajustes */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-5 border-t border-slate-200 mt-5">
-          <button
-            type="button"
-            onClick={() => setActiveTab('operators')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'operators'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Operadores & Super Admin</span>
-            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white font-mono">
-              {accounts.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('protocols')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'protocols'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Sliders className="w-4 h-4" />
-            <span>Radio Adaptativo & Tiempos</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('contacts')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'contacts'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <PhoneCall className="w-4 h-4" />
-            <span>Enlaces 911 & Directorio</span>
-            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white font-mono">
-              {contacts.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('cabin')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'cabin'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Volume2 className="w-4 h-4" />
-            <span>Sonidos & Pantalla de Cabina</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('audit')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'audit'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Auditoría Forense</span>
-            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white font-mono">
-              {auditLogs.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'security'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Lock className="w-4 h-4" />
-            <span>Seguridad & Clave</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-1.5 pt-4 border-t border-slate-100 mt-4">
+          {[
+            { id: 'operators', label: 'Operadores & Roles', icon: Users, count: accounts.length },
+            { id: 'protocols', label: 'Radio Adaptativo', icon: Sliders },
+            { id: 'contacts', label: 'Directorio 911', icon: PhoneCall, count: contacts.length },
+            { id: 'cabin', label: 'Sonidos & Pantalla', icon: Volume2 },
+            { id: 'audit', label: 'Auditoría Forense', icon: FileText, count: auditLogs.length },
+            { id: 'security', label: 'Seguridad & Clave', icon: Lock },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as SettingsTab)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all select-none cursor-pointer active:scale-[0.98] ${
+                  isActive
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <span>{tab.label}</span>
+                {tab.count !== undefined && (
+                  <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 

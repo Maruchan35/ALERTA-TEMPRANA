@@ -268,39 +268,42 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
       )}
 
       {/* Encabezado del Centro de Mando */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-slate-900">
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs text-slate-900">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
                 Centro de Operaciones y Base de Datos CCE
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+            <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
               Supervisión de incidentes territoriales, control operativo de radio geográfico y resguardo de Carpetas de Investigación forenses para Lázaro Cárdenas, Michoacán.
             </p>
           </div>
 
           {/* Estadísticas rápidas */}
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <div className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-right shadow-2xs">
+            <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-right shadow-2xs">
               <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Activas</span>
-              <span className="text-base font-bold text-slate-900 tabular-nums">
+              <span className="text-sm font-bold font-mono text-slate-900 tabular-nums">
                 {alerts.filter((a) => a.status !== 'resuelta' && a.status !== 'descartada').length}
               </span>
             </div>
 
-            <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-right shadow-2xs">
+            <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-right shadow-2xs">
               <span className="text-[10px] text-amber-700 uppercase tracking-wider block font-semibold">Por Validar</span>
-              <span className="text-base font-bold text-amber-800 tabular-nums">
+              <span className="text-sm font-bold font-mono text-amber-700 tabular-nums">
                 {alerts.filter((a) => a.status === 'pendiente' || a.status === 'no_confirmada').length}
               </span>
             </div>
 
-            <div className="px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-right shadow-2xs">
+            <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-right shadow-2xs">
               <span className="text-[10px] text-purple-700 uppercase tracking-wider block font-semibold">Expedientes MP</span>
-              <span className="text-base font-bold text-purple-800 tabular-nums">
+              <span className="text-sm font-bold font-mono text-purple-700 tabular-nums">
                 {carpetas.length}
               </span>
             </div>
@@ -308,20 +311,20 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
         </div>
 
         {/* Selector de Pestañas: Operaciones en Vivo vs. Carpetas de Investigación */}
-        <div className="mt-5 pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
             <button
               type="button"
               onClick={() => setActiveTab('live')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer select-none active:scale-[0.98] ${
                 activeTab === 'live'
-                  ? 'bg-white text-slate-900 shadow-xs border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  ? 'bg-white text-slate-900 shadow-xs ring-1 ring-black/5'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Radio className="w-3.5 h-3.5 text-red-600" />
-              <span>Incidentes Operativos Activos</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200/80 text-slate-700 font-mono font-bold">
+              <span>Incidentes Activos</span>
+              <span className="px-1.5 py-0.2 rounded font-mono text-[10px] bg-slate-100 text-slate-700 font-bold">
                 {alerts.length}
               </span>
             </button>
@@ -329,15 +332,15 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('archive')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer select-none active:scale-[0.98] ${
                 activeTab === 'archive'
-                  ? 'bg-white text-purple-900 shadow-xs border border-purple-300'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  ? 'bg-white text-purple-950 shadow-xs ring-1 ring-black/5'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <FolderArchive className="w-3.5 h-3.5 text-purple-600" />
-              <span>📁 Carpetas de Investigación (Expedientes)</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-100 text-purple-800 border border-purple-300 font-mono font-bold">
+              <span>Carpetas Forenses (MP)</span>
+              <span className="px-1.5 py-0.2 rounded font-mono text-[10px] bg-purple-50 text-purple-700 border border-purple-200 font-bold">
                 {carpetas.length}
               </span>
             </button>
@@ -348,7 +351,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowKPIs(!showKPIs)}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium border border-slate-200 flex items-center gap-1 cursor-pointer transition-all active:scale-[0.98]"
                 title="Mostrar u ocultar bloque de métricas y KPIs"
               >
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
@@ -360,7 +363,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadArchiveJSON}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
                 title="Descargar base de datos forense completa en formato JSON"
               >
                 <Download className="w-3.5 h-3.5 text-purple-600" />
@@ -378,83 +381,83 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
         <div className="space-y-4">
           {/* Métricas y KPIs de Desempeño Operativo CCE */}
           {showKPIs && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm animate-fade-in">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+              <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/70">
                 <div className="flex items-center justify-between text-slate-500 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Eficacia Operativa</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">Eficacia Operativa</span>
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
                 </div>
-                <div className="text-lg font-black text-slate-900 tabular-nums">
+                <div className="text-lg font-bold font-mono text-slate-900 tabular-nums">
                   {alerts.length > 0 ? Math.round((alerts.filter((a) => a.status === 'resuelta').length / alerts.length) * 100) : 0}%
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium">Tasa de resolución municipal</div>
+                <div className="text-[10px] text-slate-500">Tasa de resolución</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/70">
                 <div className="flex items-center justify-between text-slate-500 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Código Rojo / Prioridad</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">Código Rojo</span>
                   <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
                 </div>
-                <div className="text-lg font-black text-red-600 tabular-nums">
+                <div className="text-lg font-bold font-mono text-red-600 tabular-nums">
                   {alerts.filter((a) => a.level >= 3 && a.status !== 'resuelta' && a.status !== 'descartada').length}
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium">Casos Nivel 3 y 4 activos</div>
+                <div className="text-[10px] text-slate-500">Casos Nivel 3 y 4 activos</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/70">
                 <div className="flex items-center justify-between text-slate-500 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Avistamientos en Red</span>
-                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">Avistamientos</span>
+                  <Eye className="w-3.5 h-3.5 text-slate-600" />
                 </div>
-                <div className="text-lg font-black text-blue-700 tabular-nums">
+                <div className="text-lg font-bold font-mono text-slate-900 tabular-nums">
                   {alerts.reduce((acc, a) => acc + (a.confirmedCount || 0), 0)}
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium">Corroboraciones comunitarias</div>
+                <div className="text-[10px] text-slate-500">Confirmaciones comunitarias</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/70">
                 <div className="flex items-center justify-between text-slate-500 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Expedientes MP</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">Expedientes MP</span>
                   <FolderArchive className="w-3.5 h-3.5 text-purple-600" />
                 </div>
-                <div className="text-lg font-black text-purple-800 tabular-nums">
+                <div className="text-lg font-bold font-mono text-purple-800 tabular-nums">
                   {carpetas.length}
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium">Carpetas con custodia digital</div>
+                <div className="text-[10px] text-slate-500">Custodia forense</div>
               </div>
             </div>
           )}
 
           {/* Filtros de la tabla en vivo */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por folio, 911, delito, calle, descripción..."
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500"
+                placeholder="Buscar por folio, 911, delito, calle..."
+                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
               {/* Filtro por Tiempo */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
-                <span className="text-[10px] font-bold text-slate-500 px-1 uppercase">Periodo:</span>
+              <div className="inline-flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 text-xs">
+                <span className="text-[10px] font-semibold text-slate-500 px-1 uppercase font-mono">Lapso:</span>
                 {[
                   { id: 'all', label: 'Todo' },
                   { id: '24h', label: '24h' },
-                  { id: '7d', label: '7 Días' },
+                  { id: '7d', label: '7d' },
                   { id: '30d', label: 'Mes' },
                 ].map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setTimeFilter(t.id as typeof timeFilter)}
-                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all cursor-pointer ${
                       timeFilter === t.id
-                        ? 'bg-white text-red-600 shadow-xs'
+                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -464,21 +467,21 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               </div>
 
               {/* Filtro por Estado */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              <div className="flex items-center gap-1 overflow-x-auto">
                 {[
                   { id: 'all', label: 'Todas' },
                   { id: 'pendientes', label: 'Por Validar' },
-                  { id: 'verificadas', label: 'Verificadas CCE' },
+                  { id: 'verificadas', label: 'Verificadas' },
                   { id: 'resueltas', label: 'Resueltas' },
                 ].map((f) => (
                   <button
                     key={f.id}
                     type="button"
                     onClick={() => setFilterStatus(f.id as typeof filterStatus)}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all select-none cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all select-none cursor-pointer active:scale-[0.98] ${
                       filterStatus === f.id
-                        ? 'bg-slate-900 text-white font-bold shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                        ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
                     }`}
                   >
                     {f.label}
