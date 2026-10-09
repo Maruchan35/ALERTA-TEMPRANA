@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="font-black text-xl sm:text-2xl tracking-tight text-slate-900">ALERTA CERCA</span>
               {isModerator ? (
                 <span className="px-2.5 py-1 text-[11px] uppercase font-black tracking-wider rounded-lg bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1.5 shadow-xs">
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> Moderador CCE
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> Administrador CCE
                 </span>
               ) : null}
             </div>
@@ -171,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({
             {isModerator ? 'Emitir Alerta Oficial' : 'Reportar Incidente'}
           </button>
 
-          {/* Botón arriba a la derecha: Iniciar Sesión Moderador o Cerrar Sesión */}
+          {/* Botón arriba a la derecha: Iniciar Sesión Administrador o Cerrar Sesión */}
           {!isModerator ? (
             <button
               type="button"
@@ -180,14 +180,14 @@ export const Header: React.FC<HeaderProps> = ({
               title="Acceso restringido para el Consejo Coordinador Empresarial"
             >
               <Lock className="w-4 h-4 text-amber-700" />
-              <span>Moderador</span>
+              <span>Administrador</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={onLogoutModerator}
               className="flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-700 border border-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition-all active:scale-[0.98] cursor-pointer shrink-0"
-              title="Cerrar sesión de moderador"
+              title="Cerrar sesión de administrador"
             >
               <LogOut className="w-4 h-4" />
               <span>Salir</span>

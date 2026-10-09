@@ -165,7 +165,7 @@ export const RoleGateway: React.FC<RoleGatewayProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-bold text-white tracking-tight">
-                    2. Moderador / CCE
+                    2. Administrador / CCE
                   </h3>
                   <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5" /> Protegido
@@ -200,7 +200,7 @@ export const RoleGateway: React.FC<RoleGatewayProps> = ({
                 icon={<Lock className="w-4 h-4 text-amber-400" />}
                 className="w-full font-semibold justify-center border-zinc-700"
               >
-                Acceso de Moderador
+                Acceso de Administrador
               </Button>
             </div>
           </div>
@@ -213,7 +213,7 @@ export const RoleGateway: React.FC<RoleGatewayProps> = ({
         <p className="font-mono text-[11px]">HACKAITLAC 2026 · Versión 1.0</p>
       </footer>
 
-      {/* MODAL DE INICIO DE SESIÓN PARA MODERADORES */}
+      {/* MODAL DE INICIO DE SESIÓN PARA ADMINISTRADORES */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div
@@ -228,7 +228,7 @@ export const RoleGateway: React.FC<RoleGatewayProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white tracking-tight">
-                    Acceso para Moderadores
+                    Acceso para Administradores
                   </h3>
                   <p className="text-xs text-zinc-400">
                     Ingresa tus credenciales autorizadas del CCE

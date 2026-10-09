@@ -423,7 +423,7 @@ export default function App() {
             {isModerator ? (
               <span className="text-red-600 font-semibold flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                Sesión de Moderador Activa
+                Sesión de Administrador Activa
               </span>
             ) : (
               <button
@@ -431,7 +431,7 @@ export default function App() {
                 onClick={() => setShowModLoginModal(true)}
                 className="text-slate-600 hover:text-slate-900 underline cursor-pointer"
               >
-                Acceso Moderador CCE
+                Acceso Administrador CCE
               </button>
             )}
             <span>·</span>
@@ -482,7 +482,7 @@ export default function App() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                    Acceso para Moderadores
+                    Acceso para Administradores
                   </h3>
                   <p className="text-xs text-slate-500">
                     Ingresa tus credenciales autorizadas del CCE
