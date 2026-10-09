@@ -48,3 +48,8 @@ puente-whatsapp/node_modules/
 web/node_modules/
 web/dist/
 *.tsbuildinfo
+
+# ─── Firma de Android: la llave de release y su contraseña NUNCA van a git ───
+**/key.properties
+*.jks
+*.keystore

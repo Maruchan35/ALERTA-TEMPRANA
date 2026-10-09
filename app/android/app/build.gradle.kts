@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -6,6 +8,14 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Llave de release (estable): si existe android/key.properties se firma con ella, y así cada versión
+// nueva se instala ENCIMA de la anterior sin desinstalar (la sesión y el número verificado no se
+// pierden). Sin ese archivo (CI, demo, otra computadora) se firma con la de depuración, como antes.
+// Para crearla: ver app/android/LLAVE.md. key.properties y el .jks NUNCA van a git.
+val archivoLlave = rootProject.file("key.properties")
+val llave = Properties().apply { if (archivoLlave.exists()) archivoLlave.inputStream().use { load(it) } }
+val hayLlaveRelease = archivoLlave.exists() && llave.getProperty("storeFile")?.let { rootProject.file(it).exists() } == true
 
 android {
     namespace = "mx.alertacerca.alerta_cerca"
@@ -33,11 +43,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hayLlaveRelease) {
+            create("release") {
+                storeFile = rootProject.file(llave.getProperty("storeFile"))
+                storePassword = llave.getProperty("storePassword")
+                keyAlias = llave.getProperty("keyAlias")
+                keyPassword = llave.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Con android/key.properties: llave de release estable (misma firma en cada versión → se
+            // instala encima sin desinstalar). Sin ese archivo: la de depuración, para que CI y la
+            // demo compilen igual.
+            signingConfig = if (hayLlaveRelease) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
