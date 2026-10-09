@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import makeWASocket, { Browsers, DisconnectReason, useMultiFileAuthState } from 'baileys';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
-import { candidatosJid, ClienteSupabase, formatoCodigo, leerConfig, oculto } from './lib.mjs';
+import { candidatosJid, ClienteSupabase, entradaDeMensaje, formatoCodigo, leerConfig, oculto } from './lib.mjs';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('.env', import.meta.url)));
@@ -55,6 +55,21 @@ async function conectar() {
     shouldSyncHistoryMessage: () => false, // no hace falta el historial de chats
   });
   sock.ev.on('creds.update', saveCreds);
+  // Mensajes de personas (el asistente para reportar): el servidor decide qué responder y lo deja en la
+  // cola de salida, que revisarCola envía. No se contesta a grupos, estados ni al historial.
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return;
+    for (const m of messages) {
+      const entrada = entradaDeMensaje(m);
+      if (!entrada) continue;
+      try {
+        await servidor.recibido(entrada);
+        decir(`Mensaje de ${oculto(entrada.telefono)} atendido`);
+      } catch (e) {
+        decir(`No se pudo atender un mensaje de ${oculto(entrada.telefono)}: ${e.message}`);
+      }
+    }
+  });
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (qr && !sock.authState.creds.registered) {
       if (cfg.numero && !pidioCodigo) {

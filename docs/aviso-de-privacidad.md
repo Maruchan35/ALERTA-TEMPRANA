@@ -18,6 +18,7 @@ Cárdenas. Durante un piloto, el responsable sería el organismo que lo opere. C
 - En los reportes: la ubicación del suceso (un lugar, no una persona), la descripción y, si la agregas, una foto sin
   metadatos.
 - Si usas el bot de Telegram: tu identificador de chat y la celda de la ubicación que compartiste.
+- Si reportas por WhatsApp con el asistente: tu número y la conversación, solo durante 24 horas (para responderte y limitar los reportes por número). El reporte publicado no lleva tu número.
 - **Solo si tú activas el modo emergencia (SOS)**: mientras la emergencia está abierta, tu ubicación exacta y su
   recorrido, tu velocidad, el nivel de batería, el video con audio que grabe tu teléfono mientras la pantalla del SOS
   está abierta, el audio que grabe con la pantalla apagada y la huella SHA-256 de cada archivo; si verificaste tu

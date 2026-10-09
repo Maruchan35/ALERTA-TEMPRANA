@@ -263,3 +263,11 @@ Para una versión (Release) con el APK de demostración: `git tag v1.0.0 && git 
 | No se oye el audio en vivo del SOS | El micrófono graba cuando la cámara NO está grabando (pantalla apagada). Si la pantalla del SOS está abierta, el audio va dentro del video. Revisa el permiso de micrófono en *Ajustes → Modo emergencia*. |
 | *Mis evidencias* no muestra un SOS de antes | Si se reinstaló la app, Android solo le deja ver las copias anteriores con el permiso de almacenamiento (*Ajustes → Modo emergencia → Almacenamiento*). Los archivos siguen en *Descargas › ALERTA CERCA* aunque la app no los vea. |
 | `permission denied for function …` desde la app | Es correcto para las funciones internas (prueba P14). La app solo llama `registrar_dispositivo`, `alertas_cercanas`, `obtener_alerta`, `crear_reporte`, `confirmar_alerta`, `validar_alerta`, `borrar_mi_cuenta` y las del SOS (`iniciar_emergencia`, `senal_emergencia`, `tipo_emergencia`, `registrar_evidencia`, `terminar_emergencia`, `atender_emergencia`). |
+
+## Reportar por WhatsApp (asistente para adultos mayores)
+
+1. Servidor: aplica [013_reportes_whatsapp.sql](../supabase/migrations/013_reportes_whatsapp.sql) (`npx supabase db push`). Crea el asistente, los límites (`config.reportes_whatsapp_por_hora` = 3 y `mensajes_whatsapp_por_hora` = 30) y la columna `alertas.origen`.
+2. Puente: en la computadora del puente, actualiza `puente-whatsapp/` con esta versión, `npm install` y `npm start`. Ahora también recibe mensajes: quien escriba al número del puente recibe el menú.
+3. Probarlo: escribe «hola» al número del puente, elige 1, manda tu ubicación con el clip y confirma. El reporte aparece en la app y en el portal con origen WhatsApp.
+
+> Riesgo: el puente usa una cuenta normal de WhatsApp. WhatsApp puede bloquear el número si detecta mensajes automáticos. Usa un número aparte. La API oficial (modo `meta`) no tiene ese riesgo, pero hay que verificar el negocio en Meta.

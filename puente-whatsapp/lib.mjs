@@ -79,4 +79,63 @@ export class ClienteSupabase {
   latido(numero, conectado, activar = false) {
     return this.#rpc('whatsapp_latido', { p_numero: numero, p_conectado: conectado, p_activar: activar });
   }
+
+  /**
+   * Un mensaje de una persona para el asistente de reportes (013_reportes_whatsapp.sql). El servidor
+   * decide la respuesta y la deja en la cola de salida, que este programa envía en `revisarCola`.
+   */
+  recibido({ telefono, texto = null, lat = null, lon = null }) {
+    return this.#rpc('whatsapp_recibido', { p_telefono: telefono, p_texto: texto, p_lat: lat, p_lon: lon });
+  }
+}
+
+/**
+ * "5217551234567@s.whatsapp.net" → "527551234567". Los celulares de México llevan un 1 después del 52
+ * en WhatsApp; aquí se guardan como Supabase Auth: 52 + 10 dígitos. Null si no es un teléfono.
+ */
+export function telefonoDeJid(jid) {
+  const digitos = String(jid ?? '').split('@')[0].split(':')[0].replace(/\D/g, '');
+  const mx = digitos.length === 13 && digitos.startsWith('521') ? `52${digitos.slice(3)}` : digitos;
+  return /^\d{8,15}$/.test(mx) ? mx : null;
+}
+
+/** Quita los envoltorios (mensajes temporales, de una vista, editados) para ver el contenido real. */
+function contenidoReal(mensaje) {
+  let c = mensaje ?? null;
+  for (let i = 0; i < 4 && c; i++) {
+    const dentro = c.ephemeralMessage?.message ?? c.viewOnceMessage?.message ?? c.viewOnceMessageV2?.message
+      ?? c.editedMessage?.message ?? c.documentWithCaptionMessage?.message;
+    if (!dentro) break;
+    c = dentro;
+  }
+  return c;
+}
+
+const MULTIMEDIA = ['imageMessage', 'audioMessage', 'videoMessage', 'documentMessage'];
+
+/**
+ * Lo que necesita el asistente de reportes, o null si el mensaje no es de una persona (grupos, estados,
+ * canales, mensajes propios, reacciones). { telefono, texto, lat, lon }; texto '[multimedia]' si mandó
+ * una foto, un audio o un documento.
+ */
+export function entradaDeMensaje(m) {
+  const llave = m?.key ?? {};
+  if (llave.fromMe) return null;
+  const jid = llave.remoteJid ?? '';
+  if (!jid.endsWith('@s.whatsapp.net') && !jid.endsWith('@lid')) return null; // grupos, estados, canales
+  // Con la dirección interna (@lid), el teléfono viene aparte en remoteJidAlt
+  const telefono = telefonoDeJid(jid.endsWith('@lid') ? llave.remoteJidAlt : jid);
+  if (!telefono) return null;
+  const c = contenidoReal(m.message);
+  if (!c) return null;
+  const ubicacion = c.locationMessage ?? c.liveLocationMessage;
+  if (ubicacion) {
+    return { telefono, texto: null, lat: ubicacion.degreesLatitude, lon: ubicacion.degreesLongitude };
+  }
+  const texto = c.conversation ?? c.extendedTextMessage?.text ?? c.buttonsResponseMessage?.selectedDisplayText
+    ?? c.listResponseMessage?.title;
+  const limpio = String(texto ?? '').trim().slice(0, 500);
+  if (limpio) return { telefono, texto: limpio, lat: null, lon: null };
+  if (MULTIMEDIA.some((tipo) => c[tipo])) return { telefono, texto: '[multimedia]', lat: null, lon: null };
+  return null; // reacciones, stickers, avisos del protocolo: no se contestan
 }

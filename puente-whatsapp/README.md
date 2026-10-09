@@ -33,7 +33,7 @@ Se autentica con un secreto propio (`secreto_puente` en Vault), nunca con la `se
 
 - No es la API oficial de WhatsApp: **WhatsApp puede bloquear números** que mandan mensajes automáticos. Usen un
   **número aparte** (un chip de prepago), no el personal de nadie.
-- Solo envía códigos que alguien pidió, a ritmo de persona (1–2 segundos entre mensajes). No lo usen para difundir
+- Envía códigos que alguien pidió y las respuestas del asistente de reportes, a ritmo de persona (1–2 segundos entre mensajes). No lo usen para difundir
   alertas: para eso están las notificaciones push.
 - Para producción, WhatsApp Business (modo `meta`): ver [docs/despliegue.md](../docs/despliegue.md), paso 5c.
 
@@ -48,3 +48,14 @@ update config set whatsapp_modo = 'meta';      -- WhatsApp Business (Edge Functi
 ```
 
 Pruebas: `npm test`.
+
+## Recibir mensajes: el asistente de reportes
+
+El puente también **recibe** los mensajes de quien le escribe. No los contesta él: los entrega a `whatsapp_recibido()` del servidor ([013_reportes_whatsapp.sql](../supabase/migrations/013_reportes_whatsapp.sql)), que lleva la conversación (menú con números, ubicación con el clip, una frase opcional, confirmar) y deja la respuesta en la misma cola que los códigos.
+
+- No contesta grupos, estados, mensajes propios, reacciones ni el historial.
+- Quien escribe más de 30 mensajes por hora deja de recibir respuestas (config `mensajes_whatsapp_por_hora`).
+- Cada número puede levantar 3 reportes por hora (config `reportes_whatsapp_por_hora`).
+- El número no se guarda en las alertas, y la conversación se borra a las 24 h.
+
+Un asistente que contesta mensajes es automatizado: usa un número aparte.

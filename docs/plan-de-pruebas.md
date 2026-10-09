@@ -37,6 +37,10 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 | P30 | SOS: copia en el teléfono | *SOS: cada fragmento se copia al teléfono con su huella y el audio llega al servidor como audio* (app) | Tras un SOS, en *Descargas › ALERTA CERCA › SOS <fecha>* están los videos (también en la galería), los audios y `constancia.txt`; en el portal cada fragmento dice Video o Audio y *Reproducir todo seguido* los pasa en orden |
 | P31 | SOS: huella SHA-256 | *SOS: la evidencia… con su huella SHA-256* (SQL): se guarda, una inválida se rechaza y un reintento no la cambia | En una computadora, `certutil -hashfile "archivo" SHA256` da la misma huella que muestra el portal |
 | P32 | SOS: constancia para denuncia | *constancia…*, *bitácora…* y *mis evidencias…* (app): revisa cada archivo contra su huella y comparte todo | *Mis evidencias → Compartir para la denuncia* manda los archivos y la constancia; si se edita un archivo, la constancia dice “NO COINCIDE” |
+| P33 | Asistente WhatsApp: flujo | *Asistente para reportar por WhatsApp* (SQL): menú con números, ubicación, frase y confirmación; la alerta queda igual que una de la app | Escribir «hola» al número del puente → 1 → mandar ubicación → 0 → 1: aparece el folio y el reporte en la app |
+| P34 | Asistente WhatsApp: límites | *cada número puede reportar 3 veces por hora* y *quien escribe demasiado…* (SQL) | El cuarto reporte del mismo número se rechaza; el mensaje 31 de la hora no recibe respuesta |
+| P35 | Asistente WhatsApp: privacidad | *la alerta no guarda el número…* y *la conversación caduca… se borran al día* (SQL) | La alerta no tiene número; a las 24 h no queda nada de la conversación |
+| P36 | Puente: recepción | *entradaDeMensaje / telefonoDeJid* (puente-whatsapp): grupos, mensajes propios y reacciones se ignoran | Escribir desde otro WhatsApp al puente: contesta el asistente; un grupo no recibe nada |
 
 ## Además de la propuesta
 

@@ -61,12 +61,14 @@ export class Entorno {
       truncate alertas, dispositivos, zonas_usuario, entregas, confirmaciones,
                suscriptores_telegram, entregas_telegram, bitacora, storage.objects,
                net.solicitudes, privado.mensajes_whatsapp, emergencias, emergencia_puntos,
-               emergencia_evidencias restart identity cascade;
+               emergencia_evidencias, privado.conversaciones_whatsapp,
+               privado.mensajes_entrantes_whatsapp, privado.reportes_whatsapp restart identity cascade;
       delete from auth.users;
       update config set factor_tiempo = 1, minutos_espera_validador = 5, confirmaciones_corroborar = 3,
                         confirmaciones_colmena = 6, radio_max_corroborada_m = 3000, radio_max_colmena_m = 10000,
                         reportes_por_hora = 10, whatsapp_modo = 'simulado', emergencias_por_hora = 5,
-                        minutos_sin_senal = 2, dias_retencion_emergencia = 30;
+                        minutos_sin_senal = 2, dias_retencion_emergencia = 30,
+                        reportes_whatsapp_por_hora = 3, mensajes_whatsapp_por_hora = 30;
       update privado.puente_whatsapp set numero = null, conectado = false, latido_en = null;
       delete from vault.secrets;
       select vault.create_secret('https://prueba.supabase.co/functions/v1', 'url_funciones');
