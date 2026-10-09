@@ -146,7 +146,11 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
     } else if ((a.estado == EstadoAlerta.resuelta || a.estado == EstadoAlerta.descartada) && notificadas.remove(a.id)) {
       procesarAlerta(datosPush(a, 'cierre'));
     }
-    prefs.setStringList(Claves.notificadas, notificadas.take(200).toList());
+    // Conserva las 200 MÁS RECIENTES (al final del Set, en orden de inserción): si tomáramos las
+    // primeras, al pasar de 200 alertas se descartaría la que se acaba de agregar y se notificaría
+    // de nuevo en el siguiente evento de Realtime.
+    final lista = notificadas.toList();
+    prefs.setStringList(Claves.notificadas, lista.length <= 200 ? lista : lista.sublist(lista.length - 200));
   }
 
   void _seguirUbicacion() {
