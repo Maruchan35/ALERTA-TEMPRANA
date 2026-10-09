@@ -16,7 +16,7 @@ import { formatDistance } from './services/geo';
 import { ModeratorUser } from './types/auth';
 import { supabase } from './services/supabase';
 import { adminSettingsService } from './services/adminSettingsService';
-import { AlertTriangle, KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2, X } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
 const STORAGE_MOD_KEY = 'alerta_cerca_moderator_user';
@@ -45,6 +45,7 @@ export default function App() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [sightingAlert, setSightingAlert] = useState<AlertWithDistance | null>(null);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+  const [dismissedCriticalAlertId, setDismissedCriticalAlertId] = useState<string | null>(null);
 
   // Modal de Login de Moderador
   const [showModLoginModal, setShowModLoginModal] = useState(false);
@@ -246,30 +247,60 @@ export default function App() {
         </div>
       )}
 
-      {/* Banner de Emergencia Crítica si hay un incidente dentro del radio */}
-      {criticalNearbyAlert && (
-        <div className="bg-slate-900 text-white px-4 py-2 border-b border-slate-800 shadow-2xs">
-          <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="p-1 rounded-md bg-red-600/30 text-red-400">
-                <AlertTriangle className="w-3.5 h-3.5" />
+      {/* Alerta Flotante de Emergencia Crítica (Ventana emergente lateral táctica) */}
+      {criticalNearbyAlert && dismissedCriticalAlertId !== criticalNearbyAlert.id && (
+        <aside
+          role="alert"
+          aria-live="assertive"
+          className="fixed bottom-6 right-6 z-[9990] w-[calc(100vw-3rem)] sm:w-96 bg-white border-l-4 border-l-red-600 border border-slate-200/90 rounded-2xl p-4 shadow-xl shadow-red-500/10 animate-fade-in"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600" />
               </span>
-              <p className="text-xs sm:text-sm font-medium tracking-tight text-slate-200">
-                Alerta Crítica en Perímetro: <strong className="text-white">{criticalNearbyAlert.title}</strong> a{' '}
-                <span className="font-mono text-red-400 font-semibold tabular-nums">
-                  {formatDistance(criticalNearbyAlert.distanceKm)}
-                </span>
-              </p>
+              <span className="text-[10px] font-bold tracking-wider text-red-700 uppercase font-mono">
+                Alerta Crítica en Perímetro
+              </span>
             </div>
             <button
               type="button"
-              onClick={() => handleSelectOnMap(criticalNearbyAlert.id)}
-              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded-lg shadow-2xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
+              onClick={() => setDismissedCriticalAlertId(criticalNearbyAlert.id)}
+              className="text-slate-400 hover:text-slate-700 p-0.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Descartar aviso flotante"
+              aria-label="Cerrar aviso flotante"
             >
-              Ver en Radar
+              <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
+
+          <div className="mt-2.5 space-y-1">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug line-clamp-2">
+              {criticalNearbyAlert.title}
+            </h4>
+            <div className="flex items-center gap-2 text-xs pt-1">
+              <span className="font-mono font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200 tabular-nums text-[11px]">
+                A {formatDistance(criticalNearbyAlert.distanceKm)}
+              </span>
+              <span className="text-[11px] text-slate-500 truncate">
+                {criticalNearbyAlert.coordinates.address || 'Lázaro Cárdenas'}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                handleSelectOnMap(criticalNearbyAlert.id);
+              }}
+              className="w-full py-2 px-3 bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Ver en Radar Cartográfico</span>
+            </button>
+          </div>
+        </aside>
       )}
 
       {/* Contenido Principal con Aislamiento Estricto por Sección */}

@@ -729,39 +729,39 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
       ======================================================== */}
       {activeTab === 'archive' && (
         <div className="space-y-4">
-          {/* Banner explicativo para colaboración con Fiscalía / Policía */}
-          <div className="p-4 rounded-xl bg-purple-50/90 border border-purple-200 text-purple-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          {/* Ficha explicativa institucional para colaboración con Fiscalía / 911 */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 text-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
             <div className="flex items-start gap-3">
-              <span className="p-2 rounded-xl bg-purple-100 border border-purple-300 text-purple-700 shrink-0">
+              <span className="p-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 shrink-0">
                 <FolderArchive className="w-5 h-5" />
               </span>
               <div>
-                <h3 className="text-sm font-bold text-purple-950">
-                  Archivo Forense y Cadena de Custodia Digital
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Archivo Forense y Cadena de Custodia Digital CCE
                 </h3>
-                <p className="text-xs text-purple-700 mt-0.5">
-                  Las alertas resueltas o descartadas no se borran; quedan comprimidas con coordenadas WGS84, fotografías y Hash de integridad para dar respuesta expedita ante requerimientos del Ministerio Público, Fiscalía o 911.
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  Las alertas concluidas o descartadas quedan inmutables con coordenadas WGS84, trazabilidad temporal y hash criptográfico para atender requerimientos formales de la Fiscalía, Policía de Investigación o 911.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className="px-3 py-1.5 rounded-lg bg-purple-100 border border-purple-300 text-xs font-mono font-bold text-purple-900">
+              <span className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-mono font-bold text-purple-800 shadow-2xs tabular-nums">
                 {carpetas.length} Expedientes en Custodia
               </span>
             </div>
           </div>
 
           {/* Buscador de expedientes */}
-          <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
             <div className="relative flex-1 max-w-lg">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={archiveSearchTerm}
                 onChange={(e) => setArchiveSearchTerm(e.target.value)}
                 placeholder="Buscar por Carpeta (CI-2026-...), 911, delito, calle, resolución..."
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
           </div>
@@ -899,16 +899,16 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
           MODAL 1: FICHA TÉCNICA Y FOTOGRAFÍA EMERGENTE (ALERTA ACTIVA)
       ======================================================== */}
       {selectedAlertForDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-2xl bg-white border border-slate-200/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header del Modal */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50/90">
+            <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 bg-white">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-xs font-bold text-slate-800 bg-slate-200/80 px-2 py-0.5 rounded border border-slate-300">
+                <span className="font-mono text-xs font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/80">
                   {selectedAlertForDetail.folio}
                 </span>
                 {selectedAlertForDetail.folio911 && (
-                  <span className="font-mono text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                  <span className="font-mono text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200">
                     911: {selectedAlertForDetail.folio911}
                   </span>
                 )}
@@ -931,7 +931,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
             <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-slate-800">
               {/* Fotografía del Suceso / Evidencia */}
               {selectedAlertForDetail.photoUrl ? (
-                <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50 relative group">
+                <div className="rounded-xl overflow-hidden border border-slate-200/80 bg-slate-50 relative group">
                   <img
                     src={selectedAlertForDetail.photoUrl}
                     alt={selectedAlertForDetail.title}
@@ -940,26 +940,26 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                       (e.target as HTMLElement).style.display = 'none';
                     }}
                   />
-                  <div className="p-2.5 bg-white border-t border-slate-200 flex items-center justify-between text-xs">
+                  <div className="p-2.5 bg-white border-t border-slate-200/80 flex items-center justify-between text-xs">
                     <span className="text-slate-500 text-[11px] flex items-center gap-1">
                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
-                      Fotografía de evidencia registrada en la plataforma
+                      Evidencia gráfica registrada bajo cadena de custodia
                     </span>
                     <a
                       href={selectedAlertForDetail.photoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-red-600 hover:underline flex items-center gap-1 text-[11px] font-semibold"
+                      className="text-slate-900 hover:underline flex items-center gap-1 text-[11px] font-semibold"
                     >
                       <ExternalLink className="w-3 h-3" />
-                      Ver en alta resolución
+                      Resolución Original
                     </a>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center gap-2 text-slate-500 text-xs">
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-center gap-2 text-slate-500 text-xs">
                   <ImageIcon className="w-4 h-4 text-slate-400" />
-                  <span>Sin evidencia fotográfica adjunta en el reporte original</span>
+                  <span>Sin evidencia fotográfica adjunta en el reporte inicial</span>
                 </div>
               )}
 
@@ -968,7 +968,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                   {selectedAlertForDetail.title}
                 </h3>
-                <p className="text-xs text-slate-700 mt-2 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <p className="text-xs text-slate-700 mt-2 leading-relaxed bg-slate-50/60 p-3.5 rounded-xl border border-slate-200/80">
                   {selectedAlertForDetail.description}
                 </p>
               </div>
@@ -976,8 +976,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               {/* Ubicación y Radio de Cobertura */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Cuadro de Ubicación */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="p-3.5 rounded-xl bg-slate-50/60 border border-slate-200/80 space-y-2">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 font-mono">
                     <MapPin className="w-3.5 h-3.5 text-red-600" />
                     <span>Ubicación Territorial</span>
                   </div>
@@ -989,7 +989,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                       Ref: {selectedAlertForDetail.coordinates.referencePoint}
                     </p>
                   )}
-                  <div className="text-[10px] font-mono text-slate-500">
+                  <div className="text-[10px] font-mono text-slate-500 tabular-nums">
                     GPS: {selectedAlertForDetail.coordinates.lat.toFixed(5)}, {selectedAlertForDetail.coordinates.lng.toFixed(5)}
                   </div>
                   <div className="pt-1 flex items-center gap-2">
@@ -1000,7 +1000,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                           onSelectOnMap(selectedAlertForDetail.id);
                           setSelectedAlertForDetail(null);
                         }}
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-blue-700 text-[11px] font-semibold border border-slate-200 flex items-center gap-1 cursor-pointer shadow-2xs"
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-800 text-[11px] font-medium border border-slate-200/80 flex items-center gap-1 cursor-pointer shadow-2xs active:scale-[0.98]"
                       >
                         <MapPin className="w-3 h-3 text-red-600" />
                         Centrar en Radar
@@ -1010,7 +1010,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                       href={`https://www.google.com/maps/search/?api=1&query=${selectedAlertForDetail.coordinates.lat},${selectedAlertForDetail.coordinates.lng}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200 flex items-center gap-1 shadow-2xs"
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-medium border border-slate-200/80 flex items-center gap-1 shadow-2xs"
                     >
                       <ExternalLink className="w-3 h-3" />
                       Google Maps
@@ -1019,17 +1019,17 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 </div>
 
                 {/* Cuadro de Radio */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="p-3.5 rounded-xl bg-slate-50/60 border border-slate-200/80 space-y-2">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 font-mono">
                     <Radio className="w-3.5 h-3.5 text-red-600" />
                     <span>Radio Geográfico Actual</span>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-slate-900 tabular-nums">
+                    <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">
                       {selectedAlertForDetail.currentRadiusKm.toFixed(1)} km
                     </span>
-                    <span className="text-xs text-slate-500">
-                      ({selectedAlertForDetail.currentRadiusMeters.toLocaleString()} metros)
+                    <span className="text-xs text-slate-500 font-mono tabular-nums">
+                      ({selectedAlertForDetail.currentRadiusMeters.toLocaleString()} m)
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500">
@@ -1041,9 +1041,9 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                       onClick={() => {
                         handleOpenRadiusModal(selectedAlertForDetail);
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200 flex items-center gap-1 cursor-pointer shadow-2xs"
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-800 text-[11px] font-medium border border-slate-200/80 flex items-center gap-1 cursor-pointer shadow-2xs active:scale-[0.98]"
                     >
-                      <Sliders className="w-3 h-3 text-blue-600" />
+                      <Sliders className="w-3 h-3 text-slate-600" />
                       Reconfigurar Radio
                     </button>
                   </div>
@@ -1052,12 +1052,12 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
 
               {/* Instrucciones Ciudadanas */}
               {selectedAlertForDetail.instructions && (
-                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1">
-                  <div className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-800">
+                <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/70 text-amber-950 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-900 font-mono">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                     <span>Protocolo y Medidas Preventivas</span>
                   </div>
-                  <p className="text-xs text-amber-900/90 leading-relaxed">
+                  <p className="text-xs text-amber-950 leading-relaxed">
                     {selectedAlertForDetail.instructions}
                   </p>
                 </div>
@@ -1065,22 +1065,22 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
 
               {/* Métricas Comunitarias y Cadena de Tiempo */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] text-slate-500 uppercase block font-semibold">Reportado</span>
-                  <span className="text-xs font-semibold text-slate-800 mt-0.5 block">
+                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80">
+                  <span className="text-[10px] text-slate-500 uppercase block font-semibold font-mono">Reportado</span>
+                  <span className="text-xs font-semibold text-slate-800 mt-0.5 block tabular-nums">
                     {new Date(selectedAlertForDetail.createdAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
                   </span>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] text-slate-500 uppercase block font-semibold">Confirmaciones</span>
-                  <span className="text-xs font-semibold text-emerald-700 mt-0.5 block">
+                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80">
+                  <span className="text-[10px] text-slate-500 uppercase block font-semibold font-mono">Confirmaciones</span>
+                  <span className="text-xs font-semibold text-emerald-700 mt-0.5 block tabular-nums">
                     {selectedAlertForDetail.confirmedCount} a favor · {selectedAlertForDetail.disputeCount} dudas
                   </span>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 col-span-2 sm:col-span-1">
-                  <span className="text-[10px] text-slate-500 uppercase block font-semibold">Validador Oficial</span>
+                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-slate-500 uppercase block font-semibold font-mono">Validador Oficial</span>
                   <span className="text-xs font-semibold text-slate-800 mt-0.5 block truncate">
                     {selectedAlertForDetail.verifiedBy || 'Sin validar oficial'}
                   </span>
@@ -1089,7 +1089,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
             </div>
 
             {/* Footer con Acciones */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50/95 flex items-center justify-between gap-2 flex-wrap">
+            <div className="p-4 border-t border-slate-200/80 bg-white flex items-center justify-between gap-2 flex-wrap">
               <Button
                 variant="ghost"
                 size="sm"
@@ -1100,41 +1100,38 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
 
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Botón Imprimir Oficio Formal */}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100 font-bold"
+                <button
+                  type="button"
                   onClick={() => setAlertForDossier(selectedAlertForDetail)}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
                 >
-                  <Printer className="w-3.5 h-3.5 mr-1 text-purple-700" />
-                  Imprimir Oficio Formal CCE
-                </Button>
+                  <Printer className="w-3.5 h-3.5 text-purple-700" />
+                  <span>Imprimir Oficio Formal CCE</span>
+                </button>
 
                 {selectedAlertForDetail.status === 'pendiente' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
+                  <button
+                    type="button"
                     disabled={isProcessing === selectedAlertForDetail.id}
                     onClick={() => handleVerify(selectedAlertForDetail.id)}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5 mr-1" />
-                    Validar CCE
-                  </Button>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Validar CCE</span>
+                  </button>
                 )}
 
                 {selectedAlertForDetail.status !== 'resuelta' && selectedAlertForDetail.status !== 'descartada' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="bg-slate-900 hover:bg-slate-800 text-white border-transparent"
+                  <button
+                    type="button"
                     onClick={() => {
                       handleOpenResolve(selectedAlertForDetail);
                     }}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
                   >
-                    <CheckCircle className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                    Resolver y Archivar
-                  </Button>
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Resolver y Archivar</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -1146,20 +1143,20 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
           MODAL 2: CONFIGURACIÓN Y CONTROL DE RADIO GEOGRÁFICO
       ======================================================== */}
       {selectedAlertForRadius && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-5 sm:p-6 space-y-5 text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white border border-slate-200/80 rounded-2xl shadow-2xl p-5 sm:p-6 space-y-5 text-slate-800">
             {/* Cabecera */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700">
+                <span className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-800">
                   <Sliders className="w-5 h-5" />
                 </span>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                     Configuración de Radio Territorial
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Folio: <strong className="text-slate-800">{selectedAlertForRadius.folio}</strong> · {selectedAlertForRadius.title}
+                    Folio: <strong className="text-slate-800 font-mono">{selectedAlertForRadius.folio}</strong> · {selectedAlertForRadius.title}
                   </p>
                 </div>
               </div>
@@ -1167,28 +1164,28 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedAlertForRadius(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Radio Seleccionado en Grande */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1">
-              <span className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider">
+            <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 text-center space-y-1">
+              <span className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider font-mono">
                 Perímetro de Cobertura Seleccionado
               </span>
-              <div className="text-3xl font-extrabold text-blue-700 font-mono tracking-tight">
-                {(targetRadiusMeters / 1000).toFixed(1)} km
+              <div className="text-3xl font-extrabold text-slate-900 font-mono tracking-tight tabular-nums">
+                {(targetRadiusMeters / 1000).toFixed(1)} <span className="text-sm font-sans font-semibold text-slate-500">km</span>
               </div>
-              <span className="text-xs text-slate-500 font-mono">
+              <span className="text-xs text-slate-500 font-mono tabular-nums">
                 {targetRadiusMeters.toLocaleString()} metros a la redonda
               </span>
             </div>
 
             {/* Presets Tácticos con 1 Clic */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">
+              <label className="text-xs font-bold text-slate-800 block">
                 Presets Tácticos para Lázaro Cárdenas:
               </label>
               <div className="grid grid-cols-1 gap-1.5">
@@ -1199,25 +1196,25 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                       key={preset.meters}
                       type="button"
                       onClick={() => setTargetRadiusMeters(preset.meters)}
-                      className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                      className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between cursor-pointer active:scale-[0.98] ${
                         isSelected
-                          ? 'bg-blue-50 border-blue-400 text-blue-950 shadow-xs ring-1 ring-blue-300'
-                          : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                          ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                          : 'bg-white hover:bg-slate-50 border-slate-200/80 text-slate-700'
                       }`}
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-slate-900">{preset.label}</span>
-                          <span className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded ${
-                            isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                          <span className={`font-semibold text-xs ${isSelected ? 'text-white' : 'text-slate-900'}`}>{preset.label}</span>
+                          <span className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded tabular-nums ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                           }`}>
                             {preset.km}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500">{preset.desc}</p>
+                        <p className={`text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{preset.desc}</p>
                       </div>
 
-                      {isSelected && <Check className="w-4 h-4 text-blue-700 shrink-0 ml-2" />}
+                      {isSelected && <Check className="w-4 h-4 text-white shrink-0 ml-2" />}
                     </button>
                   );
                 })}
@@ -1225,10 +1222,10 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
             </div>
 
             {/* Slider de Ajuste Fino */}
-            <div className="space-y-2 pt-2 border-t border-slate-200">
+            <div className="space-y-2 pt-2 border-t border-slate-200/80">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700">Ajuste Milimétrico Libre:</span>
-                <span className="font-mono text-slate-500 text-[11px]">500 m - 30,000 m</span>
+                <span className="font-mono text-slate-500 text-[11px] tabular-nums">500 m - 30,000 m</span>
               </div>
               <input
                 type="range"
@@ -1237,16 +1234,16 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 step={250}
                 value={targetRadiusMeters}
                 onChange={(e) => setTargetRadiusMeters(Number(e.target.value))}
-                className="w-full accent-blue-600 cursor-pointer"
+                className="w-full accent-slate-900 cursor-pointer"
               />
             </div>
 
             {/* Botones de Acción */}
-            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200">
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200/80">
               <button
                 type="button"
                 onClick={handleResetToAdaptive}
-                className="text-xs text-slate-500 hover:text-red-600 underline cursor-pointer"
+                className="text-xs text-slate-500 hover:text-slate-900 underline cursor-pointer"
                 title="Volver al algoritmo que expande el radio según el tiempo"
               >
                 Restablecer a Protocolo Adaptativo
@@ -1260,15 +1257,14 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 >
                   Cancelar
                 </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
+                <button
+                  type="button"
                   disabled={isProcessing === selectedAlertForRadius.id}
                   onClick={handleSaveRadius}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
                 >
                   Aplicar Radio
-                </Button>
+                </button>
               </div>
             </div>
           </div>
@@ -1279,19 +1275,19 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
           MODAL 3: EXPEDIENTE FORENSE COMPLETO (CARPETA DE INVESTIGACIÓN)
       ======================================================== */}
       {selectedCarpetaForDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-2xl bg-white border border-purple-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between gap-3 bg-purple-50/70">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-2xl bg-white border border-slate-200/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 bg-white">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-xs font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
+                <span className="font-mono text-xs font-semibold text-purple-900 bg-purple-50 px-2.5 py-0.5 rounded-lg border border-purple-200">
                   {selectedCarpetaForDetail.idCarpeta}
                 </span>
                 {selectedCarpetaForDetail.folio911 && (
-                  <span className="font-mono text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                  <span className="font-mono text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200">
                     911: {selectedCarpetaForDetail.folio911}
                   </span>
                 )}
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-emerald-50 text-emerald-800 border border-emerald-300">
+                <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold uppercase bg-emerald-50 text-emerald-800 border border-emerald-300">
                   {selectedCarpetaForDetail.estadoFinal}
                 </span>
               </div>
@@ -1299,7 +1295,7 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedCarpetaForDetail(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1308,20 +1304,20 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
             <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-slate-800">
               {/* Foto si existe */}
               {selectedCarpetaForDetail.fotoUrl && (
-                <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                <div className="rounded-xl overflow-hidden border border-slate-200/80 bg-slate-50">
                   <img
                     src={selectedCarpetaForDetail.fotoUrl}
                     alt={selectedCarpetaForDetail.titulo}
                     className="w-full max-h-60 object-contain bg-slate-100 mx-auto"
                   />
-                  <div className="p-2 bg-white text-[11px] text-slate-500 border-t border-slate-200">
-                    Evidencia fotográfica archivada en cadena de custodia
+                  <div className="p-2.5 bg-white text-[11px] text-slate-500 border-t border-slate-200/80 font-mono">
+                    Evidencia gráfica archivada bajo cadena de custodia digital
                   </div>
                 </div>
               )}
 
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">
                   {selectedCarpetaForDetail.titulo}
                 </h3>
                 <p className="text-xs text-purple-800 mt-0.5 font-semibold">
@@ -1329,8 +1325,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                <span className="text-[11px] font-bold text-slate-600 uppercase">
+              <div className="p-3.5 rounded-xl bg-slate-50/60 border border-slate-200/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase font-mono tracking-wider">
                   Motivo y Conclusión Oficial de Cierre:
                 </span>
                 <p className="text-xs text-slate-800 leading-relaxed font-semibold">
@@ -1338,8 +1334,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                <span className="text-[11px] font-bold text-slate-600 uppercase">
+              <div className="p-3.5 rounded-xl bg-slate-50/60 border border-slate-200/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase font-mono tracking-wider">
                   Descripción Original de los Hechos:
                 </span>
                 <p className="text-xs text-slate-700 leading-relaxed">
@@ -1348,31 +1344,31 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-[10px] text-slate-500 uppercase font-semibold">Ubicación Registrada</span>
+                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] text-slate-500 uppercase font-semibold font-mono">Ubicación Registrada</span>
                   <p className="font-semibold text-slate-900">{selectedCarpetaForDetail.coordenadas.direccion}</p>
-                  <p className="font-mono text-[10px] text-slate-500">
+                  <p className="font-mono text-[10px] text-slate-500 tabular-nums">
                     GPS: {selectedCarpetaForDetail.coordenadas.lat}, {selectedCarpetaForDetail.coordenadas.lng}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-500 font-mono tabular-nums">
                     Radio Final: {selectedCarpetaForDetail.radioFinalKm} km ({selectedCarpetaForDetail.radioFinalMetros} m)
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-[10px] text-slate-500 uppercase font-semibold">Cadena de Custodia</span>
+                <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] text-slate-500 uppercase font-semibold font-mono">Cadena de Custodia</span>
                   <p className="text-slate-700">Validador: {selectedCarpetaForDetail.validadorResponsable}</p>
                   <p className="font-mono text-emerald-700 text-[11px] font-bold">
                     Hash Forense: #{selectedCarpetaForDetail.hashIntegridad}
                   </p>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-slate-500 tabular-nums">
                     Archivado: {new Date(selectedCarpetaForDetail.archivadoEn).toLocaleString('es-MX')}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-200 bg-slate-50/95 flex items-center justify-between gap-2">
+            <div className="p-4 border-t border-slate-200/80 bg-white flex items-center justify-between gap-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -1381,15 +1377,14 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 Cerrar
               </Button>
 
-              <Button
-                variant="primary"
-                size="sm"
-                className="bg-purple-700 hover:bg-purple-800 text-white"
+              <button
+                type="button"
                 onClick={() => handleCopyForOficio(selectedCarpetaForDetail)}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
               >
-                <Copy className="w-3.5 h-3.5 mr-1" />
-                Copiar Ficha Formal para MP / 911
-              </Button>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copiar Ficha Formal para MP / 911</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1399,44 +1394,45 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
           MODAL 4: CONFIRMACIÓN DE RESOLUCIÓN Y ARCHIVO FORENSE
       ======================================================== */}
       {selectedAlertToResolve && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-5 shadow-2xl space-y-4 text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xl space-y-4 text-slate-800">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-sm font-bold text-slate-900 tracking-tight">
                 Cerrar Incidente y Archivar en Carpeta de Investigación
               </h3>
             </div>
 
-            <p className="text-xs text-slate-600">
-              Al resolver este incidente ({selectedAlertToResolve.folio}), los datos <strong className="text-slate-900">no serán borrados</strong>. Se comprimirán y se creará una <strong className="text-purple-800">Carpeta de Investigación Forense</strong> con hash de custodia para colaborar ante el Ministerio Público o 911.
+            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/60 p-3 rounded-xl border border-slate-200/80">
+              Al resolver este incidente ({selectedAlertToResolve.folio}), los datos <strong className="text-slate-900">no serán borrados</strong>. Se resguardarán inmutables con trazabilidad y hash criptográfico en la <strong className="text-purple-800">Carpeta de Investigación CCE</strong>.
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Motivo / Conclusión oficial de cierre:
               </label>
               <textarea
                 value={resolutionNote}
                 onChange={(e) => setResolutionNote(e.target.value)}
                 rows={3}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 resize-none transition-colors"
                 required
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/80">
               <Button variant="ghost" size="sm" onClick={() => setSelectedAlertToResolve(null)}>
                 Volver
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
+              <button
+                type="button"
+                disabled={isProcessing === selectedAlertToResolve.id}
                 onClick={handleConfirmResolve}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-2xs active:scale-[0.98] cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
               >
-                Confirmar y Archivar Expediente
-              </Button>
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Confirmar y Archivar Expediente</span>
+              </button>
             </div>
           </div>
         </div>
