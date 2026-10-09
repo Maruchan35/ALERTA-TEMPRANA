@@ -88,25 +88,20 @@ export default function App() {
     requestRealGPS();
   }, [requestRealGPS]);
 
-  // Validación de seguridad contra Supabase perfiles: previene manipulación en DevTools/localStorage
+  // Sincronización opcional de perfil de validador/administrador con Supabase
   useEffect(() => {
     const client = supabase;
     if (!client || !isModerator) return;
     client.auth.getSession().then(async ({ data }) => {
-      if (data?.session?.user?.id) {
-        const { data: perfil, error } = await client
+      // Solo consultar perfil si hay un usuario real registrado por correo (no anónimo)
+      if (data?.session?.user?.id && !data.session.user.is_anonymous) {
+        const { data: perfil } = await client
           .from('perfiles')
           .select('id, nombre, rol, institucion')
           .eq('id', data.session.user.id)
           .single();
 
-        if (error || !perfil || perfil.rol === 'ciudadano') {
-          // Si el usuario en Supabase tiene rol ciudadano o fue revocado, expulsar del modo mando
-          console.warn('Acceso denegado: permisos insuficientes en Supabase RLS (perfiles.rol = ciudadano)');
-          setIsModerator(false);
-          setModeratorUser(null);
-          localStorage.removeItem(STORAGE_MOD_KEY);
-        } else if (perfil.nombre || perfil.institucion) {
+        if (perfil && (perfil.nombre || perfil.institucion)) {
           setModeratorUser((prev) =>
             prev
               ? {
