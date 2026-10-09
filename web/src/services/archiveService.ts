@@ -264,6 +264,20 @@ export const archiveService = {
     return nuevaCarpeta;
   },
 
+  // Elimina un expediente archivado si se purga o cancela el incidente
+  eliminarCarpetaPorAlertaId(alertaId: string): void {
+    let carpetas = this.listarCarpetas();
+    carpetas = carpetas.filter(
+      (c) => c.alertaId !== alertaId && c.folioAlerta !== `AC-${alertaId.substring(0, 8).toUpperCase()}`
+    );
+    try {
+      localStorage.setItem(STORAGE_ARCHIVE_KEY, JSON.stringify(carpetas));
+    } catch (e) {
+      console.warn('Error eliminando carpeta en localStorage:', e);
+    }
+    notifyListeners();
+  },
+
   // Genera el informe textual oficial listo para copiar para MP / 911 / Policía
   formatearParaOficio(c: CarpetaInvestigacion): string {
     return [

@@ -24,7 +24,8 @@ import {
   Check,
   Image as ImageIcon,
   Printer,
-  TrendingUp
+  TrendingUp,
+  Trash2,
 } from 'lucide-react';
 
 interface OperationsDashboardProps {
@@ -229,6 +230,22 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
         await alertService.discardAlert(alertId, 'Reporte desestimado tras verificación operativa en campo.');
         showToast('📁 Alerta descartada y resguardada en Carpeta de Investigación');
         if (selectedAlertForDetail && selectedAlertForDetail.id === alertId) {
+          setSelectedAlertForDetail(null);
+        }
+      } finally {
+        setIsProcessing(null);
+      }
+    }
+  };
+
+  // Eliminar y purgar incidente definitivamente de la consola
+  const handleDeleteAlert = async (alert: AlertWithDistance) => {
+    if (window.confirm(`¿Estás seguro de eliminar permanentemente el incidente "${alert.title}" (${alert.folio}) de la consola operativa?`)) {
+      setIsProcessing(alert.id);
+      try {
+        await alertService.deleteAlert(alert.id);
+        showToast(`🗑️ Incidente ${alert.folio} eliminado y purgado.`);
+        if (selectedAlertForDetail && selectedAlertForDetail.id === alert.id) {
           setSelectedAlertForDetail(null);
         }
       } finally {
@@ -708,6 +725,17 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                                   <XCircle className="w-3.5 h-3.5" />
                                 </button>
                               )}
+
+                              {/* Botón Eliminar / Purgar Incidente de la lista */}
+                              <button
+                                type="button"
+                                disabled={isProcessing === alert.id}
+                                onClick={() => handleDeleteAlert(alert)}
+                                className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors cursor-pointer disabled:opacity-50"
+                                title="Eliminar y purgar este incidente de la consola"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                              </button>
                             </div>
                           </td>
                         </tr>

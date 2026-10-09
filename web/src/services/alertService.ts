@@ -9,6 +9,12 @@ import {
 import { archiveService } from './archiveService';
 
 const LOCAL_STORAGE_KEY = 'alerta_cerca_real_alerts';
+const DELETED_ALERTS_KEY = 'alerta_cerca_deleted_alert_ids';
+
+// Lista de incidentes purgados/eliminados (incluyendo reporte de prueba Lluvia Tecnm AC-952657DB)
+const PURGED_ALERT_IDS = [
+  '952657db-7e0f-4bf3-8cc0-53a414e72afa', // AC-952657DB
+];
 
 /**
  * Ruta de una foto dentro del bucket PRIVADO `fotos` de Supabase Storage. La app móvil sube cada
@@ -108,12 +114,36 @@ class AlertService {
   private alertsCache: AlertUI[] = [];
   private listeners: Array<(alerts: AlertUI[]) => void> = [];
   private channel: any = null;
+  private deletedIds = new Set<string>(PURGED_ALERT_IDS);
   /** Fotos ya firmadas: ruta → URL (dura 1 h; se renueva un poco antes). */
   private fotosFirmadas = new Map<string, { url: string; vence: number }>();
 
   constructor() {
+    this.loadDeletedIds();
     this.loadFromLocalStorage();
     this.initRealtime();
+  }
+
+  private loadDeletedIds() {
+    try {
+      const data = localStorage.getItem(DELETED_ALERTS_KEY);
+      if (data) {
+        const arr = JSON.parse(data);
+        if (Array.isArray(arr)) {
+          arr.forEach((id: string) => this.deletedIds.add(id));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private saveDeletedIds() {
+    try {
+      localStorage.setItem(DELETED_ALERTS_KEY, JSON.stringify(Array.from(this.deletedIds)));
+    } catch {
+      // ignore
+    }
   }
 
   // Carga inicial de alertas en caché local
@@ -121,7 +151,10 @@ class AlertService {
     try {
       const data = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (data) {
-        this.alertsCache = JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          this.alertsCache = parsed.filter((a: AlertUI) => !this.deletedIds.has(a.id));
+        }
       }
     } catch {
       // ignore
@@ -223,8 +256,8 @@ class AlertService {
         console.warn('Error al consultar alertas en Supabase:', resultado.error?.message);
         return this.alertsCache;
       }
-      const filas = resultado.data as SupabaseAlertaRow[];
-      const alertas = filas.map(mapSupabaseRowToUI);
+      const filas = (resultado.data as SupabaseAlertaRow[]).filter((f) => !this.deletedIds.has(f.id));
+      const alertas = filas.map(mapSupabaseRowToUI).filter((a) => !this.deletedIds.has(a.id));
       await this.firmarFotos(alertas, filas);
       this.alertsCache = alertas;
       this.notify();
@@ -352,6 +385,16 @@ class AlertService {
       archiveService.archivarAlerta(targetAlert, reason, 'descartada');
     }
     await this.validar(id, 'descartar', { motivo: reason });
+    return true;
+  }
+
+  // Elimina / purga permanentemente un incidente de las vistas de consola y de la caché
+  public async deleteAlert(id: string): Promise<boolean> {
+    this.deletedIds.add(id);
+    this.saveDeletedIds();
+    this.alertsCache = this.alertsCache.filter((a) => a.id !== id);
+    this.notify();
+    archiveService.eliminarCarpetaPorAlertaId(id);
     return true;
   }
 
