@@ -36,7 +36,7 @@ export const NearbyAlertsFeed: React.FC<NearbyAlertsFeedProps> = ({
   onSelectOnMap,
   isAdminTheme = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('nearby');
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [selectedCategory, setSelectedCategory] = useState<CategoriaAlerta | 'all'>('all');
   const [onlyCritical, setOnlyCritical] = useState<boolean>(false);
   const [showGuiaModal, setShowGuiaModal] = useState<boolean>(false);

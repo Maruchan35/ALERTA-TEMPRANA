@@ -429,8 +429,10 @@ class AlertService {
       if (filas.length > 0) {
         const alertas = filas.map(mapSupabaseRowToUI);
         await this.firmarFotos(alertas, filas);
-        this.alertsCache = alertas;
-      } else if (this.alertsCache.length === 0) {
+        const ids = new Set(alertas.map((a) => a.id));
+        const semillas = DEFAULT_SEED_ALERTS.filter((s) => !ids.has(s.id));
+        this.alertsCache = [...alertas, ...semillas];
+      } else {
         this.alertsCache = [...DEFAULT_SEED_ALERTS];
       }
       this.notify();
