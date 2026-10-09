@@ -514,36 +514,34 @@ export const RadarMap: React.FC<RadarMapProps> = ({
       )}
 
       {/* Botones flotantes de navegación cartográfica */}
-      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1.5 items-end">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleRecenterUser}
-            className="px-3 py-1.5 rounded-lg bg-white/95 hover:bg-white text-slate-700 shadow-2xs border border-slate-200/80 backdrop-blur-xs transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 text-xs font-medium select-none"
-            title="Centrar en mi ubicación actual"
-          >
-            <Crosshair className="w-3.5 h-3.5 text-slate-700" />
-            <span className="hidden sm:inline">Centrar</span>
-          </button>
+      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={handleRecenterUser}
+          className="p-2.5 rounded-xl bg-white/95 hover:bg-white text-slate-700 hover:text-blue-600 shadow-md border border-slate-200 backdrop-blur-sm transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+          title="Centrar en mi ubicación actual"
+        >
+          <Crosshair className="w-4 h-4 text-blue-600" />
+          <span className="hidden sm:inline">Centrar en Mí</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={handleFitAllAlerts}
-            className="px-3 py-1.5 rounded-lg bg-white/95 hover:bg-white text-slate-700 shadow-2xs border border-slate-200/80 backdrop-blur-xs transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 text-xs font-medium select-none"
-            title="Ver todas las geocercas activas en el municipio"
-          >
-            <Navigation className="w-3.5 h-3.5 text-slate-700" />
-            <span className="hidden sm:inline">Todas ({alerts.length})</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleFitAllAlerts}
+          className="p-2.5 rounded-xl bg-white/95 hover:bg-white text-slate-700 hover:text-emerald-700 shadow-md border border-slate-200 backdrop-blur-sm transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+          title="Ver todas las geocercas activas en el municipio"
+        >
+          <Navigation className="w-4 h-4 text-emerald-600" />
+          <span className="hidden sm:inline">Ver Todas ({alerts.length})</span>
+        </button>
 
         {/* Selector de Capa de Mapa */}
-        <div className="inline-flex items-center bg-white/95 backdrop-blur-xs rounded-lg p-0.5 border border-slate-200/80 shadow-2xs text-xs">
+        <div className="flex items-center bg-white/95 backdrop-blur-md rounded-xl p-1 border border-slate-200 shadow-md text-xs">
           <button
             type="button"
             onClick={() => setMapStyle('streets')}
-            className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer select-none active:scale-[0.98] ${
-              mapStyle === 'streets' ? 'bg-slate-900 text-white font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              mapStyle === 'streets' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
             title="Mapa de calles OpenStreetMap"
           >
@@ -552,8 +550,8 @@ export const RadarMap: React.FC<RadarMapProps> = ({
           <button
             type="button"
             onClick={() => setMapStyle('satellite')}
-            className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer select-none active:scale-[0.98] ${
-              mapStyle === 'satellite' ? 'bg-slate-900 text-white font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              mapStyle === 'satellite' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
             title="Fotografía satelital Esri World Imagery"
           >
@@ -562,8 +560,8 @@ export const RadarMap: React.FC<RadarMapProps> = ({
           <button
             type="button"
             onClick={() => setMapStyle('dark')}
-            className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer select-none active:scale-[0.98] ${
-              mapStyle === 'dark' ? 'bg-slate-900 text-white font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              mapStyle === 'dark' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
             title="Modo táctico de contraste nocturno"
           >
@@ -571,36 +569,36 @@ export const RadarMap: React.FC<RadarMapProps> = ({
           </button>
         </div>
 
-        {/* Toggles de Capas */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setShowPOIs(!showPOIs)}
-            className={`px-3 py-1.5 rounded-lg shadow-2xs border backdrop-blur-xs transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 text-xs font-medium select-none ${
-              showPOIs
-                ? 'bg-emerald-50/95 border-emerald-300 text-emerald-800'
-                : 'bg-white/95 border-slate-200/80 text-slate-600 hover:bg-white'
-            }`}
-            title="Hospitales, Policía, Bomberos y Puestos de auxilio en Lázaro Cárdenas"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden sm:inline">Puntos Seguros</span>
-          </button>
+        {/* Toggle Puntos Seguros (Hospitales, Comandancia, Bomberos) */}
+        <button
+          type="button"
+          onClick={() => setShowPOIs(!showPOIs)}
+          className={`p-2.5 rounded-xl shadow-md border backdrop-blur-sm transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+            showPOIs
+              ? 'bg-emerald-50/95 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+              : 'bg-white/95 border-slate-200 text-slate-600 hover:bg-white'
+          }`}
+          title="Hospitales, Policía, Bomberos y Puestos de auxilio en Lázaro Cárdenas"
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span className="hidden sm:inline">Puntos Seguros: {showPOIs ? 'ON' : 'OFF'}</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setShowGeofences(!showGeofences)}
-            className={`px-3 py-1.5 rounded-lg shadow-2xs border backdrop-blur-xs transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 text-xs font-medium select-none ${
-              showGeofences
-                ? 'bg-red-50/95 border-red-200 text-red-700'
-                : 'bg-white/95 border-slate-200/80 text-slate-600 hover:bg-white'
-            }`}
-            title="Activar o desactivar círculos de geocercas en el mapa"
-          >
-            <Radio className="w-3.5 h-3.5 text-red-600" />
-            <span className="hidden sm:inline">Geocercas</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowGeofences(!showGeofences)}
+          className={`p-2.5 rounded-xl shadow-md border backdrop-blur-sm transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+            showGeofences
+              ? 'bg-blue-50/95 border-blue-300 text-blue-700 hover:bg-blue-100'
+              : 'bg-white/95 border-slate-200 text-slate-600 hover:bg-white'
+          }`}
+          title="Activar o desactivar círculos de geocercas en el mapa"
+        >
+          <Radio className="w-4 h-4 text-blue-600" />
+          <span className="hidden sm:inline">
+            {showGeofences ? 'Geocercas: ON' : 'Geocercas: OFF'}
+          </span>
+        </button>
       </div>
 
       {/* Sugerencia de arrastre flotante */}
