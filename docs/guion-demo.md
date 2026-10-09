@@ -91,6 +91,8 @@ Costo del prototipo: $0 (planes gratuitos). Piloto con empresas del CCE, escuela
 | ¿Por qué el SOS no llama solo al 911? | Android no deja que una app llame sola a un número de emergencia, y una llamada automática por una activación accidental mandaría patrullas por nada. El SOS deja el 911 a un toque y el validador avisa al 911 con la ubicación en vivo y el folio. |
 | ¿Y si le quitan el teléfono? | El video se sube en fragmentos de 15 s: lo grabado ya está en el servidor. Si el teléfono deja de mandar señal 2 minutos, los validadores reciben “SOS · SIN SEÑAL” con la última posición. |
 | ¿Se dispara solo al correr o en un bache? | Hace falta una sacudida deliberada (4 golpes fuertes en 1 s; correr da ~3 por segundo), y siempre hay 5 s para cancelar. Hay simulacro para practicar. |
+| ¿Y si el ladrón ve "cancelar" y lo apaga? | Cancelar pide la huella o el PIN del dueño; el ladrón no puede. La cuenta regresiva no se pausa mientras tanto, así que si no pasa el PIN, el SOS se dispara igual. |
+| ¿Y si el teléfono queda en la bolsa o le apagan la pantalla? | La cámara no graba en segundo plano, pero el micrófono sí: el audio se sube en segmentos de ~6 s y el validador oye lo que pasa casi en vivo, además de la ubicación. |
 
 ## Lista de verificación (Anexo C)
 

@@ -25,7 +25,26 @@ void main() {
       ..setMockMethodCallHandler(const MethodChannel('alerta_cerca/proteccion'), (llamada) async => null)
       ..setMockMethodCallHandler(const MethodChannel('dev.fluttercommunity.plus/battery'), (llamada) async => 80)
       // Sin cámaras: el SOS sigue (ubicación y 911) y lo dice en pantalla
-      ..setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/camera'), (llamada) async => null);
+      ..setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/camera'), (llamada) async => null)
+      // Micrófono (record): sin permiso en las pruebas, así el grabador de audio no arranca
+      ..setMockMethodCallHandler(const MethodChannel('com.llfbandit.record/messages'), (llamada) async {
+        if (llamada.method == 'hasPermission' || llamada.method == 'isRecording') return false;
+        return null;
+      });
+  });
+
+  tearDown(() {
+    for (final canal in [
+      'alerta_cerca/proteccion',
+      'dev.fluttercommunity.plus/battery',
+      'plugins.flutter.io/camera',
+      'com.llfbandit.record/messages',
+    ]) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        MethodChannel(canal),
+        null,
+      );
+    }
   });
 
   late ControlEmergencia sos;
@@ -147,6 +166,23 @@ void main() {
     await tocar(tester, 'Cerrar');
     expect(sos.etapa, EtapaSos.inactiva);
     expect(find.text('Emergencia cerrada'), findsNothing);
+  });
+
+  testWidgets('SOS: con la protección por PIN pero sin bloqueo en el teléfono, no deja a la persona atrapada', (
+    tester,
+  ) async {
+    // sos_pin_cancelar está activado por defecto, pero Autenticacion.disponible() es false en las
+    // pruebas (sin huella/PIN): la persona debe poder cancelar igual (confirmando en el diálogo).
+    final estado = await abrirApp(tester, {'bienvenida_vista': true, 'demo_punto': 'A'});
+    expect(sos.pinActivado, isFalse, reason: 'sin bloqueo en el teléfono, no se exige PIN');
+    await tocar(tester, 'SOS');
+    await esperarCuenta(tester);
+    expect(sos.etapa, EtapaSos.activa);
+    await tocar(tester, 'ESTOY A SALVO');
+    await tocar(tester, 'Sí, estoy a salvo');
+    expect(sos.etapa, EtapaSos.terminada, reason: 'se terminó sin pedir PIN (no hay bloqueo)');
+    final e = (await (estado.servicio as ServicioDemo).flujoEmergencias().first).single;
+    expect(e.cierre, CierreEmergencia.aSalvo);
   });
 
   testWidgets('SOS: el simulacro se ve igual pero no avisa a nadie', (tester) async {

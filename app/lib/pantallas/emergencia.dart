@@ -106,8 +106,16 @@ class _Cuenta extends StatelessWidget {
                       foregroundColor: Colores.rojo,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
-                    onPressed: c.cancelarCuenta,
-                    child: const Text('CANCELAR', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900)),
+                    onPressed: () async {
+                      final ok = await c.intentarDetener(CierreEmergencia.falsaAlarma);
+                      if (!ok) {
+                        mostrarMensaje('Para cancelar, confirma con tu huella o PIN.', error: true);
+                      }
+                    },
+                    child: Text(
+                      c.pinActivado ? 'CANCELAR (HUELLA/PIN)' : 'CANCELAR',
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -138,6 +146,12 @@ class _Activa extends StatelessWidget {
 
   Future<void> _terminar(BuildContext context, CierreEmergencia cierre) async {
     final aSalvo = cierre == CierreEmergencia.aSalvo;
+    // Con protección por PIN, la huella/PIN ES la confirmación; sin ella, se pregunta antes
+    if (control.pinActivado) {
+      final ok = await control.intentarDetener(cierre);
+      if (!ok) mostrarMensaje('Para terminar el SOS, confirma con tu huella o PIN.', error: true);
+      return;
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -159,7 +173,7 @@ class _Activa extends StatelessWidget {
         ],
       ),
     );
-    if (ok ?? false) await control.terminar(cierre);
+    if (ok ?? false) await control.intentarDetener(cierre);
   }
 
   @override
@@ -430,6 +444,7 @@ class _EvidenciaState extends State<_Evidencia> with WidgetsBindingObserver {
     final camara = _camara;
     if (camara == null || camara.value.isRecordingVideo || !c.abierta) return;
     await camara.startVideoRecording();
+    c.camaraActiva = true; // el video ya captura audio: el grabador de audio se pausa
     _inicio = DateTime.now();
     _corte?.cancel();
     _corte = Timer(const Duration(seconds: 15), _cortar);
@@ -452,6 +467,7 @@ class _EvidenciaState extends State<_Evidencia> with WidgetsBindingObserver {
     _corte?.cancel();
     final camara = _camara;
     _camara = null;
+    c.camaraActiva = false; // sin cámara grabando: el audio puede seguir con la pantalla apagada
     if (camara == null) return;
     if (camara.value.isRecordingVideo) {
       try {

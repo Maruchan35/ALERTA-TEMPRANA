@@ -306,7 +306,7 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
           const Seccion('Acerca de'),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('ALERTA CERCA · prototipo 1.1'),
+            title: Text('ALERTA CERCA · prototipo 1.2'),
             subtitle: Text(
               'Sistema Inteligente de Alertamiento Comunitario por Proximidad. HackaITLAC 2026 · '
               'Reto del Consejo Coordinador Empresarial de Lázaro Cárdenas.',

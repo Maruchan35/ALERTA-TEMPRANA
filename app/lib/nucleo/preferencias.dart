@@ -36,6 +36,9 @@ abstract final class Claves {
 
   /// Pedir ayuda con una sacudida fuerte (con la app abierta).
   static const sosSacudida = 'sos_sacudida';
+
+  /// Pedir huella o PIN para cancelar o terminar un SOS (para que un ladrón no lo quite).
+  static const sosPinCancelar = 'sos_pin_cancelar';
 }
 
 /// Una zona guardada: el servidor conoce su celda; el teléfono, su punto exacto.

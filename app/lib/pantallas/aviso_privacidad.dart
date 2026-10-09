@@ -23,16 +23,16 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
           '• Solo si quieres reportar o confirmar: tu número de teléfono verificado.\n'
           '• En los reportes: la ubicación del suceso (un lugar, no una persona), la descripción y, si la '
           'agregas, una foto sin metadatos.\n'
-          '• Solo si TÚ activas el modo emergencia (SOS): ver la sección siguiente.',
+          '• Solo si TÚ activas el modo emergencia (SOS): ubicación en vivo, video y audio (ver la sección siguiente).',
     ),
     (
       'Modo emergencia (SOS)',
       'Es la única excepción y solo ocurre si tú pides ayuda. Mientras la emergencia está abierta compartimos tu '
-          'ubicación exacta (con su recorrido), tu velocidad, el nivel de batería y el video con audio que grabe '
-          'tu teléfono mientras la pantalla del SOS está abierta. Los ven únicamente Protección Civil y los '
-          'validadores del CCE que dan seguimiento (nunca tus vecinos), para localizarte y avisar al 911. Si '
-          'verificaste tu número, también lo ven, para poder llamarte. Al terminar se deja de compartir, y todo '
-          'se borra a los 30 días.',
+          'ubicación exacta (con su recorrido), tu velocidad, el nivel de batería, el video que grabe tu teléfono '
+          'mientras la pantalla del SOS está abierta y el audio del micrófono todo el tiempo (también con la '
+          'pantalla apagada). Los ven únicamente Protección Civil y los validadores del CCE que dan seguimiento '
+          '(nunca tus vecinos), para localizarte y avisar al 911. Si verificaste tu número, también lo ven, para '
+          'poder llamarte. Al terminar se deja de compartir, y todo se borra a los 30 días.',
     ),
     (
       'Para qué',
@@ -86,7 +86,7 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
           const Text('Aviso de privacidad simplificado', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
           Text(
-            'Prototipo · versión 1.1 · octubre de 2026',
+            'Prototipo · versión 1.2 · octubre de 2026',
             style: TextStyle(color: Colors.grey.shade700, fontSize: 12.5),
           ),
           for (final (titulo, texto) in _secciones) ...[

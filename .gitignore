@@ -18,6 +18,7 @@ supabase/.branches/
 # ─── Flutter / Dart ────────────────────────────────────────────────────────
 **/build/
 **/.dart_tool/
+**/.kotlin/
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/.packages

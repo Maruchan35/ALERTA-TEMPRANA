@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show File;
+import 'dart:io' show Directory, File;
 import 'dart:math' as math;
 
 import 'package:alerta_compartido/alerta_compartido.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:camera/camera.dart' show XFile;
 import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
 import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,7 +36,14 @@ enum EtapaSos {
 
 /// Un fragmento de video que falta subir. Se guarda en el teléfono por si la app se cierra.
 class _Fragmento {
-  const _Fragmento({required this.emergencia, required this.ruta, required this.nombre, required this.duracion});
+  const _Fragmento({
+    required this.emergencia,
+    required this.ruta,
+    required this.nombre,
+    required this.duracion,
+    this.tipo = 'video',
+    this.contentType = 'video/mp4',
+  });
 
   factory _Fragmento.desdeJson(String s) {
     final m = jsonDecode(s) as Map<String, dynamic>;
@@ -44,6 +52,8 @@ class _Fragmento {
       ruta: m['ruta'] as String,
       nombre: m['nombre'] as String,
       duracion: (m['duracion'] as num).toInt(),
+      tipo: m['tipo'] as String? ?? 'video',
+      contentType: m['contentType'] as String? ?? 'video/mp4',
     );
   }
 
@@ -51,8 +61,17 @@ class _Fragmento {
   final String ruta;
   final String nombre;
   final int duracion;
+  final String tipo;
+  final String contentType;
 
-  String aJson() => jsonEncode({'emergencia': emergencia, 'ruta': ruta, 'nombre': nombre, 'duracion': duracion});
+  String aJson() => jsonEncode({
+    'emergencia': emergencia,
+    'ruta': ruta,
+    'nombre': nombre,
+    'duracion': duracion,
+    'tipo': tipo,
+    'contentType': contentType,
+  });
 }
 
 /// MODO EMERGENCIA (SOS) de quien está en peligro: cuenta regresiva, aviso a los validadores,
@@ -94,6 +113,17 @@ class ControlEmergencia extends ChangeNotifier {
 
   /// "Estoy a salvo" tocado mientras la alerta todavía iba en camino al servidor.
   CierreEmergencia? _cierreSinEnviar;
+
+  /// El teléfono tiene huella o PIN: se puede proteger el "cancelar" (se revisa al reanudar).
+  bool puedeAutenticar = false;
+
+  // Audio: graba cuando la cámara NO está grabando (pantalla apagada, en la bolsa). Así nunca
+  // se pelean el micrófono, y el audio sigue aunque no se vea nada.
+  AudioRecorder? _grabadoraAudio;
+  Timer? _corteAudio;
+  DateTime? _inicioAudio;
+  var _camaraActiva = false;
+  var _audioActivo = false;
   final _cola = <_Fragmento>[];
   int? _bateria;
   DateTime? _bateriaLeida;
@@ -104,6 +134,16 @@ class ControlEmergencia extends ChangeNotifier {
   bool get visible => etapa != EtapaSos.inactiva;
   String? get id => estado?.id;
   int get pendientes => _cola.length;
+
+  /// Cancelar o terminar el SOS pide huella o PIN (para que un ladrón no lo quite).
+  bool get pinActivado => !simulacro && (prefs.getBool(Claves.sosPinCancelar) ?? true) && puedeAutenticar;
+
+  /// La cámara está grabando video (con su propio audio): el grabador de audio se pausa.
+  set camaraActiva(bool v) {
+    if (_camaraActiva == v) return;
+    _camaraActiva = v;
+    _evaluarAudio();
+  }
 
   // ─── Configuración ─────────────────────────────────────────────────────────
   /// Sacudida fuerte con la app abierta.
@@ -141,6 +181,7 @@ class ControlEmergencia extends ChangeNotifier {
   void alCambiarCicloDeVida(AppLifecycleState s) {
     _enPrimerPlano = s == AppLifecycleState.resumed;
     _actualizarEscucha();
+    _evaluarAudio();
     if (_enPrimerPlano) _procesarCola();
   }
 
@@ -176,6 +217,27 @@ class ControlEmergencia extends ChangeNotifier {
     simulacro = false;
     Proteccion.sobrePantallaBloqueada(false);
     notifyListeners();
+  }
+
+  /// Detiene el SOS (cancela la cuenta o lo termina). Si la protección con PIN está activada,
+  /// pide huella o PIN ANTES: así un ladrón no lo puede quitar. La cuenta regresiva NO se pausa
+  /// mientras se autentica, para que un forcejeo no la congele. Devuelve false si no se confirmó.
+  Future<bool> intentarDetener(CierreEmergencia cierre) async {
+    if (pinActivado) {
+      final ok = await Autenticacion.confirmar(
+        cierre == CierreEmergencia.aSalvo
+            ? 'Confirma que eres tú para avisar que estás a salvo'
+            : 'Confirma que eres tú para cancelar el SOS',
+      );
+      if (!ok) return false;
+    }
+    // La cuenta pudo haber disparado el SOS mientras se autenticaba: se actúa según el estado real
+    if (etapa == EtapaSos.cuentaRegresiva) {
+      cancelarCuenta();
+    } else if (abierta) {
+      await terminar(cierre);
+    }
+    return true;
   }
 
   // ─── Pedir ayuda ───────────────────────────────────────────────────────────
@@ -225,6 +287,7 @@ class ControlEmergencia extends ChangeNotifier {
       etapa = EtapaSos.activa;
       await prefs.setString(Claves.sosId, r.id);
       _seguir();
+      _evaluarAudio();
       _procesarCola();
     } on ErrorServicio catch (e) {
       error = e.mensaje;
@@ -415,6 +478,7 @@ class ControlEmergencia extends ChangeNotifier {
     _gps = null;
     _latido?.cancel();
     _reintento?.cancel();
+    await _detenerAudio();
     cerrada = r;
     estado = null;
     etapa = simulacro || r == null ? EtapaSos.inactiva : EtapaSos.terminada;
@@ -471,13 +535,22 @@ class ControlEmergencia extends ChangeNotifier {
         await prefs.remove(Claves.sosId);
       }
     }
+    puedeAutenticar = await Autenticacion.disponible();
     await _actualizarEscucha();
+    _evaluarAudio();
     _procesarCola();
   }
 
   // ─── Evidencia ─────────────────────────────────────────────────────────────
-  /// Un fragmento de video terminado: se sube en cuanto se pueda (y se reintenta si no hay señal).
-  Future<void> agregarFragmento(String ruta, Duration duracion) async {
+  /// Un fragmento de evidencia terminado (video o audio): se sube en cuanto se pueda, y se
+  /// reintenta si no hay señal.
+  Future<void> agregarFragmento(
+    String ruta,
+    Duration duracion, {
+    String tipo = 'video',
+    String extension = 'mp4',
+    String contentType = 'video/mp4',
+  }) async {
     final id = this.id ?? cerrada?.id;
     if (id == null || simulacro || id == 'simulacro') {
       _borrar(ruta);
@@ -487,13 +560,105 @@ class ControlEmergencia extends ChangeNotifier {
       _Fragmento(
         emergencia: id,
         ruta: ruta,
-        nombre: '${DateTime.now().millisecondsSinceEpoch}.mp4',
+        nombre: '${DateTime.now().millisecondsSinceEpoch}.$extension',
         duracion: math.max(1, duracion.inSeconds),
+        tipo: tipo,
+        contentType: contentType,
       ),
     );
     await _guardarCola();
     notifyListeners();
     _procesarCola();
+  }
+
+  // ─── Audio en tiempo casi real ──────────────────────────────────────────────
+  // Graba segmentos de ~6 s y los sube al terminar cada uno; sigue con la pantalla apagada
+  // gracias al servicio de micrófono. Solo cuando la cámara no está grabando (para no pelear
+  // el micrófono) y nunca en la web, en el simulacro ni fuera de una emergencia.
+  void _evaluarAudio() {
+    final debe = etapa == EtapaSos.activa && !simulacro && !_camaraActiva && !kIsWeb;
+    if (debe && !_audioActivo) {
+      _iniciarAudio();
+    } else if (!debe && _audioActivo) {
+      _detenerAudio();
+    }
+  }
+
+  Future<void> _iniciarAudio() async {
+    if (_audioActivo) return;
+    _audioActivo = true;
+    try {
+      _grabadoraAudio ??= AudioRecorder();
+      if (!await _grabadoraAudio!.hasPermission()) {
+        _audioActivo = false;
+        return;
+      }
+      await Proteccion.iniciarMicrofono();
+      await _grabarSegmentoAudio();
+    } catch (e) {
+      debugPrint('Audio del SOS: $e');
+      _audioActivo = false;
+    }
+  }
+
+  Future<void> _grabarSegmentoAudio() async {
+    if (!_audioActivo || etapa != EtapaSos.activa || _camaraActiva) return;
+    final ruta = '${Directory.systemTemp.path}/sos_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    try {
+      await _grabadoraAudio!.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100, numChannels: 1),
+        path: ruta,
+      );
+      _inicioAudio = DateTime.now();
+      _corteAudio?.cancel();
+      _corteAudio = Timer(const Duration(seconds: 6), _cortarAudio);
+    } catch (e) {
+      debugPrint('Audio del SOS: $e');
+      _audioActivo = false;
+    }
+  }
+
+  Future<void> _cortarAudio() async {
+    _corteAudio?.cancel();
+    if (_grabadoraAudio == null) return;
+    try {
+      final ruta = await _grabadoraAudio!.stop();
+      if (ruta != null) {
+        await agregarFragmento(
+          ruta,
+          DateTime.now().difference(_inicioAudio ?? DateTime.now()),
+          tipo: 'audio',
+          extension: 'm4a',
+          contentType: 'audio/mp4',
+        );
+      }
+    } catch (e) {
+      debugPrint('Audio del SOS: $e');
+    }
+    if (_audioActivo && etapa == EtapaSos.activa && !_camaraActiva) await _grabarSegmentoAudio();
+  }
+
+  Future<void> _detenerAudio() async {
+    if (!_audioActivo && _grabadoraAudio == null) return;
+    _audioActivo = false;
+    _corteAudio?.cancel();
+    try {
+      if (await (_grabadoraAudio?.isRecording() ?? Future.value(false))) {
+        final ruta = await _grabadoraAudio!.stop();
+        if (ruta != null) {
+          await agregarFragmento(
+            ruta,
+            DateTime.now().difference(_inicioAudio ?? DateTime.now()),
+            tipo: 'audio',
+            extension: 'm4a',
+            contentType: 'audio/mp4',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Audio del SOS: $e');
+    }
+    await Proteccion.detenerMicrofono();
   }
 
   Future<void> _procesarCola() async {
@@ -555,7 +720,9 @@ class ControlEmergencia extends ChangeNotifier {
     _reintento?.cancel();
     _latido?.cancel();
     _reintentoCola?.cancel();
+    _corteAudio?.cancel();
     _gps?.cancel();
+    _grabadoraAudio?.dispose();
     _escucha.detener();
     super.dispose();
   }

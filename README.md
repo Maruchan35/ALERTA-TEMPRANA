@@ -12,8 +12,10 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 
 Y para la persona a la que le está pasando (asalto, secuestro, la siguen): **modo emergencia (SOS)**. Con el botón
 rojo, una sacudida fuerte del teléfono o el atajo del ícono, tras 5 s para cancelar avisa a los validadores de guardia,
-comparte su **ubicación en vivo** (también con la pantalla apagada), graba **video de evidencia** que se sube por
-fragmentos y deja llamar al 911 con un toque. Los validadores la siguen en el mapa hasta que la localizan
+comparte su **ubicación en vivo** (también con la pantalla apagada), graba **video** (con la pantalla abierta) y
+**audio en tiempo casi real** (aunque la pantalla esté apagada) como evidencia, y deja llamar al 911 con un toque.
+Para que un ladrón no pueda apagarlo, **cancelarlo pide la huella o el PIN** del teléfono. Los validadores la siguen
+en el mapa hasta que la localizan
 ([arquitectura](docs/arquitectura.md#modo-emergencia-sos-para-la-persona-a-la-que-le-está-pasando)).
 
 ## Qué hay en el repositorio
@@ -22,7 +24,7 @@ fragmentos y deja llamar al 911 con un toque. Los validadores la siguen en el ma
 |---|---|---|
 | [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, verificación por WhatsApp, **modo emergencia (SOS)**, pg_cron, Vault | **62 pruebas automáticas** (PGlite + PostGIS reales) |
 | [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram, y la alarma SOS a validadores), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento`, `whatsapp` | **22 pruebas** Deno, tipos y lint |
-| [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push, **SOS** (botón, sacudida, modo protección con la app cerrada, ubicación en vivo, video de evidencia, 911) | Pruebas de widgets; analizada sin errores |
+| [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push, **SOS** (botón, sacudida, modo protección con la app cerrada, ubicación en vivo, video y audio de evidencia, cancelar con huella/PIN, 911) | Pruebas de widgets; analizada sin errores |
 | [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **emergencias SOS en vivo con alarma**, **simulador de 4 teléfonos** | Pruebas de widgets; analizado sin errores |
 | [`web/`](web) | Portal Web Comunitario y Consola CCE (React + Vite + Leaflet + Tailwind): Radar en vivo, geocercas, avistamientos, modo moderador oscuro y **Emergencias SOS** | Compila con candado contra escrituras directas |
 | [`puente-whatsapp/`](puente-whatsapp) | Envía los códigos de verificación desde un WhatsApp normal vinculado como dispositivo (sin WhatsApp Business) | Pruebas de Node |
@@ -91,7 +93,8 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 - **Modo emergencia (SOS)** ([011_emergencias.sql](supabase/migrations/011_emergencias.sql)): la propuesta solo veía lo
   que pasa *afuera*. Ahora quien está en peligro pide ayuda (botón, sacudida, atajo; 5 s para cancelar; también sin
   cuenta), los validadores reciben una alarma de prioridad máxima, ven su recorrido en vivo, velocidad (¿va en un
-  vehículo?), batería y video, y registran el aviso al 911; si el teléfono deja de responder, otra alarma. Es la única
+  vehículo?), batería, video y audio en vivo, y registran el aviso al 911; si el teléfono deja de responder, otra
+  alarma. Cancelar el SOS pide huella o PIN, para que un ladrón no lo apague. Es la única
   excepción a "no guardamos tu ubicación exacta": la pide la propia persona, solo la ven los validadores (nunca los
   vecinos) y se borra a los 30 días.
 

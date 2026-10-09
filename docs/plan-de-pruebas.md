@@ -32,6 +32,8 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 | P25 | SOS: evidencia | *SOS: la evidencia solo se sube…* (SQL) | Con el SOS abierto 30 s → en el panel aparecen 2 videos y se pueden ver |
 | P26 | SOS: sin señal | *SOS: si el teléfono deja de mandar señal…* (SQL) | Activar el modo avión con el SOS abierto → a los 2 min llega “SOS · SIN SEÑAL” |
 | P27 | SOS: sacudida | *detector de sacudidas* (`compartido`): caminar y correr no la disparan | Con *Sacudir el teléfono* activado, 4 sacudidas fuertes → cuenta regresiva; con el modo protección, también con la app cerrada y el teléfono bloqueado |
+| P28 | SOS: cancelar con PIN | *SOS: con la protección por PIN pero sin bloqueo…* (app): sin bloqueo no deja a la persona atrapada | Con bloqueo puesto, tocar CANCELAR o "Estoy a salvo" pide huella/PIN; otra persona no puede apagarlo |
+| P29 | SOS: audio en vivo | el grabador se coordina con la cámara (no graban a la vez) | Con el SOS activo y la pantalla apagada, en el panel llegan segmentos de audio cada ~6 s |
 
 ## Además de la propuesta
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../nucleo/emergencia.dart';
 import '../nucleo/notificaciones.dart';
+import '../nucleo/preferencias.dart';
 import '../nucleo/proteccion.dart';
 import '../nucleo/ubicacion.dart';
 import '../widgets/comunes.dart';
@@ -19,6 +20,7 @@ class PantallaModoEmergencia extends StatefulWidget {
 
 class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with WidgetsBindingObserver {
   bool? _proteccion;
+  bool? _puedeAutenticar;
   var _pantallaCompleta = true;
   PermisoUbicacion? _ubicacion;
   bool? _notificaciones;
@@ -46,6 +48,8 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
   Future<void> _revisar() async {
     final c = AlcanceSos.leer(context);
     final proteccion = await c.proteccionActiva();
+    final puedeAutenticar = await Autenticacion.disponible();
+    c.puedeAutenticar = puedeAutenticar;
     final pantallaCompleta = await Proteccion.puedePantallaCompleta();
     PermisoUbicacion? ubicacion;
     try {
@@ -58,6 +62,7 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
     if (!mounted) return;
     setState(() {
       _proteccion = proteccion;
+      _puedeAutenticar = puedeAutenticar;
       _pantallaCompleta = pantallaCompleta;
       _ubicacion = ubicacion;
       _notificaciones = notificaciones;
@@ -110,9 +115,10 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Tendrás 5 segundos para cancelar. Después avisamos a Protección Civil y a los validadores de '
-                    'guardia, compartimos tu ubicación en vivo (también con la pantalla apagada), grabamos video '
-                    'como evidencia mientras la pantalla del SOS está abierta y puedes llamar al 911 con un toque.',
+                    'Tendrás 5 segundos para cancelar (con tu huella o PIN, para que nadie más lo apague). Después '
+                    'avisamos a Protección Civil y a los validadores de guardia, compartimos tu ubicación en vivo '
+                    '(también con la pantalla apagada), grabamos video mientras la pantalla del SOS está abierta y '
+                    'audio todo el tiempo (aunque la pantalla esté apagada), y puedes llamar al 911 con un toque.',
                   ),
                 ],
               ),
@@ -143,6 +149,22 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
                       await _revisar();
                     },
             ),
+          SwitchListTile(
+            secondary: const Icon(Icons.lock_outline),
+            title: const Text('Pedir huella o PIN para cancelar'),
+            subtitle: Text(
+              _puedeAutenticar == false
+                  ? 'Tu teléfono no tiene huella ni PIN. Actívalo en los ajustes del teléfono para que nadie más pueda quitar tu SOS.'
+                  : 'Para que un ladrón no pueda apagar el SOS: cancelarlo o terminarlo pedirá tu huella o PIN.',
+            ),
+            value: (c.prefs.getBool(Claves.sosPinCancelar) ?? true) && (_puedeAutenticar ?? true),
+            onChanged: (_puedeAutenticar ?? false)
+                ? (si) async {
+                    await c.prefs.setBool(Claves.sosPinCancelar, si);
+                    setState(() {});
+                  }
+                : null,
+          ),
           const Seccion('Permisos (revísalos antes de necesitarlos)'),
           _Permiso(
             icono: Icons.location_on_outlined,
@@ -173,7 +195,7 @@ class _PantallaModoEmergenciaState extends State<PantallaModoEmergencia> with Wi
               icono: Icons.videocam_outlined,
               titulo: 'Cámara y micrófono',
               listo: _camara ?? false,
-              detalle: _camara == null ? 'Toca "Probar" para darlos ahora' : 'Para grabar evidencia',
+              detalle: _camara == null ? 'Toca "Probar" para darlos ahora' : 'Para grabar video y audio de evidencia',
               textoAccion: 'Probar',
               accion: _probarCamara,
             ),

@@ -17,6 +17,8 @@
     <!-- Ubicación en vivo durante la emergencia aunque se apague la pantalla (servicio de ubicación) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <!-- Audio de la emergencia con la pantalla apagada o el teléfono en la bolsa -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <!-- Modo protección (opcional): detectar la sacudida con la app cerrada -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
@@ -64,6 +66,11 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Botón de pánico: detecta una sacudida fuerte del teléfono para pedir ayuda (SOS)" />
         </service>
+        <!-- Mientras hay un SOS: permite seguir grabando audio con la pantalla apagada (siempre visible) -->
+        <service
+            android:name=".GrabacionService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
         <!-- Si el modo protección estaba encendido, vuelve a encenderlo al reiniciar el teléfono -->
         <receiver
             android:name=".ArranqueReceiver"

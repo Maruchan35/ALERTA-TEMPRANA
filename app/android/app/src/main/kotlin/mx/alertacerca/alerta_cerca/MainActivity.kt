@@ -10,7 +10,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.view.WindowManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -19,8 +19,10 @@ import io.flutter.plugin.common.MethodChannel
  *  - Recibe los disparos del SOS (sacudida con la app cerrada, botón de la notificación del modo
  *    protección y atajo del ícono) y se los pasa a Flutter, que muestra la cuenta regresiva.
  *  - Mientras hay una emergencia, la app se muestra sobre la pantalla de bloqueo (como una alarma).
+ *  - Enciende el servicio de micrófono para que el audio del SOS siga con la pantalla apagada.
+ * Es FlutterFragmentActivity porque el aviso de huella o PIN (local_auth) lo necesita.
  */
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private var canal: MethodChannel? = null
 
     /** Disparo que llegó antes de que Flutter estuviera listo (lo pide con "pendiente"). */
@@ -51,6 +53,14 @@ class MainActivity : FlutterActivity() {
                     "puedePantallaCompleta" -> resultado.success(puedePantallaCompleta())
                     "abrirAjustePantallaCompleta" -> {
                         abrirAjustePantallaCompleta()
+                        resultado.success(null)
+                    }
+                    "iniciarMicrofono" -> {
+                        GrabacionService.iniciar(this@MainActivity)
+                        resultado.success(null)
+                    }
+                    "detenerMicrofono" -> {
+                        GrabacionService.detener(this@MainActivity)
                         resultado.success(null)
                     }
                     "vibrar" -> {

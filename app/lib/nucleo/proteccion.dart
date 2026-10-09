@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alerta_compartido/alerta_compartido.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 /// Puente con Android para el modo emergencia (MainActivity.kt y ModoProteccionService.kt).
@@ -61,6 +62,38 @@ abstract final class Proteccion {
       await _llamar<void>('vibrar', ms);
     } else {
       await HapticFeedback.heavyImpact();
+    }
+  }
+
+  /// Servicio de micrófono: deja grabar el audio del SOS con la pantalla apagada (Android 14+).
+  static Future<void> iniciarMicrofono() => _llamar<void>('iniciarMicrofono');
+  static Future<void> detenerMicrofono() => _llamar<void>('detenerMicrofono');
+}
+
+/// Huella o PIN del teléfono para detener un SOS: así un ladrón no lo puede cancelar.
+abstract final class Autenticacion {
+  static final _auth = LocalAuthentication();
+
+  /// El teléfono tiene huella, PIN, patrón o contraseña configurados.
+  static Future<bool> disponible() async {
+    if (kIsWeb) return false;
+    try {
+      return await _auth.isDeviceSupported();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Pide huella o PIN. true = es la persona dueña. Un error o un "cancelar" devuelven false.
+  static Future<bool> confirmar(String razon) async {
+    if (kIsWeb) return true;
+    try {
+      return await _auth.authenticate(localizedReason: razon, biometricOnly: false, persistAcrossBackgrounding: true);
+    } on PlatformException catch (e) {
+      debugPrint('Autenticación: ${e.message}');
+      return false;
+    } catch (_) {
+      return false;
     }
   }
 }
