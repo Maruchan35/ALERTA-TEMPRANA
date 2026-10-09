@@ -266,7 +266,7 @@ Para una versión (Release) con el APK de demostración: `git tag v1.0.0 && git 
 
 ## Reportar por WhatsApp (asistente para adultos mayores)
 
-1. Servidor: aplica [013_reportes_whatsapp.sql](../supabase/migrations/013_reportes_whatsapp.sql) y [014_asistente_encuestas.sql](../supabase/migrations/014_asistente_encuestas.sql) (`npx supabase db push`). La 014 agrega las encuestas (las opciones se tocan). Crea el asistente, los límites (`config.reportes_whatsapp_por_hora` = 3 y `mensajes_whatsapp_por_hora` = 30) y la columna `alertas.origen`.
+1. Servidor: aplica [013_reportes_whatsapp.sql](../supabase/migrations/013_reportes_whatsapp.sql) y [014_asistente_encuestas.sql](../supabase/migrations/014_asistente_encuestas.sql) y [015_asistente_rapido.sql](../supabase/migrations/015_asistente_rapido.sql) (`npx supabase db push`). La 014 agrega las encuestas (las opciones se tocan) y la 015 hace que el asistente conteste al instante. Crea el asistente, los límites (`config.reportes_whatsapp_por_hora` = 3 y `mensajes_whatsapp_por_hora` = 30) y la columna `alertas.origen`.
 2. Puente: en la computadora del puente, actualiza `puente-whatsapp/` con esta versión, `npm install` y `npm start`. Ahora también recibe mensajes: quien escriba al número del puente recibe el menú.
 3. Probarlo: escribe «hola» al número del puente, elige 1, manda tu ubicación con el clip y confirma. El reporte aparece en la app y en el portal con origen WhatsApp.
 

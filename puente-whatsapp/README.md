@@ -53,6 +53,9 @@ Pruebas: `npm test`.
 
 El puente también **recibe** los mensajes de quien le escribe. No los contesta él: los entrega a `whatsapp_recibido()` del servidor ([013_reportes_whatsapp.sql](../supabase/migrations/013_reportes_whatsapp.sql)), que lleva la conversación (menú con números, ubicación con el clip, una frase opcional, confirmar) y deja la respuesta en la misma cola que los códigos.
 
+- Contesta **enseguida** (con «escribiendo…» y su encuesta), sin esperar a la cola; si el puente se cae a medias, la cola reintenta la respuesta al minuto.
+- La ubicación se acepta como ubicación de WhatsApp (el clip), como coordenadas escritas (`17.9581, -102.1942`) o como enlace de Google Maps (también el corto que manda «Compartir» desde Maps).
+- Si WhatsApp identifica al contacto con un número interno (@lid), se busca su teléfono; si no se puede, queda anotado en el registro.
 - No contesta grupos, estados, mensajes propios, reacciones ni el historial.
 - Quien escribe más de 30 mensajes por hora deja de recibir respuestas (config `mensajes_whatsapp_por_hora`).
 - Cada número puede levantar 3 reportes por hora (config `reportes_whatsapp_por_hora`).
@@ -60,3 +63,10 @@ El puente también **recibe** los mensajes de quien le escribe. No los contesta 
 - Las opciones se mandan como **encuestas de WhatsApp** que la persona toca (funcionan en cuentas normales, sin la API de Business). Si no se ven, el mensaje también trae el número de cada opción y se puede escribir.
 
 Un asistente que contesta mensajes es automatizado: usa un número aparte.
+
+## Si algo falla: los registros
+
+El puente escribe lo que pasa en `puente.log` (teléfonos ocultos: solo los últimos 4 dígitos) y los avisos y errores de WhatsApp en `puente-baileys.log`. Ahí se ve cada mensaje que llega (texto, ubicación, toque en una encuesta), cada respuesta que sale y por qué se ignoró algo que no se entendió. Se recortan solos al pasar de 2 MB y no se suben a git.
+
+- Se corta la conexión: reconecta solo, esperando 3, 6, 12… hasta 60 segundos, y no se rinde.
+- Si el servidor no responde, la persona recibe un aviso por WhatsApp en vez de quedarse sin respuesta.

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { getAggregateVotesInPollMessage } from 'baileys';
 import {
-  candidatosJid, ClienteSupabase, entradaDeMensaje, formatoCodigo, leerConfig, oculto, telefonoDeJid, valorElegido,
+  candidatosJid, ClienteSupabase, coordenadasDeEnlace, coordenadasDeTexto, entradaDeMensaje, formatoCodigo, leerConfig,
+  oculto, telefonoDeJid, tiposDeMensaje, valorElegido,
 } from './lib.mjs';
 
 const SECRETO = 'x'.repeat(40);
@@ -132,4 +133,38 @@ test('getAggregateVotesInPollMessage de Baileys + valorElegido: el toque cifrado
     }],
   }, '5210000000000@s.whatsapp.net');
   assert.equal(valorElegido(votos, ['Robo', 'Incendio'], ['categoria:1', 'categoria:3']), 'categoria:3');
+});
+
+test('coordenadasDeTexto: coordenadas escritas o dentro de un enlace de Google Maps', () => {
+  const esperado = { lat: 17.9581, lon: -102.1942 };
+  assert.deepEqual(coordenadasDeTexto('17.9581, -102.1942'), esperado);
+  assert.deepEqual(coordenadasDeTexto('17.9581 -102.1942'), esperado);
+  assert.deepEqual(coordenadasDeTexto('https://www.google.com/maps/place/Centro/@17.9581,-102.1942,17z/data=!3m1'), esperado);
+  assert.deepEqual(coordenadasDeTexto('https://maps.google.com/?q=17.9581,-102.1942'), esperado);
+  assert.deepEqual(coordenadasDeTexto('https://maps.google.com/?q=17.9581%2C-102.1942'), esperado);
+  assert.equal(coordenadasDeTexto('Calle Hidalgo 123 y Colón'), null);
+  assert.equal(coordenadasDeTexto('95.1234, -102.1942'), null, 'fuera de rango');
+  assert.equal(coordenadasDeTexto('Pasó a las 17.30, como a 102.5 metros'), null, 'una frase con números no es un lugar');
+  assert.equal(coordenadasDeTexto('x'.repeat(400)), null);
+});
+
+test('coordenadasDeEnlace: resuelve el enlace corto de Google Maps y no sigue otros sitios', async () => {
+  const consultas = [];
+  const falso = async (url) => {
+    consultas.push(String(url));
+    return { url: 'https://www.google.com/maps/place/X/@17.9581,-102.1942,17z' };
+  };
+  assert.deepEqual(await coordenadasDeEnlace('https://maps.app.goo.gl/AbC123', falso), { lat: 17.9581, lon: -102.1942 });
+  assert.deepEqual(consultas, ['https://maps.app.goo.gl/AbC123']);
+  assert.equal(await coordenadasDeEnlace('https://ejemplo.com/maps', falso), null);
+  assert.equal(consultas.length, 1, 'otros sitios no se consultan');
+  assert.equal(await coordenadasDeEnlace('https://maps.app.goo.gl/x', async () => { throw new Error('sin red'); }), null);
+  assert.deepEqual(await coordenadasDeEnlace('17.9581, -102.1942', falso), { lat: 17.9581, lon: -102.1942 });
+  assert.equal(consultas.length, 1, 'unas coordenadas escritas no necesitan red');
+});
+
+test('tiposDeMensaje: dice qué llegó cuando no se pudo entender', () => {
+  assert.deepEqual(tiposDeMensaje({ message: { reactionMessage: {}, messageContextInfo: {} } }), ['reactionMessage']);
+  assert.deepEqual(tiposDeMensaje({ message: { ephemeralMessage: { message: { stickerMessage: {} } } } }), ['stickerMessage']);
+  assert.deepEqual(tiposDeMensaje({}), []);
 });

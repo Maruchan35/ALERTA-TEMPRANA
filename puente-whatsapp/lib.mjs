@@ -84,8 +84,10 @@ export class ClienteSupabase {
    * Un mensaje de una persona para el asistente de reportes (013_reportes_whatsapp.sql). El servidor
    * decide la respuesta y la deja en la cola de salida, que este programa envía en `revisarCola`.
    */
-  recibido({ telefono, texto = null, lat = null, lon = null }) {
-    return this.#rpc('whatsapp_recibido', { p_telefono: telefono, p_texto: texto, p_lat: lat, p_lon: lon });
+  recibido({ telefono, texto = null, lat = null, lon = null, inmediato = false }) {
+    return this.#rpc('whatsapp_recibido', {
+      p_telefono: telefono, p_texto: texto, p_lat: lat, p_lon: lon, p_inmediato: inmediato,
+    });
   }
 }
 
@@ -148,4 +150,64 @@ export function valorElegido(votos, opciones, valores) {
   const elegida = (votos ?? []).find((v) => v.voters?.length > 0);
   const i = elegida ? opciones.indexOf(elegida.name) : -1;
   return i >= 0 ? (valores[i] ?? null) : null;
+}
+
+/** Los tipos de contenido de un mensaje (para el registro: qué llegó cuando no se pudo entender). */
+export function tiposDeMensaje(m) {
+  const c = contenidoReal(m?.message);
+  return c ? Object.keys(c).filter((k) => c[k] != null && k !== 'messageContextInfo') : [];
+}
+
+const enRango = (lat, lon) => (Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null);
+
+/**
+ * Coordenadas escritas o dentro de un enlace de Google Maps ("17.9581, -102.1942", ".../@17.9581,-102.1942,17z",
+ * "?q=17.9581,-102.1942"). Solo en mensajes cortos: una frase larga con números no es una ubicación.
+ */
+export function coordenadasDeTexto(texto) {
+  const t = String(texto ?? '').trim();
+  if (!t || t.length > 300) return null;
+  let d = t;
+  try {
+    d = decodeURIComponent(t);
+  } catch {
+    // texto con un % suelto: se usa tal cual
+  }
+  const enlaces = [
+    /@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/,
+    /[?&](?:q|ll|query|center|destination)=(-?\d{1,2}\.\d+)[, ](-?\d{1,3}\.\d+)/,
+    /!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/,
+  ];
+  for (const patron of enlaces) {
+    const m = d.match(patron);
+    if (m) return enRango(Number(m[1]), Number(m[2]));
+  }
+  // Solo coordenadas, con al menos 3 decimales y sin más texto
+  const solas = d.match(/^(-?\d{1,2}\.\d{3,})\s*[,;\s]\s*(-?\d{1,3}\.\d{3,})$/);
+  return solas ? enRango(Number(solas[1]), Number(solas[2])) : null;
+}
+
+// Solo se sigue el enlace corto de Google Maps (lo que "Compartir ubicación" manda desde Maps)
+const HOSTS_MAPAS = new Set(['maps.app.goo.gl']);
+
+/** Igual que coordenadasDeTexto, y además resuelve un enlace corto de Google Maps. */
+export async function coordenadasDeEnlace(texto, fetchFn = fetch) {
+  const directas = coordenadasDeTexto(texto);
+  if (directas) return directas;
+  const t = String(texto ?? '').trim();
+  const enlace = t.length <= 300 ? t.match(/https?:\/\/\S+/i)?.[0] : null;
+  if (!enlace) return null;
+  let url;
+  try {
+    url = new URL(enlace);
+  } catch {
+    return null;
+  }
+  if (!HOSTS_MAPAS.has(url.hostname)) return null;
+  try {
+    const r = await fetchFn(url, { redirect: 'follow', signal: AbortSignal.timeout(4000) });
+    return coordenadasDeTexto(r.url);
+  } catch {
+    return null;
+  }
 }

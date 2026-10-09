@@ -18,6 +18,7 @@ Roles R1 (base de datos) y R2 (funciones y notificaciones). Despliegue: [docs/de
 | `migrations/012_evidencia_huella.sql` | Huella SHA-256 de cada fragmento de evidencia del SOS (`registrar_evidencia(…, p_sha256)`): comprueba que la copia que la persona guarda en su teléfono, para una denuncia, no se editó |
 | `migrations/013_reportes_whatsapp.sql` | **Reportar por WhatsApp**: asistente guiado (`whatsapp_recibido`), reportes con origen WhatsApp, límites por número y datos privados que duran 24 h |
 | `migrations/014_asistente_encuestas.sql` | El asistente de WhatsApp se contesta **tocando** (encuestas): la cola de salida lleva la encuesta y un toque llega como `paso:valor` |
+| `migrations/015_asistente_rapido.sql` | Respuestas inmediatas del asistente (`p_inmediato`), latido del puente como máximo cada 10 s y el paso del lugar explicado en tres pasos |
 | `seed.sql` | Catálogo: 12 categorías, niveles, vigencias, instrucciones y escalones de radio (idempotente) |
 | `functions/` | Edge Functions `notificar`, `telegram-webhook`, `cap`, `mantenimiento` y el código compartido con sus pruebas |
 | `configurar_vault.sql` | Guarda en Vault la URL de las funciones y el secreto compartido |

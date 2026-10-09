@@ -211,3 +211,55 @@ test('asistente: el puente recibe la encuesta junto con el texto de la respuesta
   assert.equal(fila.encuesta.opciones[0], 'Robo de vehículo');
   assert.equal(fila.encuesta.valores[6], 'categoria:7');
 });
+
+test('asistente: con respuesta inmediata el puente envía al instante y la cola solo reintenta si se cae', async () => {
+  const pedir = (telefono) => env.rpc(null, 'whatsapp_recibido', {
+    p_secreto: SECRETO_PUENTE, p_telefono: telefono, p_texto: 'hola', p_inmediato: true,
+  }).then((f) => f[0].whatsapp_recibido);
+  const tomar = () => env.rpc(null, 'whatsapp_pendientes', { p_secreto: SECRETO_PUENTE, p_limite: 5 });
+
+  const r = await pedir(CEL);
+  assert.ok(r.mensaje_id, 'devuelve el id para marcarlo como enviado');
+  assert.match(r.respuesta, /911/);
+  assert.equal(r.encuesta.opciones.length, 7, 'devuelve la encuesta: el puente no necesita pedirla otra vez');
+  assert.deepEqual(await env.sql(`select estado, intentos from privado.mensajes_whatsapp where id = $1`, [r.mensaje_id]),
+    [{ estado: 'enviando', intentos: 1 }]);
+  assert.deepEqual(await tomar(), [], 'la cola no la toma mientras quien la pidió la está enviando');
+  await env.rpc(null, 'whatsapp_resultado', { p_secreto: SECRETO_PUENTE, p_id: r.mensaje_id, p_ok: true });
+  assert.deepEqual(await env.sql(`select estado from privado.mensajes_whatsapp where id = $1`, [r.mensaje_id]),
+    [{ estado: 'enviado' }]);
+
+  // Si el puente se cae antes de enviarla, al minuto la cola la reintenta
+  const s = await pedir(OTRO);
+  await env.sql(`update privado.mensajes_whatsapp set actualizado_en = now() - interval '2 minutes' where id = $1`, [s.mensaje_id]);
+  const [reintento] = await tomar();
+  assert.equal(reintento.id, s.mensaje_id);
+  assert.equal(reintento.telefono, OTRO);
+});
+
+test('asistente: sin respuesta inmediata (puente anterior) todo sigue como antes: queda pendiente', async () => {
+  await escribe(CEL, 'hola');
+  assert.deepEqual(await env.sql(`select estado, intentos from privado.mensajes_whatsapp where telefono = $1`, [CEL]),
+    [{ estado: 'pendiente', intentos: 0 }]);
+});
+
+test('asistente: el paso del lugar explica el clip en tres pasos', async () => {
+  await escribe(CEL, 'hola');
+  const lugar = (await escribe(CEL, '1')).respuesta;
+  assert.match(lugar, /Toque el clip/);
+  assert.match(lugar, /Elija «Ubicación»/);
+  assert.match(lugar, /Enviar ubicación/);
+  assert.match(lugar, /escriba la calle y la colonia/);
+});
+
+test('puente: el latido se escribe como máximo cada 10 segundos, no en cada consulta de la cola', async () => {
+  const tomar = () => env.rpc(null, 'whatsapp_pendientes', { p_secreto: SECRETO_PUENTE, p_limite: 5 });
+  const segundos = async () => (await env.sql(
+    `select extract(epoch from now() - latido_en)::int as seg from privado.puente_whatsapp`))[0].seg;
+  await env.sql(`update privado.puente_whatsapp set latido_en = now() - interval '1 hour'`);
+  await tomar();
+  assert.ok(await segundos() < 5, 'la primera consulta lo actualiza');
+  await env.sql(`update privado.puente_whatsapp set latido_en = now() - interval '4 seconds'`);
+  await tomar();
+  assert.ok(await segundos() >= 4, 'una consulta a los 4 s no vuelve a escribir');
+});

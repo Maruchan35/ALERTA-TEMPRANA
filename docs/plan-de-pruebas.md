@@ -42,6 +42,7 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 | P35 | Asistente WhatsApp: privacidad | *la alerta no guarda el número…* y *la conversación caduca… se borran al día* (SQL) | La alerta no tiene número; a las 24 h no queda nada de la conversación |
 | P36 | Puente: recepción | *entradaDeMensaje / telefonoDeJid* (puente-whatsapp): grupos, mensajes propios y reacciones se ignoran | Escribir desde otro WhatsApp al puente: contesta el asistente; un grupo no recibe nada |
 | P37 | Asistente WhatsApp: encuestas | *el puente recibe la encuesta junto con el texto*, *un toque viejo no envía nada* (SQL) y *valorElegido* con `getAggregateVotesInPollMessage` (puente) | Tocar «Robo de vehículo» en la encuesta equivale a escribir 1; un toque de un paso anterior no hace nada |
+| P38 | Puente: respuesta rápida y ubicación | *con respuesta inmediata…*, *el latido se escribe como máximo cada 10 segundos* (SQL), *coordenadasDeTexto* y *coordenadasDeEnlace* (puente) | Escribir «hola»: la respuesta llega en 1–3 s; como lugar sirve el clip, unas coordenadas o un enlace de Google Maps; `puente.log` anota cada mensaje |
 
 ## Además de la propuesta
 
