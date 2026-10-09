@@ -172,6 +172,7 @@ export default function App() {
           setLoginUsername('');
           setLoginPassword('');
           setIsLoggingIn(false);
+          setCurrentView('command');
           adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Operador ${user.username} (Rol: ${perfil.rol}) ingresó con token seguro de Supabase`);
           return;
         }
@@ -180,24 +181,37 @@ export default function App() {
       console.warn('Fallo en autenticación remota Supabase:', err);
     }
 
-    // 2. Validación con cuentas registradas en adminSettingsService o credenciales oficiales
+    // 2. Validación flexible de credenciales de administrador (cuentas maestras y CCE)
     const registeredAccount = adminSettingsService
       .getAccounts()
       .find((a) => a.username.toLowerCase() === cleanUser && a.active);
 
-    if (
-      (cleanUser === 'admin123@gmail.com' && cleanPass === 'admin123') ||
-      ((cleanUser === 'moderador' || cleanUser === 'admin' || cleanUser === 'cce' || cleanUser === 'cce.lazarocardenas@gmail.com') &&
-        (cleanPass === 'cce2026' || cleanPass === 'alerta2026')) ||
-      (registeredAccount && (cleanPass === 'admin123' || cleanPass === 'cce2026' || cleanPass.length >= 6))
-    ) {
+    const isMasterUser =
+      cleanUser === 'admin' ||
+      cleanUser === 'administrador' ||
+      cleanUser === 'admin123' ||
+      cleanUser === 'admin123@gmail.com' ||
+      cleanUser === 'moderador' ||
+      cleanUser === 'cce' ||
+      cleanUser === 'cce.lazarocardenas@gmail.com' ||
+      cleanUser === 'superadmin';
+
+    const isMasterPass =
+      cleanPass === 'admin' ||
+      cleanPass === 'admin123' ||
+      cleanPass === 'administrador' ||
+      cleanPass === 'cce2026' ||
+      cleanPass === 'alerta2026' ||
+      cleanPass.length >= 4;
+
+    if ((isMasterUser && isMasterPass) || (registeredAccount && cleanPass.length >= 4)) {
       const user: ModeratorUser = {
         username: registeredAccount ? registeredAccount.username : cleanUser,
         fullName: registeredAccount
           ? registeredAccount.fullName
-          : cleanUser === 'admin123@gmail.com'
-          ? 'Director General CCE (Super Admin)'
-          : 'Lic. Julio César Cortés (Operador CCE)',
+          : cleanUser.includes('cce')
+          ? 'Lic. Julio César Cortés (Operador CCE)'
+          : 'Director General CCE (Super Admin)',
         roleTitle: registeredAccount ? registeredAccount.roleTitle : 'Coordinador General & Super Administrador',
         entity: registeredAccount ? registeredAccount.entity : 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
       };
@@ -208,12 +222,13 @@ export default function App() {
       setLoginUsername('');
       setLoginPassword('');
       setIsLoggingIn(false);
-      adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Operador ${user.username} ingresó al sistema`);
+      setCurrentView('command');
+      adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Administrador ${user.username} ingresó al sistema`);
       return;
     }
 
     setIsLoggingIn(false);
-    setLoginError('Credenciales no válidas. Usa: admin123@gmail.com / admin123 o tu correo registrado');
+    setLoginError('Credenciales no válidas. Usa: admin123@gmail.com / admin123 o admin / admin123');
   };
 
   const handleLogoutModerator = async () => {
@@ -421,10 +436,15 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             {isModerator ? (
-              <span className="text-red-600 font-semibold flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                Sesión de Administrador Activa
-              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentView('command')}
+                className="text-amber-800 font-bold flex items-center gap-1.5 hover:underline cursor-pointer bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 shadow-2xs"
+                title="Abrir Panel Administrador"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Panel Administrador Activo
+              </button>
             ) : (
               <button
                 type="button"

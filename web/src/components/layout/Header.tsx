@@ -84,9 +84,14 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2.5">
               <span className="font-black text-xl sm:text-2xl tracking-tight text-slate-900">ALERTA CERCA</span>
               {isModerator ? (
-                <span className="px-2.5 py-1 text-[11px] uppercase font-black tracking-wider rounded-lg bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1.5 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => onViewChange('command')}
+                  title="Haz clic para abrir el Panel de Administrador"
+                  className="px-2.5 py-1 text-[11px] uppercase font-black tracking-wider rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> Administrador CCE
-                </span>
+                </button>
               ) : null}
             </div>
             <p className="hidden sm:flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 font-medium">
@@ -266,7 +271,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
                 >
                   <SlidersHorizontal className="w-4.5 h-4.5 text-amber-600" />
-                  <span>Base de Datos</span>
+                  <span>Panel Administrador</span>
                 </button>
 
                 <button
