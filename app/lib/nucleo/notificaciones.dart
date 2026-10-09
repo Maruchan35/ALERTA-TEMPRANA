@@ -52,6 +52,17 @@ const canales = {
   ),
 };
 
+/// Validadores: una persona pidió ayuda (SOS). Suena como alarma, por encima de todo.
+const canalSos = AndroidNotificationChannel(
+  'sos_validadores',
+  'Emergencias SOS (validadores)',
+  description: 'Una persona pidió ayuda: su ubicación en vivo está en el panel',
+  importance: Importance.max,
+);
+
+/// El payload de las notificaciones SOS lleva este prefijo + el id de la emergencia.
+const prefijoEmergencia = 'emergencia:';
+
 /// Aviso que se muestra dentro de la app (web, o con la app abierta).
 class AvisoVisible {
   const AvisoVisible({required this.alertaId, required this.titulo, required this.cuerpo, required this.nivel});
@@ -88,7 +99,7 @@ abstract final class Notificaciones {
     _listo = true;
     if (segundoPlano) return;
     final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    for (final c in canales.values) {
+    for (final c in [...canales.values, canalSos]) {
       await android?.createNotificationChannel(c);
     }
     final lanzamiento = await _plugin.getNotificationAppLaunchDetails();
@@ -168,6 +179,7 @@ abstract final class Notificaciones {
 /// La DISTANCIA se calcula aquí, en el teléfono: el servidor nunca supo dónde estoy.
 /// Se usa igual para FCM (abierta, cerrada o en segundo plano), Realtime y la demo.
 Future<void> procesarAlerta(Map<String, dynamic> d, {bool enPrimerPlano = true}) async {
+  if (d['tipo'] == 'emergencia') return procesarEmergencia(d);
   final alertaId = d['alerta_id']?.toString();
   if (alertaId == null) return;
   final prefs = await SharedPreferences.getInstance();
@@ -218,6 +230,42 @@ Future<void> procesarAlerta(Map<String, dynamic> d, {bool enPrimerPlano = true})
         priority: nivel >= 3 ? Priority.max : Priority.defaultPriority,
         color: colorNivel(nivel),
         category: nivel >= 4 ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.event,
+        styleInformation: BigTextStyleInformation(cuerpo),
+        ticker: titulo,
+      ),
+      iOS: DarwinNotificationDetails(
+        interruptionLevel: nivel >= 4 ? InterruptionLevel.timeSensitive : InterruptionLevel.active,
+      ),
+    ),
+  );
+}
+
+/// Validadores: alguien activó el SOS (o cambió algo que deben saber). Abre el seguimiento en vivo.
+Future<void> procesarEmergencia(Map<String, dynamic> d) async {
+  final id = d['emergencia_id']?.toString();
+  if (id == null) return;
+  final titulo = '${d['titulo'] ?? 'EMERGENCIA SOS'}';
+  final cuerpo = '${d['cuerpo'] ?? ''}';
+  final nivel = int.tryParse('${d['nivel']}') ?? 4;
+  final payload = '$prefijoEmergencia$id';
+  if (kIsWeb) {
+    Notificaciones.enPantalla.add(AvisoVisible(alertaId: payload, titulo: titulo, cuerpo: cuerpo, nivel: nivel));
+    return;
+  }
+  await _plugin.show(
+    id: payload.hashCode & 0x7fffffff, // la misma emergencia reemplaza su notificación
+    title: titulo,
+    body: cuerpo,
+    payload: payload,
+    notificationDetails: NotificationDetails(
+      android: AndroidNotificationDetails(
+        canalSos.id,
+        canalSos.name,
+        channelDescription: canalSos.description,
+        importance: canalSos.importance,
+        priority: nivel >= 4 ? Priority.max : Priority.defaultPriority,
+        color: Colores.rojo,
+        category: nivel >= 4 ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.status,
         styleInformation: BigTextStyleInformation(cuerpo),
         ticker: titulo,
       ),

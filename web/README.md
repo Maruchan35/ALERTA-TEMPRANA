@@ -7,6 +7,7 @@ Portal web de alta fidelidad para el sistema **ALERTA CERCA (HackaITLAC 2026)**.
 - **Consola de Operaciones del CCE (Modo Moderador)**: Tema oscuro ejecutivo (`zinc-950`), gestión y validación de alertas, ajuste de radio, cierre de incidentes y bitácora en vivo.
 - **Acceso Comunitario y Reportes Ciudadanos**: Reporte de incidentes en 3 pasos con validación estricta, geolocalización en tiempo real y botón colaborativo *"Lo he visto"* para registrar avistamientos ciudadanos.
 - **Sincronización Total con Supabase**: Subscripciones en tiempo real (`postgres_changes`), mapeo PostGIS, soporte multi-bucket para fotos y evidencias.
+- **Emergencias SOS (Modo Moderador)**: alarma crítica y banner rojo en cualquier vista cuando alguien pide ayuda desde la app; recorrido en vivo en el mapa, velocidad, batería, video de evidencia y seguimiento (tomar el caso, aviso al 911, cerrar). Código: `services/emergencyService.ts`, `hooks/useEmergencies.ts`, `components/admin/EmergencyPanel.tsx`.
 
 ## 🚀 Puesta en marcha rápida
 
@@ -38,6 +39,9 @@ Todo pasa por [`src/services/alertService.ts`](src/services/alertService.ts):
 | Reportar o emitir una alerta oficial | `rpc('crear_reporte', …)` | `.from('alertas').insert(…)` |
 | Confirmar (“yo también lo vi”) | `rpc('confirmar_alerta', …)` | sumar contadores a mano |
 | Fotos | URL firmada de `storage.from('fotos')` (bucket privado) | `getPublicUrl` o hacer público el bucket |
+| Emergencias SOS: leer | `emergencias_panel`, `emergencia_puntos`, `emergencia_evidencias` | — |
+| Emergencias SOS: actuar | `rpc('atender_emergencia', …)` | `.from('emergencias').update(…)` |
+| Video de evidencia | URL firmada de `storage.from('evidencias')` | hacer público el bucket |
 
 Las funciones del servidor revisan el rol, dejan registro en la bitácora y avisan a los teléfonos. Una escritura
 directa el servidor la rechaza (RLS) y la página mostraría algo que no pasó. Por eso `npm run build` (y GitHub

@@ -182,6 +182,26 @@ Qué pasa después lo decide `config.whatsapp_modo`
 - Los números de prueba con código fijo (*Authentication → Sign In / Providers → Phone → Test phone numbers*) se
   saltan el hook: bórralos.
 
+## 5d. Modo emergencia (SOS)
+
+1. Servidor: aplica [011_emergencias.sql](../supabase/migrations/011_emergencias.sql) (`npx supabase db push`) y
+   vuelve a desplegar `notificar` y `mantenimiento` (`npx supabase functions deploy notificar mantenimiento --use-api`).
+   Crea la tabla de emergencias, el bucket privado `evidencias`, la tarea `revisar-senal-emergencias` y la alarma a
+   validadores.
+2. App: el SOS trae permisos y plugins nativos nuevos (cámara, micrófono, sensores, servicio en primer plano), así que
+   **no llega como parche**: es la versión **1.1.0** y se instala una vez más (`shorebird release`, paso 5b). Desde ahí
+   los cambios vuelven a llegar solos.
+3. En cada teléfono: *Ajustes → Modo emergencia (SOS)*: revisar los permisos (ubicación, notificaciones, cámara y
+   micrófono, "Aparecer con el teléfono bloqueado" en Android 14+), elegir si se activa con la sacudida y, si se quiere,
+   el **modo protección** (con la app cerrada; gasta batería). Hacer un **simulacro** (no avisa a nadie).
+4. Validadores: reciben la alarma en la app (con su cuenta de validador iniciada) y la ven en el panel (pestaña **SOS**,
+   banner rojo y sonido) y en el portal web (*Emergencias SOS*).
+5. Probarlo de verdad: con un validador conectado, en un teléfono toca **SOS** y espera los 5 s. En el panel suena la
+   alarma y aparece la persona; *Tomar el caso* → en el teléfono dice "… ya te está siguiendo". Ciérrala con
+   *Falsa alarma* (o "Estoy a salvo" en el teléfono).
+
+En el SQL Editor: `select id, estado, tipo, ultima_senal_en from emergencias order by creada_en desc limit 5;`
+
 ## 6. Telegram (R2, opcional)
 
 1. En Telegram, **@BotFather** → `/newbot` (nombre *ALERTA CERCA Demo*, usuario terminado en `bot`). Guarda el token.
@@ -230,4 +250,8 @@ Para una versión (Release) con el APK de demostración: `git tag v1.0.0 && git 
 | No llega el WhatsApp con el código | Modo `puente`: ¿está corriendo `puente-whatsapp` y dice “WhatsApp conectado”? Su ventana muestra cada envío y cada error. Modo `simulado`: aparece en la misma pantalla en 1–2 s. ¿El número está en *Test phone numbers*? (esos no pasan por WhatsApp: bórralos). ¿*Authentication → Hooks* muestra *Send SMS* con `enviar_codigo_whatsapp`? En SQL: `select telefono, modo, estado, error, enviado_en from privado.mensajes_whatsapp order by enviado_en desc limit 10;` |
 | `Por seguridad, espera N segundos para pedir otro código` | Es el límite de Auth por número (30 s). |
 | `Alcanzaste el límite de reportes` | Son 10 reportes nuevos por hora por persona (los duplicados no cuentan). Para pruebas intensas: `update config set reportes_por_hora = 30;` |
-| `permission denied for function …` desde la app | Es correcto para las funciones internas (prueba P14). La app solo llama `registrar_dispositivo`, `alertas_cercanas`, `obtener_alerta`, `crear_reporte`, `confirmar_alerta`, `validar_alerta` y `borrar_mi_cuenta`. |
+| La cuenta regresiva del SOS no aparece sola con el teléfono bloqueado | Android 14+: *Ajustes → Modo emergencia → Aparecer con el teléfono bloqueado* (permiso de notificaciones de pantalla completa). Si la notificación "¿Necesitas ayuda?" llega pero no se abre sola, tócala. |
+| El modo protección se apaga solo (Xiaomi, Huawei, Oppo…) | Igual que los avisos: batería **Sin restricciones** e **Inicio automático** para ALERTA CERCA. La notificación fija "Modo protección activo" debe verse siempre. |
+| La alarma SOS no le llega a un validador | Debe tener la app 1.1.0 con su cuenta de validador iniciada y *Registro para recibir alertas* en verde, o el panel abierto (ahí suena con la pestaña abierta). |
+| El SOS dice "Activaste el SOS demasiadas veces" | Son 5 por hora por persona. Para pruebas: `update config set emergencias_por_hora = 20;` |
+| `permission denied for function …` desde la app | Es correcto para las funciones internas (prueba P14). La app solo llama `registrar_dispositivo`, `alertas_cercanas`, `obtener_alerta`, `crear_reporte`, `confirmar_alerta`, `validar_alerta`, `borrar_mi_cuenta` y las del SOS (`iniciar_emergencia`, `senal_emergencia`, `tipo_emergencia`, `registrar_evidencia`, `terminar_emergencia`, `atender_emergencia`). |

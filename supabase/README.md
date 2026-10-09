@@ -14,11 +14,12 @@ Roles R1 (base de datos) y R2 (funciones y notificaciones). Despliegue: [docs/de
 | `migrations/010_whatsapp_puente.sql` | Modo de envío del código (`config.whatsapp_modo`: simulado, puente o meta) y la cola que atiende `puente-whatsapp/` con su secreto de Vault |
 | `migrations/009_whatsapp.sql` | Verificación por WhatsApp: Auth Hook `enviar_codigo_whatsapp`, WhatsApp simulado (`whatsapp_simulado()`) y bandeja privada `privado.mensajes_whatsapp` (1 día) |
 | `migrations/008_colmena_ajustes.sql` | Límite de reportes configurable (10 por hora; los duplicados no cuentan) y teléfonos registrados en las métricas del panel |
+| `migrations/011_emergencias.sql` | **Modo emergencia (SOS)**: emergencias, recorrido en vivo y evidencia (bucket privado `evidencias`), alarma a validadores, seguimiento (`atender_emergencia`), aviso de “sin señal” (pg_cron, 30 s) y retención de 30 días |
 | `seed.sql` | Catálogo: 12 categorías, niveles, vigencias, instrucciones y escalones de radio (idempotente) |
 | `functions/` | Edge Functions `notificar`, `telegram-webhook`, `cap`, `mantenimiento` y el código compartido con sus pruebas |
 | `configurar_vault.sql` | Guarda en Vault la URL de las funciones y el secreto compartido |
 | `demo/` | Cuentas de validadores, preparar y terminar la demo, prueba de carga |
-| `pruebas/` | 41 pruebas automáticas sobre PostgreSQL 17 + PostGIS reales (PGlite), con Supabase emulado |
+| `pruebas/` | 62 pruebas automáticas sobre PostgreSQL 17 + PostGIS reales (PGlite), con Supabase emulado |
 
 ## Funciones que puede llamar la app (todas exigen sesión)
 
@@ -31,6 +32,12 @@ Roles R1 (base de datos) y R2 (funciones y notificaciones). Despliegue: [docs/de
 | `confirmar_alerta(p_alerta, p_tipo)` | `confirmo`, `ya_no_esta` o `parece_falsa` |
 | `validar_alerta(p_alerta, p_accion, p_motivo, p_radio_m)` | `verificar`, `descartar`, `resolver`, `ajustar_radio` |
 | `borrar_mi_cuenta()` | Derecho de cancelación |
+| `iniciar_emergencia(p_lat, p_lon, p_precision_m, p_origen, p_bateria)` | SOS: pide ayuda (también con sesión anónima). Una abierta por persona |
+| `senal_emergencia(p_emergencia, p_lat, p_lon, p_precision_m, p_velocidad_ms, p_bateria)` | Ubicación en vivo cada ~5 s; devuelve si ya la siguen y si avisaron al 911 |
+| `tipo_emergencia(p_emergencia, p_tipo)` | `asalto`, `secuestro`, `me_siguen`, `otra` |
+| `registrar_evidencia(p_emergencia, p_tipo, p_ruta, p_duracion_s)` | Registra un fragmento ya subido a `evidencias/<uid>/<emergencia>/` |
+| `terminar_emergencia(p_emergencia, p_cierre)` | `a_salvo` o `falsa_alarma` |
+| `atender_emergencia(p_emergencia, p_accion, p_nota, p_folio)` | Solo validadores: `tomar`, `policia`, `nota`, `localizada`, `falsa_alarma` |
 
 Las funciones internas (`dispositivos_objetivo`, `radio_permitido`, `telegram_objetivo`, `llamar_funcion`…) están
 revocadas para `anon` y `authenticated`: nadie con la anon key puede descargar tokens (prueba P14).

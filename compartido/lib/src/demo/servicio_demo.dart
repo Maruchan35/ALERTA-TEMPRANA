@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 
 import '../catalogo.dart';
 import '../distancia.dart';
+import '../emergencia.dart';
 import '../geohash.dart';
 import '../mensajes.dart';
 import '../modelos.dart';
@@ -66,6 +67,85 @@ class _Registro {
   bool consentimiento = false;
 }
 
+/// Una emergencia SOS en memoria (misma lógica que 011_emergencias.sql).
+class _EmergenciaDemo {
+  _EmergenciaDemo({
+    required this.id,
+    required this.usuario,
+    required this.origen,
+    required this.lat,
+    required this.lon,
+    required this.creadaEn,
+    this.telefono,
+  }) : ultimaSenalEn = creadaEn;
+
+  final String id;
+  final String usuario;
+  final OrigenEmergencia origen;
+  final DateTime creadaEn;
+  final String? telefono;
+  EstadoEmergencia estado = EstadoEmergencia.activa;
+  TipoEmergencia tipo = TipoEmergencia.sos;
+  double lat;
+  double lon;
+  double? precisionM;
+  double? velocidadMs;
+  int? bateria;
+  DateTime ultimaSenalEn;
+  DateTime? atendidaEn;
+  DateTime? policiaAvisadaEn;
+  DateTime? cerradaEn;
+  String? atendidaPor;
+  String? folio;
+  String? nota;
+  CierreEmergencia? cierre;
+  bool cerradaPorLaPersona = false;
+  final puntos = <PuntoEmergencia>[];
+  final evidencias = <EvidenciaEmergencia>[];
+
+  // Lo que hace "Protección Civil (demo)" sola en la app de demostración
+  DateTime? autoTomarEn;
+  DateTime? autoPoliciaEn;
+
+  // Persona simulada (simulador del panel): se mueve en vehículo y luego indica "Me llevan"
+  bool simulada = false;
+  DateTime? tipoEn;
+
+  Emergencia get vista => Emergencia(
+    id: id,
+    estado: estado,
+    tipo: tipo,
+    origen: origen,
+    lat: lat,
+    lon: lon,
+    precisionM: precisionM,
+    velocidadMs: velocidadMs,
+    bateria: bateria,
+    ultimaSenalEn: ultimaSenalEn,
+    creadaEn: creadaEn,
+    atendidaEn: atendidaEn,
+    policiaAvisadaEn: policiaAvisadaEn,
+    folio911: folio,
+    nota: nota,
+    cerradaEn: cerradaEn,
+    cierre: cierre,
+    cerradaPorLaPersona: cerradaPorLaPersona,
+    telefono: telefono,
+    atendidaPorInstitucion: atendidaPor,
+    nPuntos: puntos.length,
+    nEvidencias: evidencias.length,
+  );
+
+  EstadoMiEmergencia get paraLaPersona => EstadoMiEmergencia(
+    id: id,
+    estado: estado,
+    tipo: tipo,
+    cierre: cierre,
+    atendidaPor: atendidaPor,
+    policiaAvisada: policiaAvisadaEn != null,
+  );
+}
+
 class _Avisador extends ChangeNotifier {
   void avisar() => notifyListeners();
 }
@@ -103,8 +183,11 @@ class ServicioDemo implements ServicioAlertas {
   final _avisos = StreamController<AvisoDemo>.broadcast();
   final _cambios = StreamController<Alerta>.broadcast();
   final _panel = StreamController<List<Alerta>>.broadcast();
+  final _emergencias = <String, _EmergenciaDemo>{};
+  final _cambiosEmergencias = StreamController<String>.broadcast();
   String? _celdaYo;
   var _secuencia = 0;
+  var _secuenciaPuntos = 0;
 
   /// Número al que se "envió" el último código por WhatsApp (simulado).
   String? _whatsappPara;
@@ -323,6 +406,7 @@ class ServicioDemo implements ServicioAlertas {
       }
     }
     if (hubo) _emitirPanel();
+    _avanzarEmergencias(t);
   }
 
   int _radio(_Registro r) => radioPermitido(
@@ -798,6 +882,7 @@ class ServicioDemo implements ServicioAlertas {
       segundosValidacion: tiempos.isEmpty ? null : tiempos.reduce((a, b) => a + b) ~/ tiempos.length,
       entregasHoy: _registros.values.fold(0, (s, r) => s + r.entregas.length),
       dispositivosActivos: _celdasPorDispositivo.length,
+      emergenciasAbiertas: _emergencias.values.where((e) => e.estado.abierta).length,
     );
   }
 
@@ -845,12 +930,277 @@ class ServicioDemo implements ServicioAlertas {
     _revisarVotos(r);
   }
 
+  // ─── Modo emergencia (SOS) ─────────────────────────────────────────────────
+  String get _usuarioActual => _perfil.value?.id ?? _yo;
+
+  _EmergenciaDemo _emergencia(String id) => _emergencias[id] ?? (throw const ErrorServicio('Emergencia no encontrada'));
+
+  void _emitirEmergencias(String id) {
+    if (!_cambiosEmergencias.isClosed) _cambiosEmergencias.add(id);
+    _cambio.avisar();
+  }
+
+  List<Emergencia> _listaEmergencias() => _emergencias.values.map((e) => e.vista).toList()..sort(compararEmergencias);
+
+  PuntoEmergencia _punto(double lat, double lon, double? precisionM, double? velocidadMs, DateTime t) =>
+      PuntoEmergencia(
+        id: ++_secuenciaPuntos,
+        lat: lat,
+        lon: lon,
+        precisionM: precisionM,
+        velocidadMs: velocidadMs,
+        registradaEn: t,
+      );
+
+  @override
+  Future<EstadoMiEmergencia> iniciarEmergencia({
+    required double lat,
+    required double lon,
+    double? precisionM,
+    required OrigenEmergencia origen,
+    int? bateria,
+  }) async {
+    final abierta = _emergencias.values.where((e) => e.usuario == _usuarioActual && e.estado.abierta).firstOrNull;
+    if (abierta != null) {
+      return senalEmergencia(abierta.id, lat: lat, lon: lon, precisionM: precisionM, bateria: bateria);
+    }
+    final t = ahora;
+    final e =
+        _EmergenciaDemo(
+            id: _nuevoId(),
+            usuario: _usuarioActual,
+            origen: origen,
+            lat: lat,
+            lon: lon,
+            creadaEn: t,
+            telefono: _perfil.value?.telefono,
+          )
+          ..precisionM = precisionM
+          ..bateria = bateria;
+    e.puntos.add(_punto(lat, lon, precisionM, null, t));
+    // En la app de demostración, "Protección Civil (demo)" toma el caso y avisa al 911 sola
+    if (escenario == EscenarioDemo.app) {
+      e
+        ..autoTomarEn = t.add(const Duration(seconds: 8))
+        ..autoPoliciaEn = t.add(const Duration(seconds: 16));
+    }
+    _emergencias[e.id] = e;
+    _emitirEmergencias(e.id);
+    return e.paraLaPersona;
+  }
+
+  @override
+  Future<EstadoMiEmergencia> senalEmergencia(
+    String id, {
+    double? lat,
+    double? lon,
+    double? precisionM,
+    double? velocidadMs,
+    int? bateria,
+  }) async {
+    final e = _emergencia(id);
+    if (!e.estado.abierta) return e.paraLaPersona;
+    final t = ahora;
+    if (lat != null && lon != null) {
+      if (e.puntos.isEmpty || t.difference(e.puntos.last.registradaEn) >= const Duration(seconds: 3)) {
+        e.puntos.add(_punto(lat, lon, precisionM, velocidadMs, t));
+      }
+      e
+        ..lat = lat
+        ..lon = lon
+        ..precisionM = precisionM
+        ..velocidadMs = velocidadMs;
+    }
+    e.ultimaSenalEn = t;
+    if (bateria != null) e.bateria = bateria;
+    _emitirEmergencias(id);
+    return e.paraLaPersona;
+  }
+
+  @override
+  Future<EstadoMiEmergencia> tipoEmergencia(String id, TipoEmergencia tipo) async {
+    final e = _emergencia(id);
+    if (e.estado.abierta && e.tipo != tipo) {
+      e.tipo = tipo;
+      _emitirEmergencias(id);
+    }
+    return e.paraLaPersona;
+  }
+
+  @override
+  Future<EstadoMiEmergencia> terminarEmergencia(String id, CierreEmergencia cierre) async {
+    if (cierre == CierreEmergencia.localizada) throw const ErrorServicio('Cierre inválido');
+    final e = _emergencia(id);
+    if (e.estado.abierta) {
+      e
+        ..estado = EstadoEmergencia.cerrada
+        ..cierre = cierre
+        ..cerradaEn = ahora
+        ..cerradaPorLaPersona = true;
+      _emitirEmergencias(id);
+    }
+    return e.paraLaPersona;
+  }
+
+  @override
+  Future<String> subirEvidencia(
+    String emergenciaId,
+    String nombre,
+    Uint8List bytes, {
+    String tipo = 'video',
+    String contentType = 'video/mp4',
+    int? duracionS,
+  }) async {
+    final e = _emergencia(emergenciaId);
+    final ruta = '${e.usuario}/$emergenciaId/$nombre';
+    if (!e.evidencias.any((v) => v.ruta == ruta)) {
+      e.evidencias.add(EvidenciaEmergencia(tipo: tipo, ruta: ruta, duracionS: duracionS, creadaEn: ahora));
+      _emitirEmergencias(emergenciaId);
+    }
+    return ruta;
+  }
+
+  @override
+  Future<EstadoMiEmergencia?> miEmergenciaAbierta() async =>
+      _emergencias.values.where((e) => e.usuario == _usuarioActual && e.estado.abierta).firstOrNull?.paraLaPersona;
+
+  @override
+  Stream<List<Emergencia>> flujoEmergencias() async* {
+    yield _listaEmergencias();
+    yield* _cambiosEmergencias.stream.map((_) => _listaEmergencias());
+  }
+
+  @override
+  Stream<List<PuntoEmergencia>> flujoRecorrido(String emergenciaId) async* {
+    List<PuntoEmergencia> puntos() => List.unmodifiable(_emergencias[emergenciaId]?.puntos ?? const []);
+    yield puntos();
+    yield* _cambiosEmergencias.stream.where((id) => id == emergenciaId).map((_) => puntos());
+  }
+
+  @override
+  Future<List<EvidenciaEmergencia>> evidenciasEmergencia(String emergenciaId) async =>
+      List.of(_emergencia(emergenciaId).evidencias);
+
+  /// En la demostración la evidencia no se guarda en ningún servidor: no hay enlace.
+  @override
+  Future<String?> urlEvidencia(String ruta) async => null;
+
+  @override
+  Future<void> atenderEmergencia(String id, AccionEmergencia accion, {String? nota, String? folio}) async {
+    if (!_soyValidador) throw const ErrorServicio('Solo validadores pueden dar seguimiento a una emergencia');
+    final e = _emergencia(id);
+    if (!e.estado.abierta) throw const ErrorServicio('La emergencia ya está cerrada');
+    final t = ahora;
+    final texto = nota?.trim();
+    final quien = _perfil.value?.institucion ?? _perfil.value?.nombre ?? 'Validador';
+    if (texto != null && texto.isNotEmpty) e.nota = texto;
+    switch (accion) {
+      case AccionEmergencia.tomar:
+        e
+          ..estado = EstadoEmergencia.enSeguimiento
+          ..atendidaPor = quien
+          ..atendidaEn = t;
+      case AccionEmergencia.policia:
+        e
+          ..policiaAvisadaEn ??= t
+          ..folio = (folio?.trim().isNotEmpty ?? false) ? folio!.trim() : e.folio
+          ..estado = EstadoEmergencia.enSeguimiento
+          ..atendidaPor ??= quien
+          ..atendidaEn ??= t;
+      case AccionEmergencia.nota:
+        if (texto == null || texto.isEmpty) throw const ErrorServicio('Escribe la nota');
+      case AccionEmergencia.localizada:
+      case AccionEmergencia.falsaAlarma:
+        e
+          ..estado = EstadoEmergencia.cerrada
+          ..cierre = accion == AccionEmergencia.localizada ? CierreEmergencia.localizada : CierreEmergencia.falsaAlarma
+          ..cerradaEn = t
+          ..atendidaPor ??= quien
+          ..atendidaEn ??= t;
+    }
+    e
+      ..autoTomarEn = null
+      ..autoPoliciaEn = null;
+    _emitirEmergencias(id);
+  }
+
+  void _avanzarEmergencias(DateTime t) {
+    for (final e in _emergencias.values) {
+      if (!e.estado.abierta) continue;
+      var cambio = false;
+      if (e.autoTomarEn != null && !t.isBefore(e.autoTomarEn!)) {
+        e
+          ..autoTomarEn = null
+          ..estado = EstadoEmergencia.enSeguimiento
+          ..atendidaPor = _institucionDemo
+          ..atendidaEn = t;
+        cambio = true;
+      }
+      if (e.autoPoliciaEn != null && !t.isBefore(e.autoPoliciaEn!)) {
+        e
+          ..autoPoliciaEn = null
+          ..policiaAvisadaEn = t
+          ..folio = '911-2026-0${5100 + _secuencia}';
+        cambio = true;
+      }
+      if (e.simulada) {
+        if (e.tipoEn != null && !t.isBefore(e.tipoEn!)) {
+          e
+            ..tipoEn = null
+            ..tipo = TipoEmergencia.secuestro;
+          cambio = true;
+        }
+        // En vehículo hacia el noreste, a ~40 km/h, un punto cada 3 s (máx. 20 min)
+        final segundos = t.difference(e.puntos.last.registradaEn).inMilliseconds / 1000;
+        if (segundos >= 3 && e.puntos.length < 400) {
+          const velocidad = 11.1;
+          const rumbo = 0.5;
+          final metros = velocidad * segundos;
+          e
+            ..lat = e.lat + metros * math.cos(rumbo) / 111320
+            ..lon = e.lon + metros * math.sin(rumbo) / (111320 * math.cos(e.lat * math.pi / 180))
+            ..velocidadMs = velocidad
+            ..precisionM = 8
+            ..ultimaSenalEn = t;
+          e.puntos.add(_punto(e.lat, e.lon, 8, velocidad, t));
+          cambio = true;
+        }
+      }
+      if (cambio) _emitirEmergencias(e.id);
+    }
+  }
+
+  /// Solo demo (simulador del panel): una persona pide ayuda con una sacudida, va en un vehículo
+  /// y a los pocos segundos indica "Me llevan". Devuelve el id de la emergencia.
+  String simularEmergencia() {
+    final t = ahora;
+    final e =
+        _EmergenciaDemo(
+            id: _nuevoId(),
+            usuario: 'persona-sos-${_secuencia + 1}',
+            origen: OrigenEmergencia.movimiento,
+            lat: sucesoDemo.lat,
+            lon: sucesoDemo.lon,
+            creadaEn: t,
+            telefono: '520000000000',
+          )
+          ..precisionM = 12
+          ..bateria = 46
+          ..simulada = true
+          ..tipoEn = t.add(const Duration(seconds: 6));
+    e.puntos.add(_punto(e.lat, e.lon, 12, null, t));
+    _emergencias[e.id] = e;
+    _emitirEmergencias(e.id);
+    return e.id;
+  }
+
   @override
   void cerrar() {
     _timer?.cancel();
     _avisos.close();
     _cambios.close();
     _panel.close();
+    _cambiosEmergencias.close();
     _cambio.dispose();
     _perfil.dispose();
   }

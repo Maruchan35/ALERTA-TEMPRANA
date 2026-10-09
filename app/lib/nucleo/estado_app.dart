@@ -109,11 +109,11 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
     final fm = FirebaseMessaging.instance;
     FirebaseMessaging.onMessage.listen((m) => procesarAlerta(m.data));
     FirebaseMessaging.onMessageOpenedApp.listen((m) {
-      final id = m.data['alerta_id'] as String?;
+      final id = _aAbrir(m.data);
       if (id != null) Notificaciones.alTocar.add(id);
     });
     final inicial = await fm.getInitialMessage();
-    Notificaciones.pendiente ??= inicial?.data['alerta_id'] as String?;
+    Notificaciones.pendiente ??= inicial == null ? null : _aAbrir(inicial.data);
     try {
       tokenPush = await fm.getToken();
     } catch (e) {
@@ -123,6 +123,12 @@ class EstadoApp extends ChangeNotifier with WidgetsBindingObserver {
       tokenPush = t;
       actualizarUbicacion(forzar: true);
     });
+  }
+
+  /// Qué abrir al tocar un push: la alerta, o el seguimiento de una emergencia SOS (validadores).
+  static String? _aAbrir(Map<String, dynamic> datos) {
+    final emergencia = datos['emergencia_id'] as String?;
+    return emergencia != null ? '$prefijoEmergencia$emergencia' : datos['alerta_id'] as String?;
   }
 
   /// Sin push (web, Firebase sin configurar o teléfono todavía no registrado): con la app

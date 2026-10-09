@@ -12,7 +12,8 @@ before(async () => { env = await crearEntorno(); });
 beforeEach(async () => { await env.limpiar(); });
 
 const TABLAS = ['alertas', 'bitacora', 'categorias', 'confirmaciones', 'config', 'dispositivos',
-  'entregas', 'entregas_telegram', 'escalones_radio', 'perfiles', 'suscriptores_telegram', 'zonas_usuario'];
+  'emergencia_evidencias', 'emergencia_puntos', 'emergencias', 'entregas', 'entregas_telegram',
+  'escalones_radio', 'perfiles', 'suscriptores_telegram', 'zonas_usuario'];
 
 async function telefonosDemo() {
   return {
@@ -25,7 +26,7 @@ async function telefonosDemo() {
 
 // ─── Esquema y catálogo ─────────────────────────────────────────────────────
 
-test('el esquema tiene las 12 tablas, todas con RLS, y el catálogo completo', async () => {
+test('el esquema tiene las 15 tablas, todas con RLS, y el catálogo completo', async () => {
   const tablas = await env.sql(`
     select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r' order by 1`);
@@ -48,7 +49,7 @@ test('el seed es idempotente (se puede volver a ejecutar)', async () => {
   assert.equal(n, 25);
 });
 
-test('pg_cron: las cinco tareas quedan programadas', async () => {
+test('pg_cron: las seis tareas quedan programadas', async () => {
   const tareas = await env.sql(`select jobname, schedule from cron.job order by jobname`);
   assert.deepEqual(tareas, [
     { jobname: 'ampliar-radios', schedule: '15 seconds' },
@@ -56,6 +57,7 @@ test('pg_cron: las cinco tareas quedan programadas', async () => {
     { jobname: 'limpieza-diaria', schedule: '0 4 * * *' },
     { jobname: 'mantenimiento-fotos', schedule: '30 4 * * *' },
     { jobname: 'publicar-pendientes', schedule: '15 seconds' },
+    { jobname: 'revisar-senal-emergencias', schedule: '30 seconds' },
   ]);
 });
 
@@ -79,11 +81,14 @@ test('P01/P02: recibir sin cuenta crea perfil anónimo y guarda solo la celda (s
   const filas = await env.sql(`select celda, centro_celda is not null as con_centro from dispositivos`);
   assert.deepEqual(filas, [{ celda: '9epq69', con_centro: true }], 'una sola fila: la celda se sobrescribe');
 
-  // Ninguna tabla tiene columnas de latitud/longitud, salvo `alertas` (la ubicación del SUCESO)
+  // Ninguna tabla tiene columnas de latitud/longitud, salvo `alertas` (la ubicación del SUCESO) y la
+  // única excepción consentida: una emergencia SOS abierta (la persona misma pidió que la ubiquen;
+  // se borra a los 30 días del cierre — ver las pruebas "SOS" y "retención")
   const columnas = await env.sql(`
     select c.table_name, c.column_name from information_schema.columns c
     join information_schema.tables t using (table_schema, table_name)
-    where c.table_schema = 'public' and t.table_type = 'BASE TABLE' and c.table_name <> 'alertas'
+    where c.table_schema = 'public' and t.table_type = 'BASE TABLE'
+      and c.table_name not in ('alertas', 'emergencias', 'emergencia_puntos')
       and c.column_name ~* '^(lat|lon|latitud|longitud|latitude|longitude)$'`);
   assert.deepEqual(columnas, []);
 });
@@ -682,6 +687,8 @@ test('P14: con la anon key no se pueden leer tokens ni llamar funciones internas
     `select enviar_codigo_whatsapp('{}'::jsonb)`,
     `select secreto_puente_valido('x')`,
     `select * from privado.mensajes_whatsapp`,
+    `select revisar_senal_emergencias()`,
+    `select * from evidencias_por_borrar()`,
   ];
   for (const usuario of [null, t.A]) {
     for (const consulta of internas) {
@@ -946,6 +953,244 @@ test('retención: limpieza diaria y fotos por borrar', async () => {
   assert.equal(a.creada_por, null);
   await env.sql(`select olvidar_fotos($1)`, [[foto]]);
   assert.equal((await env.alerta(r.alerta_id)).foto_path, null);
+});
+
+// ─── Modo emergencia (SOS) ──────────────────────────────────────────────────
+
+test('SOS: cualquier persona con sesión (incluso anónima) lo activa y los validadores reciben el aviso al instante', async () => {
+  const persona = await env.crearUsuario({ anonimo: true });
+  const r = await env.sos(persona, { origen: 'movimiento', bateria: 64 });
+  assert.equal(r.nueva, true);
+  assert.equal(r.estado, 'activa');
+  assert.deepEqual(await env.avisosDeEmergencia(), [{ emergencia_id: r.emergencia_id, evento: 'nueva' }]);
+  const e = await env.emergencia(r.emergencia_id);
+  assert.equal(e.origen, 'movimiento');
+  assert.equal(e.bateria, 64);
+  assert.equal(e.usuario_id, persona.id);
+
+  // Otro toque u otra sacudida: la misma emergencia, sin otro aviso ni otro punto (máx. uno cada 3 s)
+  const otra = await env.sos(persona, { punto: PUNTOS.A });
+  assert.equal(otra.emergencia_id, r.emergencia_id);
+  assert.equal(otra.nueva, false);
+  assert.equal((await env.avisosDeEmergencia()).length, 1);
+  const [{ n }] = await env.sql(`select count(*)::int as n from emergencia_puntos`);
+  assert.equal(n, 1);
+
+  // Sin sesión (solo la anon key) no se puede
+  await assert.rejects(env.rpc(null, 'iniciar_emergencia', { p_lat: 17.95, p_lon: -102.19 }), /permission denied/);
+  const ajena = await env.crearUsuario({ anonimo: true });
+  await assert.rejects(env.sos(ajena, { origen: 'otro' }), /Origen inválido/);
+});
+
+test('SOS: la señal guarda el recorrido (máximo un punto cada 3 s) y solo la manda su dueño', async () => {
+  const persona = await env.crearUsuario();
+  const intruso = await env.crearUsuario();
+  const { emergencia_id: id } = await env.sos(persona);
+  await env.sql(`update emergencia_puntos set registrada_en = now() - interval '5 seconds'`);
+
+  const vista = await env.senal(persona, id, { punto: PUNTOS.B, velocidad: 15, bateria: 70 });
+  assert.deepEqual(vista, { emergencia_id: id, estado: 'activa', tipo: 'sos', cierre: null,
+    atendida_por: null, policia_avisada: false });
+  const e = await env.emergencia(id);
+  assert.deepEqual([e.lat, e.lon, e.velocidad_ms, e.bateria], [PUNTOS.B.lat, PUNTOS.B.lon, 15, 70]);
+
+  await env.senal(persona, id, { punto: PUNTOS.C });   // enseguida: cambia la última ubicación, sin punto nuevo
+  assert.equal((await env.emergencia(id)).lat, PUNTOS.C.lat);
+  const puntos = await env.sql(`select lat from emergencia_puntos order by id`);
+  assert.deepEqual(puntos.map((p) => p.lat), [PUNTOS.suceso.lat, PUNTOS.B.lat]);
+
+  // Sin GPS el teléfono igual reporta que sigue vivo
+  await env.sql(`update emergencias set ultima_senal_en = now() - interval '1 minute'`);
+  await env.rpc(persona, 'senal_emergencia', { p_emergencia: id, p_bateria: 55 });
+  const viva = await env.emergencia(id);
+  assert.equal(viva.bateria, 55);
+  assert.ok(Date.now() - new Date(viva.ultima_senal_en).getTime() < 5000);
+
+  await assert.rejects(env.senal(intruso, id), /Emergencia no encontrada/);
+  await assert.rejects(env.senal(persona, id, { punto: { lat: 95, lon: 0 } }), /Ubicación inválida/);
+});
+
+test('SOS: nadie más ve la emergencia; los validadores ven todo, incluido el teléfono para llamarle', async () => {
+  const persona = await env.crearUsuario();
+  const vecino = await env.crearUsuario();
+  const validador = await env.crearUsuario({ rol: 'validador', institucion: 'Protección Civil Municipal' });
+  const { emergencia_id: id } = await env.sos(persona);
+  const [{ phone }] = await env.sql(`select phone from auth.users where id = $1`, [persona.id]);
+
+  const leer = (usuario) => env.como(usuario, async (tx) => ({
+    emergencias: (await tx.query(`select id from emergencias`)).rows.length,
+    puntos: (await tx.query(`select id from emergencia_puntos`)).rows.length,
+    panel: (await tx.query(`select telefono, n_puntos, n_evidencias from emergencias_panel`)).rows,
+  }));
+  assert.deepEqual(await leer(vecino), { emergencias: 0, puntos: 0, panel: [] });
+  assert.deepEqual(await leer(persona), { emergencias: 1, puntos: 1,
+    panel: [{ telefono: null, n_puntos: 1, n_evidencias: 0 }] });
+  assert.deepEqual(await leer(validador), { emergencias: 1, puntos: 1,
+    panel: [{ telefono: phone, n_puntos: 1, n_evidencias: 0 }] });
+  await assert.rejects(env.como(null, (tx) => tx.query(`select * from emergencias_panel`)), /permission denied/);
+
+  const [m] = await env.como(validador, async (tx) => (await tx.query(`select emergencias_abiertas from metricas`)).rows);
+  assert.equal(m.emergencias_abiertas, 1);
+
+  // Nadie escribe directo: solo las funciones del servidor
+  await assert.rejects(env.como(persona, (tx) => tx.query(
+    `insert into emergencias (usuario_id, origen, lat, lon) values ($1, 'boton', 17.9, -102.1)`, [persona.id])),
+  /row-level security/);
+  const cambiadas = await env.como(validador, async (tx) =>
+    (await tx.query(`update emergencias set estado = 'cerrada' where id = $1`, [id])).affectedRows);
+  assert.equal(cambiadas, 0);
+  await assert.rejects(env.como(persona, (tx) => tx.query(
+    `insert into emergencia_puntos (emergencia_id, lat, lon) values ($1, 18, -102)`, [id])), /row-level security/);
+});
+
+test('SOS: el validador toma el caso, registra el aviso al 911 y la persona lo ve en su pantalla', async () => {
+  const persona = await env.crearUsuario();
+  const vecino = await env.crearUsuario();
+  const validador = await env.crearUsuario({ rol: 'validador', institucion: 'Protección Civil Municipal' });
+  const { emergencia_id: id } = await env.sos(persona);
+  const atender = (usuario, accion, extra = {}) =>
+    env.rpc(usuario, 'atender_emergencia', { p_emergencia: id, p_accion: accion, ...extra });
+
+  await assert.rejects(atender(vecino, 'tomar'), /Solo validadores/);
+  await atender(validador, 'tomar');
+  let e = await env.emergencia(id);
+  assert.equal(e.estado, 'en_seguimiento');
+  assert.equal(e.atendida_por, validador.id);
+  let vista = await env.senal(persona, id);
+  assert.equal(vista.atendida_por, 'Protección Civil Municipal');
+  assert.equal(vista.policia_avisada, false);
+
+  await atender(validador, 'policia', { p_folio: ' F-911-778 ' });
+  e = await env.emergencia(id);
+  assert.equal(e.folio_911, 'F-911-778');
+  assert.ok(e.policia_avisada_en);
+  assert.equal((await env.senal(persona, id)).policia_avisada, true);
+
+  await assert.rejects(atender(validador, 'nota'), /Escribe la nota/);
+  await atender(validador, 'nota', { p_nota: 'Patrulla 12 en camino por Av. Lázaro Cárdenas' });
+  await assert.rejects(atender(validador, 'volar'), /Acción inválida/);
+
+  await atender(validador, 'localizada', { p_nota: 'La encontró la patrulla 12; está bien' });
+  e = await env.emergencia(id);
+  assert.deepEqual([e.estado, e.cierre, e.cerrada_por], ['cerrada', 'localizada', validador.id]);
+  await env.sql(`update emergencia_puntos set registrada_en = now() - interval '5 seconds'`);
+  vista = await env.senal(persona, id, { punto: PUNTOS.D });
+  assert.deepEqual([vista.estado, vista.cierre], ['cerrada', 'localizada']);
+  const [{ n }] = await env.sql(`select count(*)::int as n from emergencia_puntos`);
+  assert.equal(n, 1, 'cerrada la emergencia, el teléfono ya no deja recorrido');
+  await assert.rejects(atender(validador, 'tomar'), /ya está cerrada/);
+});
+
+test('SOS: la persona indica qué pasa y lo termina; los validadores reciben cada cambio', async () => {
+  const persona = await env.crearUsuario({ anonimo: true });
+  const validador = await env.crearUsuario({ rol: 'validador' });
+  const { emergencia_id: id } = await env.sos(persona);
+  const tipo = (t) => env.rpc(persona, 'tipo_emergencia', { p_emergencia: id, p_tipo: t });
+
+  assert.equal((await tipo('secuestro'))[0].tipo_emergencia.tipo, 'secuestro');
+  await tipo('secuestro');   // el mismo tipo no vuelve a avisar
+  await assert.rejects(tipo('broma'), /Tipo de emergencia inválido/);
+
+  const [{ terminar_emergencia: fin }] = await env.rpc(persona, 'terminar_emergencia',
+    { p_emergencia: id, p_cierre: 'a_salvo' });
+  assert.deepEqual([fin.estado, fin.cierre], ['cerrada', 'a_salvo']);
+  assert.deepEqual((await env.avisosDeEmergencia()).map((a) => a.evento), ['nueva', 'tipo', 'cerrada']);
+  const [panel] = await env.como(validador, async (tx) =>
+    (await tx.query(`select cerrada_por_la_persona, tipo from emergencias_panel`)).rows);
+  assert.deepEqual(panel, { cerrada_por_la_persona: true, tipo: 'secuestro' });
+  await assert.rejects(env.rpc(persona, 'terminar_emergencia', { p_emergencia: id, p_cierre: 'localizada' }),
+    /Cierre inválido/);
+
+  // Puede volver a pedir ayuda (una emergencia nueva), hasta el límite por hora
+  await env.sql(`update config set emergencias_por_hora = 2`);
+  const segunda = await env.sos(persona);
+  assert.notEqual(segunda.emergencia_id, id);
+  await env.rpc(persona, 'terminar_emergencia', { p_emergencia: segunda.emergencia_id, p_cierre: 'falsa_alarma' });
+  await assert.rejects(env.sos(persona), /demasiadas veces en la última hora\. Si estás en peligro, llama al 911/);
+});
+
+test('SOS: la evidencia solo se sube a la carpeta de la emergencia propia y abierta; la ven la persona y los validadores', async () => {
+  const persona = await env.crearUsuario({ anonimo: true });
+  const vecino = await env.crearUsuario();
+  const validador = await env.crearUsuario({ rol: 'validador' });
+  const { emergencia_id: id } = await env.sos(persona);
+  const subir = (usuario, nombre) => env.como(usuario, (tx) => tx.query(
+    `insert into storage.objects (bucket_id, name, owner) values ('evidencias', $1, $2)`, [nombre, usuario.id]));
+  const registrar = (usuario, ruta) => env.rpc(usuario, 'registrar_evidencia',
+    { p_emergencia: id, p_tipo: 'video', p_ruta: ruta, p_duracion_s: 20 });
+  const video = `${persona.id}/${id}/0001.mp4`;
+
+  await subir(persona, video);
+  await assert.rejects(subir(vecino, `${vecino.id}/${id}/x.mp4`), /row-level security/, 'emergencia ajena');
+  await assert.rejects(subir(persona, `${persona.id}/${vecino.id}/x.mp4`), /row-level security/, 'emergencia inexistente');
+  await assert.rejects(subir(vecino, `${persona.id}/${id}/x.mp4`), /row-level security/, 'carpeta ajena');
+
+  await registrar(persona, video);
+  await registrar(persona, video);   // reintento: no duplica
+  await assert.rejects(registrar(persona, `${persona.id}/${id}/no-subida.mp4`), /no se ha subido/);
+  await assert.rejects(registrar(persona, `otra-carpeta/${id}/0001.mp4`), /carpeta de tu emergencia/);
+  await assert.rejects(registrar(vecino, video), /Emergencia no encontrada/);
+
+  const ver = (usuario) => env.como(usuario, async (tx) => ({
+    archivos: (await tx.query(`select name from storage.objects where bucket_id = 'evidencias'`)).rows.length,
+    registro: (await tx.query(`select ruta from emergencia_evidencias`)).rows.length,
+  }));
+  assert.deepEqual(await ver(persona), { archivos: 1, registro: 1 });
+  assert.deepEqual(await ver(validador), { archivos: 1, registro: 1 });
+  assert.deepEqual(await ver(vecino), { archivos: 0, registro: 0 });
+
+  // Después de "Estoy a salvo" el último fragmento tiene 15 min para terminar de subir
+  await env.rpc(persona, 'terminar_emergencia', { p_emergencia: id });
+  await subir(persona, `${persona.id}/${id}/0002.mp4`);
+  await env.sql(`update emergencias set cerrada_en = now() - interval '16 minutes'`);
+  await assert.rejects(subir(persona, `${persona.id}/${id}/0003.mp4`), /row-level security/);
+  await assert.rejects(registrar(persona, `${persona.id}/${id}/0002.mp4`), /ya está cerrada/);
+});
+
+test('SOS: si el teléfono deja de mandar señal se avisa UNA vez a los validadores y se rearma al volver', async () => {
+  const persona = await env.crearUsuario();
+  const otra = await env.crearUsuario();
+  const { emergencia_id: id } = await env.sos(persona);
+  const { emergencia_id: cerrada } = await env.sos(otra);
+  await env.rpc(otra, 'terminar_emergencia', { p_emergencia: cerrada });
+  await env.sql(`update emergencias set ultima_senal_en = now() - interval '3 minutes'`);
+  const revisar = async () => (await env.sql(`select revisar_senal_emergencias() as n`))[0].n;
+
+  assert.equal(await revisar(), 1, 'solo la abierta');
+  assert.equal(await revisar(), 0, 'no repite el aviso');
+  await env.senal(persona, id);
+  assert.equal((await env.emergencia(id)).sin_senal_avisada_en, null);
+  await env.sql(`update emergencias set ultima_senal_en = now() - interval '3 minutes' where id = $1`, [id]);
+  assert.equal(await revisar(), 1, 'se volvió a perder');
+  const sinSenal = (await env.avisosDeEmergencia()).filter((a) => a.evento === 'sin_senal');
+  assert.deepEqual(sinSenal.map((a) => a.emergencia_id), [id, id]);
+  assert.equal((await env.emergencia(id)).estado, 'activa', 'nunca se cierra sola');
+});
+
+test('retención: las emergencias cerradas se borran a los 30 días con su recorrido; las abiertas nunca', async () => {
+  const persona = await env.crearUsuario();
+  const otra = await env.crearUsuario();
+  const { emergencia_id: vieja } = await env.sos(persona);
+  await env.rpc(persona, 'terminar_emergencia', { p_emergencia: vieja });
+  const { emergencia_id: abierta } = await env.sos(otra);
+  await env.sql(`update emergencias set cerrada_en = now() - interval '31 days' where id = $1`, [vieja]);
+  await env.sql(`update emergencias set creada_en = now() - interval '40 days' where id = $1`, [abierta]);
+  for (const [usuario, id] of [[persona, vieja], [otra, abierta]]) {
+    await env.sql(`insert into storage.objects (bucket_id, name, created_at) values ('evidencias', $1, now() - interval '2 days')`,
+      [`${usuario.id}/${id}/0001.mp4`]);
+  }
+
+  await env.sql(`select limpieza_diaria()`);
+  const quedan = (await env.sql(`select id from emergencias`)).map((e) => e.id);
+  assert.deepEqual(quedan, [abierta]);
+  const [{ n }] = await env.sql(`select count(*)::int as n from emergencia_puntos where emergencia_id = $1`, [vieja]);
+  assert.equal(n, 0, 'el recorrido se va con la emergencia');
+  const porBorrar = (await env.sql(`select ruta from evidencias_por_borrar()`)).map((f) => f.ruta);
+  assert.deepEqual(porBorrar, [`${persona.id}/${vieja}/0001.mp4`], 'la evidencia de la abierta no se toca');
+
+  // Borrar mi cuenta también borra mis emergencias
+  await env.rpc(otra, 'borrar_mi_cuenta');
+  assert.equal((await env.sql(`select count(*)::int as n from emergencias`))[0].n, 0);
 });
 
 // ─── P19: carga ─────────────────────────────────────────────────────────────

@@ -60,11 +60,13 @@ export class Entorno {
     await this.db.exec(`
       truncate alertas, dispositivos, zonas_usuario, entregas, confirmaciones,
                suscriptores_telegram, entregas_telegram, bitacora, storage.objects,
-               net.solicitudes, privado.mensajes_whatsapp restart identity cascade;
+               net.solicitudes, privado.mensajes_whatsapp, emergencias, emergencia_puntos,
+               emergencia_evidencias restart identity cascade;
       delete from auth.users;
       update config set factor_tiempo = 1, minutos_espera_validador = 5, confirmaciones_corroborar = 3,
                         confirmaciones_colmena = 6, radio_max_corroborada_m = 3000, radio_max_colmena_m = 10000,
-                        reportes_por_hora = 10, whatsapp_modo = 'simulado';
+                        reportes_por_hora = 10, whatsapp_modo = 'simulado', emergencias_por_hora = 5,
+                        minutos_sin_senal = 2, dias_retencion_emergencia = 30;
       update privado.puente_whatsapp set numero = null, conectado = false, latido_en = null;
       delete from vault.secrets;
       select vault.create_secret('https://prueba.supabase.co/functions/v1', 'url_funciones');
@@ -183,5 +185,34 @@ export class Entorno {
 
   async llamadasANotificar() {
     return this.sql(`select url, headers, body from net.solicitudes where url like '%/notificar' order by id`);
+  }
+
+  /** Avisos de emergencia (SOS) que la base de datos pidió a `notificar`, en orden. */
+  async avisosDeEmergencia() {
+    return (await this.llamadasANotificar())
+      .filter((l) => l.body.emergencia_id)
+      .map((l) => ({ emergencia_id: l.body.emergencia_id, evento: l.body.evento }));
+  }
+
+  /** Activa el SOS como lo hace la app. Devuelve el jsonb de respuesta. */
+  async sos(usuario, { punto = PUNTOS.suceso, origen = 'boton', precision = 15, bateria = 80 } = {}) {
+    const [fila] = await this.rpc(usuario, 'iniciar_emergencia', {
+      p_lat: punto.lat, p_lon: punto.lon, p_precision_m: precision, p_origen: origen, p_bateria: bateria,
+    });
+    return fila.iniciar_emergencia;
+  }
+
+  /** Una señal del teléfono (ubicación, velocidad, batería). Devuelve lo que ve la persona. */
+  async senal(usuario, emergenciaId, { punto = PUNTOS.suceso, velocidad = null, bateria = null } = {}) {
+    const [fila] = await this.rpc(usuario, 'senal_emergencia', {
+      p_emergencia: emergenciaId, p_lat: punto.lat, p_lon: punto.lon, p_precision_m: 10,
+      p_velocidad_ms: velocidad, p_bateria: bateria,
+    });
+    return fila.senal_emergencia;
+  }
+
+  async emergencia(id) {
+    const [e] = await this.sql(`select * from emergencias where id = $1`, [id]);
+    return e;
   }
 }

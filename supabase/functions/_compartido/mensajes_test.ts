@@ -1,5 +1,13 @@
 import { assertEquals, assertMatch, assertStringIncludes } from 'jsr:@std/assert@1';
-import { type AlertaAviso, datosPush, textoTelegramCierre, textoTelegramNueva, textoVisible } from './mensajes.ts';
+import {
+  type AlertaAviso,
+  datosEmergencia,
+  datosPush,
+  type EmergenciaAviso,
+  textoTelegramCierre,
+  textoTelegramNueva,
+  textoVisible,
+} from './mensajes.ts';
 
 const menor: AlertaAviso = {
   id: '6f1c2a9e-0b7d-4a51-9a43-2c8e7f1d5b10',
@@ -72,4 +80,55 @@ Deno.test('Telegram: mapa, instrucciones y aviso del 911', () => {
   assertStringIncludes(t, 'no sustituye al 911');
   assertStringIncludes(textoTelegramCierre({ ...menor, estado: 'resuelta', motivo_cierre: 'Localizado' }), 'RESUELTA');
   assertStringIncludes(textoTelegramCierre({ ...menor, estado: 'descartada' }), 'no la sigas compartiendo');
+});
+
+// ─── Modo emergencia (SOS) ──────────────────────────────────────────────────
+
+const sos: EmergenciaAviso = {
+  id: '0b6f8a52-7a8e-4f0b-9c55-1f7d2a3e4b60',
+  estado: 'activa',
+  tipo: 'sos',
+  origen: 'movimiento',
+  lat: 17.9581,
+  lon: -102.1942,
+  velocidad_ms: 12.5,
+  bateria: 18,
+  cierre: null,
+};
+
+Deno.test('datosEmergencia: aviso de prioridad máxima solo con texto, con cómo pidió ayuda y su velocidad', () => {
+  const d = datosEmergencia(sos, 'nueva');
+  for (const v of Object.values(d)) assertEquals(typeof v, 'string');
+  assertEquals(d, {
+    tipo: 'emergencia',
+    evento: 'nueva',
+    emergencia_id: sos.id,
+    nivel: '4',
+    titulo: 'EMERGENCIA SOS',
+    cuerpo: 'Una persona pidió ayuda con una sacudida fuerte del teléfono. Se mueve a 45 km/h. ' +
+      'Toca para ver su ubicación en vivo.',
+    lat: '17.9581',
+    lon: '-102.1942',
+  });
+  // A pie no se menciona la velocidad
+  assertEquals(
+    datosEmergencia({ ...sos, origen: 'boton', velocidad_ms: 1.2 }, 'nueva').cuerpo,
+    'Una persona pidió ayuda con el botón de pánico. Toca para ver su ubicación en vivo.',
+  );
+});
+
+Deno.test('datosEmergencia: lo que indica la persona, sin señal y cierre por la persona', () => {
+  const secuestro = datosEmergencia({ ...sos, tipo: 'secuestro' }, 'tipo');
+  assertEquals(secuestro.titulo, 'SOS · POSIBLE SECUESTRO');
+  assertStringIncludes(secuestro.cuerpo, '«Me llevan»');
+
+  const sinSenal = datosEmergencia(sos, 'sin_senal');
+  assertEquals([sinSenal.titulo, sinSenal.nivel], ['SOS · SIN SEÑAL', '4']);
+  assertStringIncludes(sinSenal.cuerpo, 'Batería: 18 %');
+
+  const cerrada = datosEmergencia({ ...sos, estado: 'cerrada', cierre: 'a_salvo' }, 'cerrada');
+  assertEquals(cerrada.nivel, '2', 'el cierre informa, no alarma');
+  assertStringIncludes(cerrada.cuerpo, '«Estoy a salvo»');
+  assertStringIncludes(datosEmergencia({ ...sos, cierre: 'falsa_alarma' }, 'cerrada').cuerpo, 'falsa alarma');
+  assertEquals(textoVisible(cerrada), { title: cerrada.titulo, body: cerrada.cuerpo });
 });

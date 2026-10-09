@@ -15,6 +15,7 @@ class FilaMetricas extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metricas;
     final tarjetas = [
+      if ((m?.emergenciasAbiertas ?? 0) > 0) ('${m!.emergenciasAbiertas}', 'emergencias SOS', Icons.sos, Colores.rojo),
       ('${m?.activas ?? '—'}', 'activas', Icons.campaign_outlined, Colores.naranja),
       ('${m?.porValidar ?? '—'}', 'por validar', Icons.hourglass_top, Colores.morado),
       (

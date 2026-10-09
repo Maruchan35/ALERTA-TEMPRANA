@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Atajo al mantener presionado el ícono de ALERTA CERCA: abre la cuenta regresiva del SOS -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="sos"
+        android:enabled="true"
+        android:icon="@drawable/ic_sos"
+        android:shortcutShortLabel="@string/atajo_sos_corto"
+        android:shortcutLongLabel="@string/atajo_sos_largo">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="mx.alertacerca.alerta_cerca"
+            android:targetClass="mx.alertacerca.alerta_cerca.MainActivity">
+            <extra android:name="sos_origen" android:value="atajo" />
+        </intent>
+    </shortcut>
+</shortcuts>

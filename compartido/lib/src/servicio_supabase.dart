@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'catalogo.dart';
+import 'emergencia.dart';
 import 'modelos.dart';
 import 'servicio.dart';
 
@@ -39,7 +40,10 @@ class ServicioSupabase implements ServicioAlertas {
     } on ErrorServicio {
       rethrow;
     } catch (e) {
-      throw ErrorServicio('Sin conexión con el servidor. Revisa tu internet e inténtalo de nuevo.');
+      throw const ErrorServicio(
+        'Sin conexión con el servidor. Revisa tu internet e inténtalo de nuevo.',
+        sinConexion: true,
+      );
     }
   }
 
@@ -358,6 +362,240 @@ class ServicioSupabase implements ServicioAlertas {
     );
     return control.stream;
   }
+
+  // ─── Modo emergencia (SOS) ─────────────────────────────────────────────────
+  Future<EstadoMiEmergencia> _sos(String funcion, Map<String, dynamic> params) => _intentar(() async {
+    final r = await cliente.rpc(funcion, params: params);
+    return EstadoMiEmergencia.desdeMapa(r as Map<String, dynamic>);
+  });
+
+  @override
+  Future<EstadoMiEmergencia> iniciarEmergencia({
+    required double lat,
+    required double lon,
+    double? precisionM,
+    required OrigenEmergencia origen,
+    int? bateria,
+  }) => _sos('iniciar_emergencia', {
+    'p_lat': lat,
+    'p_lon': lon,
+    'p_precision_m': precisionM,
+    'p_origen': origen.clave,
+    'p_bateria': bateria,
+  });
+
+  @override
+  Future<EstadoMiEmergencia> senalEmergencia(
+    String id, {
+    double? lat,
+    double? lon,
+    double? precisionM,
+    double? velocidadMs,
+    int? bateria,
+  }) => _sos('senal_emergencia', {
+    'p_emergencia': id,
+    'p_lat': lat,
+    'p_lon': lon,
+    'p_precision_m': precisionM,
+    'p_velocidad_ms': velocidadMs,
+    'p_bateria': bateria,
+  });
+
+  @override
+  Future<EstadoMiEmergencia> tipoEmergencia(String id, TipoEmergencia tipo) =>
+      _sos('tipo_emergencia', {'p_emergencia': id, 'p_tipo': tipo.clave});
+
+  @override
+  Future<EstadoMiEmergencia> terminarEmergencia(String id, CierreEmergencia cierre) =>
+      _sos('terminar_emergencia', {'p_emergencia': id, 'p_cierre': cierre.clave});
+
+  @override
+  Future<String> subirEvidencia(
+    String emergenciaId,
+    String nombre,
+    Uint8List bytes, {
+    String tipo = 'video',
+    String contentType = 'video/mp4',
+    int? duracionS,
+  }) async {
+    final uid = cliente.auth.currentUser?.id;
+    if (uid == null) throw const ErrorServicio('Sin sesión: la evidencia se queda en el teléfono.', sinConexion: true);
+    final ruta = '$uid/$emergenciaId/$nombre';
+    try {
+      await cliente.storage
+          .from('evidencias')
+          .uploadBinary(ruta, bytes, fileOptions: FileOptions(contentType: contentType, upsert: false));
+    } on StorageException catch (e) {
+      // Un reintento de algo que ya había subido: basta con registrarlo
+      final yaEstaba = e.statusCode == '409' || e.message.toLowerCase().contains('exists');
+      if (!yaEstaba) throw ErrorServicio('No se pudo subir la evidencia: ${e.message}');
+    } catch (_) {
+      throw const ErrorServicio(
+        'Sin conexión: la evidencia se queda en el teléfono y se reintenta.',
+        sinConexion: true,
+      );
+    }
+    await _intentar(
+      () => cliente.rpc(
+        'registrar_evidencia',
+        params: {'p_emergencia': emergenciaId, 'p_tipo': tipo, 'p_ruta': ruta, 'p_duracion_s': duracionS},
+      ),
+    );
+    return ruta;
+  }
+
+  @override
+  Future<EstadoMiEmergencia?> miEmergenciaAbierta() async {
+    final uid = cliente.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final fila = await cliente
+          .from('emergencias')
+          .select('id')
+          .eq('usuario_id', uid)
+          .neq('estado', 'cerrada')
+          .maybeSingle();
+      return fila == null ? null : await senalEmergencia(fila['id'] as String);
+    } catch (_) {
+      return null; // sin conexión: la app sigue con la que tiene guardada
+    }
+  }
+
+  @override
+  Stream<List<Emergencia>> flujoEmergencias() {
+    late final StreamController<List<Emergencia>> control;
+    RealtimeChannel? canal;
+    Timer? espera;
+    Timer? periodico;
+
+    Future<void> cargar() async {
+      try {
+        final filas = await cliente.from('emergencias_panel').select().order('creada_en', ascending: false).limit(100);
+        final lista = filas.map(Emergencia.desdeMapa).toList()..sort(compararEmergencias);
+        if (!control.isClosed) control.add(lista);
+      } catch (e) {
+        if (!control.isClosed) control.addError(ErrorServicio('No se pudieron cargar las emergencias: $e'));
+      }
+    }
+
+    void programar() {
+      espera?.cancel();
+      espera = Timer(const Duration(milliseconds: 400), cargar);
+    }
+
+    control = StreamController<List<Emergencia>>(
+      onListen: () {
+        cargar();
+        canal = cliente
+            .channel('panel-emergencias')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'emergencias',
+              callback: (_) => programar(),
+            )
+            .onPostgresChanges(
+              event: PostgresChangeEvent.insert,
+              schema: 'public',
+              table: 'emergencia_evidencias',
+              callback: (_) => programar(),
+            )
+            .subscribe();
+        // "Sin señal desde hace X" y los conteos cambian aunque nadie toque la fila
+        periodico = Timer.periodic(const Duration(seconds: 15), (_) => cargar());
+      },
+      onCancel: () async {
+        espera?.cancel();
+        periodico?.cancel();
+        if (canal != null) await cliente.removeChannel(canal!);
+      },
+    );
+    return control.stream;
+  }
+
+  @override
+  Stream<List<PuntoEmergencia>> flujoRecorrido(String emergenciaId) {
+    late final StreamController<List<PuntoEmergencia>> control;
+    RealtimeChannel? canal;
+    Timer? periodico;
+    var puntos = <PuntoEmergencia>[];
+
+    Future<void> cargar() async {
+      try {
+        // Los más recientes (un recorrido de horas puede tener miles de puntos)
+        final filas = await cliente
+            .from('emergencia_puntos')
+            .select('id, lat, lon, precision_m, velocidad_ms, registrada_en')
+            .eq('emergencia_id', emergenciaId)
+            .order('registrada_en', ascending: false)
+            .limit(5000);
+        puntos = filas.map(PuntoEmergencia.desdeMapa).toList().reversed.toList();
+        if (!control.isClosed) control.add(List.unmodifiable(puntos));
+      } catch (e) {
+        if (!control.isClosed) control.addError(ErrorServicio('No se pudo cargar el recorrido: $e'));
+      }
+    }
+
+    control = StreamController<List<PuntoEmergencia>>(
+      onListen: () {
+        cargar();
+        canal = cliente
+            .channel('recorrido-$emergenciaId')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.insert,
+              schema: 'public',
+              table: 'emergencia_puntos',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'emergencia_id',
+                value: emergenciaId,
+              ),
+              callback: (cambio) {
+                if (cambio.newRecord.isEmpty || control.isClosed) return;
+                final p = PuntoEmergencia.desdeMapa(cambio.newRecord);
+                if (puntos.any((x) => x.id == p.id)) return;
+                puntos = [...puntos, p];
+                control.add(List.unmodifiable(puntos));
+              },
+            )
+            .subscribe();
+        periodico = Timer.periodic(const Duration(seconds: 30), (_) => cargar());
+      },
+      onCancel: () async {
+        periodico?.cancel();
+        if (canal != null) await cliente.removeChannel(canal!);
+      },
+    );
+    return control.stream;
+  }
+
+  @override
+  Future<List<EvidenciaEmergencia>> evidenciasEmergencia(String emergenciaId) => _intentar(() async {
+    final filas = await cliente
+        .from('emergencia_evidencias')
+        .select('tipo, ruta, duracion_s, creada_en')
+        .eq('emergencia_id', emergenciaId)
+        .order('creada_en');
+    return filas.map(EvidenciaEmergencia.desdeMapa).toList();
+  });
+
+  @override
+  Future<String?> urlEvidencia(String ruta) async {
+    try {
+      return await cliente.storage.from('evidencias').createSignedUrl(ruta, 600);
+    } catch (e) {
+      debugPrint('Evidencia $ruta: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<void> atenderEmergencia(String id, AccionEmergencia accion, {String? nota, String? folio}) => _intentar(
+    () => cliente.rpc(
+      'atender_emergencia',
+      params: {'p_emergencia': id, 'p_accion': accion.clave, 'p_nota': nota, 'p_folio': folio},
+    ),
+  );
 
   @override
   void cerrar() {

@@ -9,6 +9,20 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+    <!-- Modo emergencia (SOS). Todo se activa solo con una emergencia o con el modo protección,
+         y siempre se ve: notificación fija, indicador de cámara/micrófono del sistema. -->
+    <!-- Evidencia: video con audio mientras la pantalla del SOS está abierta -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Ubicación en vivo durante la emergencia aunque se apague la pantalla (servicio de ubicación) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <!-- Modo protección (opcional): detectar la sacudida con la app cerrada -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- Mostrar la cuenta regresiva del SOS aunque el teléfono esté bloqueado (como una alarma) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+
     <application
         android:label="ALERTA CERCA"
         android:name="${applicationName}"
@@ -34,7 +48,30 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Atajo "SOS" al mantener presionado el ícono de la app -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/atajos" />
         </activity>
+
+        <!-- Modo protección: escucha el acelerómetro con la app cerrada (opcional, se ve como
+             notificación fija y se apaga desde la app o desde esa notificación) -->
+        <service
+            android:name=".ModoProteccionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Botón de pánico: detecta una sacudida fuerte del teléfono para pedir ayuda (SOS)" />
+        </service>
+        <!-- Si el modo protección estaba encendido, vuelve a encenderlo al reiniciar el teléfono -->
+        <receiver
+            android:name=".ArranqueReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
 
         <!-- Push (FCM): canal, ícono y color por defecto si llega un mensaje con "notification" -->
         <meta-data

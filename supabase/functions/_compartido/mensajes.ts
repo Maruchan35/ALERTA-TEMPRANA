@@ -102,6 +102,91 @@ export function textoVisible(datos: Record<string, string>): { title: string; bo
   return { title: datos.titulo, body: datos.cuerpo };
 }
 
+// ─── Modo emergencia (SOS): avisos SOLO para validadores ─────────────────────
+
+export interface EmergenciaAviso {
+  id: string;
+  estado: string; // activa | en_seguimiento | cerrada
+  tipo: string; // sos | asalto | secuestro | me_siguen | otra
+  origen: string; // boton | movimiento | atajo
+  lat: number;
+  lon: number;
+  velocidad_ms: number | null;
+  bateria: number | null;
+  cierre: string | null;
+}
+
+export type EventoEmergencia = 'nueva' | 'tipo' | 'sin_senal' | 'cerrada';
+
+const TITULO_TIPO: Record<string, string> = {
+  sos: 'EMERGENCIA SOS',
+  asalto: 'SOS · ASALTO EN CURSO',
+  secuestro: 'SOS · POSIBLE SECUESTRO',
+  me_siguen: 'SOS · LA ESTÁN SIGUIENDO',
+  otra: 'EMERGENCIA SOS',
+};
+
+const COMO_LO_PIDIO: Record<string, string> = {
+  boton: 'con el botón de pánico',
+  movimiento: 'con una sacudida fuerte del teléfono',
+  atajo: 'desde el atajo del teléfono',
+};
+
+const LO_QUE_INDICO: Record<string, string> = {
+  asalto: 'La persona indicó: «Me están asaltando».',
+  secuestro: 'La persona indicó: «Me llevan».',
+  me_siguen: 'La persona indicó: «Me están siguiendo».',
+  otra: 'La persona indicó otra emergencia.',
+};
+
+/** Velocidad legible solo si va en vehículo (> 20 km/h): para el validador es una señal clave. */
+const enMovimiento = (ms: number | null) => {
+  const kmh = Math.round((ms ?? 0) * 3.6);
+  return kmh > 20 ? ` Se mueve a ${kmh} km/h.` : '';
+};
+
+/**
+ * Campo `data` del push a validadores cuando una persona pide ayuda (y cuando cambia algo
+ * que deben saber). Todos los valores son texto (FCM). La app lo muestra como alarma.
+ */
+export function datosEmergencia(e: EmergenciaAviso, evento: EventoEmergencia): Record<string, string> {
+  let titulo = TITULO_TIPO[e.tipo] ?? 'EMERGENCIA SOS';
+  let cuerpo: string;
+  switch (evento) {
+    case 'nueva':
+      cuerpo = `Una persona pidió ayuda ${COMO_LO_PIDIO[e.origen] ?? ''}.${enMovimiento(e.velocidad_ms)} ` +
+        'Toca para ver su ubicación en vivo.';
+      break;
+    case 'tipo':
+      cuerpo = `${LO_QUE_INDICO[e.tipo] ?? 'La persona actualizó su emergencia.'}${enMovimiento(e.velocidad_ms)} ` +
+        'Ubicación en vivo en el panel.';
+      break;
+    case 'sin_senal':
+      titulo = 'SOS · SIN SEÑAL';
+      cuerpo = 'El teléfono dejó de mandar su ubicación. La última posición está en el panel.' +
+        (e.bateria != null ? ` Batería: ${e.bateria} %.` : '');
+      break;
+    case 'cerrada':
+      titulo = 'SOS TERMINADO POR LA PERSONA';
+      cuerpo =
+        (e.cierre === 'falsa_alarma'
+          ? 'La persona indicó que fue sin querer (falsa alarma).'
+          : 'La persona marcó «Estoy a salvo».') +
+        ' Si ya iba ayuda en camino, confirma con ella antes de retirarla.';
+      break;
+  }
+  return {
+    tipo: 'emergencia',
+    evento,
+    emergencia_id: e.id,
+    nivel: evento === 'cerrada' ? '2' : '4',
+    titulo,
+    cuerpo,
+    lat: String(e.lat),
+    lon: String(e.lon),
+  };
+}
+
 /** Mensaje de Telegram para una alerta nueva (texto plano: el contenido del usuario no rompe el formato). */
 export function textoTelegramNueva(a: AlertaAviso): string {
   const c = a.categorias;

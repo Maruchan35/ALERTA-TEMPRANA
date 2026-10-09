@@ -172,6 +172,9 @@ en blanco; un clic la abre en grande.
 | Tabla `bitacora` | `accion` (`reportar, emitir_oficial, verificar, descartar, resolver, ajustar_radio, corroborar_auto, publicar_auto, publicar_colmena, revision_por_votos, expirar`), `usuario_id` (null = automática), `detalle` (JSON), `creada_en` |
 | Tabla `categorias` | `clave, nombre, nombre_corto, nivel, requiere_validacion, solo_institucion, vigencia, instrucciones` |
 | Tabla `escalones_radio` | `categoria, minuto, radio_m`: cómo crece el radio de cada categoría |
+| Vista `emergencias_panel` (SOS) | `id, estado` (`activa`, `en_seguimiento`, `cerrada`), `tipo` (`sos, asalto, secuestro, me_siguen, otra`), `origen` (`boton, movimiento, atajo`), `lat, lon, precision_m, velocidad_ms, bateria, ultima_senal_en, sin_senal_avisada_en, creada_en, atendida_en, policia_avisada_en, folio_911, nota, cerrada_en, cierre` (`a_salvo, localizada, falsa_alarma`), `cerrada_por_la_persona, telefono` (solo validadores), `atendida_por_nombre, atendida_por_institucion, n_puntos, n_evidencias` |
+| Tabla `emergencia_puntos` | `id, emergencia_id, lat, lon, precision_m, velocidad_ms, registrada_en`: el recorrido (un punto cada ~5 s) |
+| Tabla `emergencia_evidencias` | `emergencia_id, tipo, ruta` (bucket privado `evidencias`: URL firmada), `duracion_s, creada_en` |
 
 ### Estados y colores sugeridos
 
@@ -182,6 +185,14 @@ en blanco; un clic la abre en grande.
 | `corroborada` | 3+ vecinos la confirmaron (3 km; con 6+, 10 km) | azul |
 | `verificada` | Validada por una institución: todos los escalones | verde |
 | `resuelta` · `descartada` · `expirada` | Cerrada | gris |
+
+**Emergencias SOS** ([011](../supabase/migrations/011_emergencias.sql)): una persona en peligro pidió ayuda desde la
+app. Leer `emergencias_panel` (abiertas primero), escuchar Realtime en `emergencias`, `emergencia_puntos` (filtro
+`emergencia_id=eq.<id>` para dibujar el recorrido en vivo) y `emergencia_evidencias`; actuar SOLO con
+`rpc('atender_emergencia', { p_emergencia, p_accion: 'tomar' | 'policia' | 'nota' | 'localizada' | 'falsa_alarma', p_nota, p_folio })`.
+Colores: rojo `activa` (nadie la ha tomado), naranja `en_seguimiento`, morado si `ultima_senal_en` tiene más de 2 min
+(el teléfono no responde), gris `cerrada`. Ya está hecho en el portal React (`web/src/services/emergencyService.ts`,
+`hooks/useEmergencies.ts`, `components/admin/EmergencyPanel.tsx`) y en el panel Flutter (pestaña *SOS*).
 
 **Colmena**: el panel ya no es un cuello de botella. Un reporte `pendiente` que nunca se publicó sale solo como
 `no_confirmada` si nadie lo revisa en 5 minutos, o al instante si otra persona reporta lo mismo cerca. El validador

@@ -4,39 +4,71 @@ import 'package:alerta_compartido/alerta_compartido.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'nucleo/emergencia.dart';
 import 'nucleo/estado_app.dart';
 import 'nucleo/notificaciones.dart';
+import 'nucleo/proteccion.dart';
 import 'pantallas/bienvenida.dart';
 import 'pantallas/detalle.dart';
+import 'pantallas/emergencia.dart';
+import 'pantallas/emergencias_validador.dart';
 import 'pantallas/inicio.dart';
 
 final navegador = GlobalKey<NavigatorState>();
 final mensajero = GlobalKey<ScaffoldMessengerState>();
 
 class AlertaCercaApp extends StatefulWidget {
-  const AlertaCercaApp({super.key, required this.estado});
+  const AlertaCercaApp({super.key, required this.estado, required this.sos});
 
   final EstadoApp estado;
+  final ControlEmergencia sos;
 
   @override
   State<AlertaCercaApp> createState() => _AlertaCercaAppState();
 }
 
-class _AlertaCercaAppState extends State<AlertaCercaApp> {
+class _AlertaCercaAppState extends State<AlertaCercaApp> with WidgetsBindingObserver {
   final _suscripciones = <StreamSubscription<Object?>>[];
+  var _etapaSos = EtapaSos.inactiva;
 
   @override
   void initState() {
     super.initState();
     _suscripciones
       ..add(Notificaciones.alTocar.stream.listen(abrirAlerta))
-      ..add(Notificaciones.enPantalla.stream.listen(_mostrarAviso));
+      ..add(Notificaciones.enPantalla.stream.listen(_mostrarAviso))
+      // SOS desde Android: sacudida (modo protección), notificación fija o atajo del ícono
+      ..add(Proteccion.disparos.stream.listen((o) => widget.sos.iniciarCuenta(o)));
+    Proteccion.escucharDisparos();
+    Proteccion.pendiente().then((o) {
+      if (o != null) widget.sos.iniciarCuenta(o);
+    });
+    widget.sos.addListener(_alCambiarSos);
     widget.estado.addListener(_alIniciar);
+    WidgetsBinding.instance.addObserver(this);
   }
+
+  /// La pantalla del SOS aparece sola al empezar la cuenta y al cerrarse; si la persona sale de
+  /// ella con la emergencia abierta, no se le vuelve a imponer (el inicio muestra "SOS ACTIVO").
+  void _alCambiarSos() {
+    final etapa = widget.sos.etapa;
+    if (etapa == _etapaSos) return;
+    _etapaSos = etapa;
+    if (etapa == EtapaSos.inactiva) {
+      cerrarPantallaSos();
+    } else {
+      abrirPantallaSos();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) => widget.sos.alCambiarCicloDeVida(state);
 
   void _alIniciar() {
     if (!widget.estado.iniciado) return;
     widget.estado.removeListener(_alIniciar);
+    // Con la sesión lista: retomar una emergencia abierta y la evidencia pendiente
+    widget.sos.reanudar();
     final pendiente = Notificaciones.pendiente;
     if (pendiente != null) {
       Notificaciones.pendiente = null;
@@ -46,6 +78,18 @@ class _AlertaCercaAppState extends State<AlertaCercaApp> {
 
   void abrirAlerta(String id) {
     if (id.isEmpty) return; // p. ej. la notificación de prueba
+    if (id.startsWith(prefijoEmergencia)) {
+      // Alarma SOS de un validador: seguimiento en vivo
+      navegador.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => PantallaSeguimientoEmergencia(
+            servicio: widget.estado.servicio,
+            emergenciaId: id.substring(prefijoEmergencia.length),
+          ),
+        ),
+      );
+      return;
+    }
     navegador.currentState?.push(MaterialPageRoute<void>(builder: (_) => PantallaDetalle(alertaId: id)));
   }
 
@@ -99,28 +143,33 @@ class _AlertaCercaAppState extends State<AlertaCercaApp> {
       s.cancel();
     }
     widget.estado.removeListener(_alIniciar);
+    widget.sos.removeListener(_alCambiarSos);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlcanceApp(
-      estado: widget.estado,
-      child: MaterialApp(
-        title: 'ALERTA CERCA',
-        debugShowCheckedModeBanner: false,
-        navigatorKey: navegador,
-        scaffoldMessengerKey: mensajero,
-        theme: temaAlertaCerca(),
-        locale: const Locale('es', 'MX'),
-        supportedLocales: const [Locale('es', 'MX'), Locale('es')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: ListenableBuilder(
-          listenable: widget.estado,
-          builder: (context, _) {
-            if (!widget.estado.iniciado) return const _Arranque();
-            return widget.estado.bienvenidaVista ? const PantallaInicio() : const PantallaBienvenida();
-          },
+    return AlcanceSos(
+      control: widget.sos,
+      child: AlcanceApp(
+        estado: widget.estado,
+        child: MaterialApp(
+          title: 'ALERTA CERCA',
+          debugShowCheckedModeBanner: false,
+          navigatorKey: navegador,
+          scaffoldMessengerKey: mensajero,
+          theme: temaAlertaCerca(),
+          locale: const Locale('es', 'MX'),
+          supportedLocales: const [Locale('es', 'MX'), Locale('es')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          home: ListenableBuilder(
+            listenable: widget.estado,
+            builder: (context, _) {
+              if (!widget.estado.iniciado) return const _Arranque();
+              return widget.estado.bienvenidaVista ? const PantallaInicio() : const PantallaBienvenida();
+            },
+          ),
         ),
       ),
     );

@@ -6,11 +6,14 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../config.dart';
+import '../nucleo/emergencia.dart';
 import '../nucleo/estado_app.dart';
 import '../widgets/comunes.dart';
 import '../widgets/tarjeta_alerta.dart';
 import 'ajustes.dart';
 import 'detalle.dart';
+import 'emergencia.dart';
+import 'emergencias_validador.dart';
 import 'reportar.dart';
 import 'zonas.dart';
 
@@ -53,6 +56,7 @@ class _PantallaInicioState extends State<PantallaInicio> {
   @override
   Widget build(BuildContext context) {
     final estado = AlcanceApp.of(context);
+    final sos = AlcanceSos.of(context);
     final pos = estado.miPosicion;
     final centro = LatLng(pos?.lat ?? Config.latInicial, pos?.lon ?? Config.lonInicial);
     final alertas = estado.alertasOrdenadas;
@@ -86,6 +90,16 @@ class _PantallaInicioState extends State<PantallaInicio> {
           ],
         ),
         actions: [
+          const _BotonSos(),
+          if (estado.perfil?.rol.esValidador ?? false)
+            IconButton(
+              tooltip: 'Emergencias SOS (validadores)',
+              icon: const Icon(Icons.emergency_share),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(builder: (_) => PantallaEmergencias(servicio: estado.servicio)),
+              ),
+            ),
           IconButton(
             tooltip: 'Mis zonas',
             icon: const Icon(Icons.home_work_outlined),
@@ -100,6 +114,24 @@ class _PantallaInicioState extends State<PantallaInicio> {
       ),
       body: Column(
         children: [
+          if (sos.abierta)
+            MaterialBanner(
+              backgroundColor: Colores.rojo,
+              leading: const Icon(Icons.sos, color: Colors.white),
+              content: Text(
+                sos.simulacro ? 'SIMULACRO EN CURSO' : 'SOS ACTIVO · compartiendo tu ubicación en vivo',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: abrirPantallaSos,
+                  child: const Text(
+                    'ABRIR',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
           if (estado.servicio.esDemo)
             BannerDemo(
               texto: 'Modo demostración · ${_ubicacionDemo(estado)}',
@@ -232,5 +264,30 @@ class _PantallaInicioState extends State<PantallaInicio> {
   String _ubicacionDemo(EstadoApp estado) {
     final p = puntosDemo.where((x) => x.clave == estado.puntoDemo).firstOrNull;
     return p == null ? 'ubicación real (GPS)' : 'estás en el punto ${p.etiqueta}';
+  }
+}
+
+/// Botón rojo SOS: abre la cuenta regresiva (5 s para cancelar) y después pide ayuda.
+class _BotonSos extends StatelessWidget {
+  const _BotonSos();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      child: Tooltip(
+        message: 'Pedir ayuda (SOS)',
+        child: FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: Colores.rojo,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            shape: const StadiumBorder(side: BorderSide(color: Colors.white, width: 2)),
+          ),
+          onPressed: () => AlcanceSos.leer(context).iniciarCuenta(OrigenEmergencia.boton),
+          child: const Text('SOS', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        ),
+      ),
+    );
   }
 }

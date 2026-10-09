@@ -49,6 +49,13 @@ avisar) · **panel** (validadores) · **canales alternos** (Telegram y feed CAP 
 5. **Resolver** con el motivo “Menor localizado sano y salvo” → A, B y C reciben **RESUELTA**; la foto deja de
    mostrarse.
 
+6. **SOS (la persona a la que le está pasando)**: en un teléfono, botón **SOS** (o 4 sacudidas fuertes) → 5 s para
+   cancelar → en el panel **suena la alarma**, banner rojo, y el punto aparece en el mapa. Para un recorrido en
+   vehículo sin salir del salón: simulador → *Persona pide ayuda (SOS)*. *Tomar el caso* → el teléfono dice
+   “Protección Civil ya te está siguiendo”; *Avisé al 911* con folio → “La policía ya fue avisada”. Cerrar con
+   **Estoy a salvo**. “Aquí sí guardamos la ubicación exacta: la persona la pidió, solo la ven los validadores y se
+   borra a los 30 días.”
+
 ## 4:30 – 5:30 · Privacidad y confianza (R1)
 
 - Abrir la tabla `dispositivos`: “no hay coordenadas, solo celdas de 1 km”. En la app: *Ajustes → Lo único que el
@@ -81,6 +88,9 @@ Costo del prototipo: $0 (planes gratuitos). Piloto con empresas del CCE, escuela
 | ¿Quién valida a las 3 a. m.? | Nadie tiene que estar despierto para que funcione: la colmena publica sola los reportes en revisión a los 5 minutos (o al instante con un segundo testigo) y las confirmaciones de vecinos amplían el radio. Los validadores aceleran y corrigen; el panel mide su tiempo de respuesta. |
 | ¿Y si no hay internet? | FCM entrega el mensaje al reconectarse mientras siga vigente. Para conectividad cero, Cell Broadcast vía autoridades (por eso CAP). |
 | ¿Escala? | La búsqueda de destinatarios usa índices espaciales: con 5,000 teléfonos tarda ~2–3 ms (prueba P19). |
+| ¿Por qué el SOS no llama solo al 911? | Android no deja que una app llame sola a un número de emergencia, y una llamada automática por una activación accidental mandaría patrullas por nada. El SOS deja el 911 a un toque y el validador avisa al 911 con la ubicación en vivo y el folio. |
+| ¿Y si le quitan el teléfono? | El video se sube en fragmentos de 15 s: lo grabado ya está en el servidor. Si el teléfono deja de mandar señal 2 minutos, los validadores reciben “SOS · SIN SEÑAL” con la última posición. |
+| ¿Se dispara solo al correr o en un bache? | Hace falta una sacudida deliberada (4 golpes fuertes en 1 s; correr da ~3 por segundo), y siempre hay 5 s para cancelar. Hay simulacro para practicar. |
 
 ## Lista de verificación (Anexo C)
 
@@ -94,7 +104,10 @@ Costo del prototipo: $0 (planes gratuitos). Piloto con empresas del CCE, escuela
 - [ ] Foto de ilustración (nunca una foto real de un menor).
 - [ ] scrcpy probado con el proyector; hotspot de respaldo; video de respaldo en USB y en la nube.
 - [ ] Panel de demostración abierto en otra pestaña como plan B.
+- [ ] SOS: en el teléfono que lo va a usar, *Ajustes → Modo emergencia* con todos los permisos en verde y un simulacro
+      hecho; el panel con el sonido del navegador activado (haz clic una vez en la página).
 
 **Al terminar**
 - [ ] Ejecutar [`supabase/demo/terminar_demo.sql`](../supabase/demo/terminar_demo.sql) (`factor_tiempo = 1` y resolver lo abierto).
+- [ ] Cerrar desde el panel las emergencias SOS de prueba (*Falsa alarma*, con la nota “Demostración”).
 - [ ] Anotar las preguntas del jurado.

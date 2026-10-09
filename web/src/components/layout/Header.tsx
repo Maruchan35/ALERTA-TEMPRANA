@@ -13,14 +13,15 @@ import {
   Lock, 
   Settings,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Siren
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { audioAlert } from '../../services/audioAlert';
 import { alertService } from '../../services/alertService';
 import { ModeratorUser } from '../../types/auth';
 
-export type AppView = 'citizen' | 'command' | 'map' | 'settings';
+export type AppView = 'citizen' | 'command' | 'map' | 'settings' | 'sos';
 
 interface HeaderProps {
   currentView: AppView;
@@ -36,6 +37,8 @@ interface HeaderProps {
   onOpenModeratorLogin: () => void;
   onLogoutModerator: () => void;
   isModSection?: boolean;
+  /** Emergencias SOS abiertas (solo moderador): insignia roja en su pestaña. */
+  sosCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -52,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenModeratorLogin,
   onLogoutModerator,
   isModSection = false,
+  sosCount = 0,
 }) => {
   const [isMuted, setIsMuted] = useState(() => audioAlert.getIsMuted());
 
@@ -224,6 +228,26 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Pestañas exclusivas para Moderador */}
             {isModerator && (
               <>
+                <button
+                  type="button"
+                  onClick={() => onViewChange('sos')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 select-none cursor-pointer shrink-0 ${
+                    currentView === 'sos'
+                      ? 'bg-red-600/20 text-red-300 shadow-xs border border-red-500/60 font-bold ring-1 ring-red-500/30'
+                      : isModSection
+                      ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  }`}
+                >
+                  <Siren className="w-4 h-4 text-red-500" />
+                  <span>Emergencias SOS</span>
+                  {sosCount > 0 && (
+                    <span className="ml-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-600 text-white tabular-nums animate-pulse">
+                      {sosCount}
+                    </span>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => onViewChange('command')}

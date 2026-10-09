@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'config.dart';
 import 'firebase_options.dart';
+import 'nucleo/emergencia.dart';
 import 'nucleo/estado_app.dart';
 import 'nucleo/notificaciones.dart';
 
@@ -49,7 +51,9 @@ Future<void> main() async {
   }
 
   final estado = EstadoApp(servicio: servicio, firebaseListo: firebaseListo);
+  // Modo emergencia (SOS): disponible desde el primer segundo, aun sin terminar la bienvenida
+  final sos = ControlEmergencia(servicio: servicio, prefs: await SharedPreferences.getInstance());
   WidgetsBinding.instance.addObserver(estado);
-  runApp(AlertaCercaApp(estado: estado));
+  runApp(AlertaCercaApp(estado: estado, sos: sos));
   await estado.iniciar();
 }

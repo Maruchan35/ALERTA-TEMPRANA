@@ -9,10 +9,12 @@ import { QuickReportModal } from './components/citizen/QuickReportModal';
 import { SightingReportModal } from './components/citizen/SightingReportModal';
 import { OperationsDashboard } from './components/admin/OperationsDashboard';
 import { ModeratorSettings } from './components/admin/ModeratorSettings';
+import { EmergencyPanel } from './components/admin/EmergencyPanel';
+import { useEmergencies } from './hooks/useEmergencies';
 import { formatDistance } from './services/geo';
 import { ModeratorUser } from './types/auth';
 import { supabase } from './services/supabase';
-import { AlertTriangle, KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertTriangle, KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2, Siren } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
 const STORAGE_MOD_KEY = 'alerta_cerca_moderator_user';
@@ -61,6 +63,10 @@ export default function App() {
     setLocationManually,
     presets,
   } = useGeolocation();
+
+  // Emergencias SOS en vivo (solo moderador): alarma y banner en cualquier vista
+  const sos = useEmergencies(isModerator);
+  const sosSinTomar = sos.abiertas.filter((e) => e.estado === 'activa').length;
 
   // Hook de Alertas reactivas por proximidad
   const {
@@ -199,6 +205,7 @@ export default function App() {
         onOpenModeratorLogin={() => setShowModLoginModal(true)}
         onLogoutModerator={handleLogoutModerator}
         isModSection={isAdminTheme}
+        sosCount={sos.abiertas.length}
       />
 
       {/* Barra de Estado en Tiempo Real y Expansión Dinámica */}
@@ -237,6 +244,31 @@ export default function App() {
 
       {/* Contenido Principal con Aislamiento Estricto por Sección */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+        {/* Alguien pidió ayuda (SOS): visible en cualquier vista del moderador */}
+        {isModerator && sos.abiertas.length > 0 && currentView !== 'sos' && (
+          <button
+            type="button"
+            onClick={() => setCurrentView('sos')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-600 text-white font-bold text-sm shadow cursor-pointer"
+          >
+            <Siren className="w-5 h-5 animate-pulse" />
+            <span className="flex-1 text-left">
+              {sos.abiertas.length === 1 ? '1 emergencia SOS abierta' : `${sos.abiertas.length} emergencias SOS abiertas`}
+              {sosSinTomar > 0 ? ` · ${sosSinTomar} sin tomar` : ' · en seguimiento'}
+            </span>
+            <span>VER</span>
+          </button>
+        )}
+
+        {/* ========================================================
+            EMERGENCIAS SOS (MODERADOR): ubicación en vivo y seguimiento
+        ======================================================== */}
+        {currentView === 'sos' && isModerator && (
+          <div className="w-full animate-fade-in">
+            <EmergencyPanel emergencias={sos.emergencias} error={sos.error} onRecargar={sos.recargar} />
+          </div>
+        )}
+
         {/* ========================================================
             SECCIÓN 1: ALERTAS CERCANAS (Ancho completo, limpio)
         ======================================================== */}

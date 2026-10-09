@@ -10,6 +10,7 @@ import '../nucleo/ubicacion.dart';
 import '../widgets/comunes.dart';
 import 'acceso_validador.dart';
 import 'aviso_privacidad.dart';
+import 'modo_emergencia.dart';
 import 'verificar_telefono.dart';
 import 'zonas.dart';
 
@@ -74,6 +75,15 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
         children: [
+          const Seccion('Emergencia'),
+          ListTile(
+            leading: const Icon(Icons.sos, color: Colores.rojo),
+            title: const Text('Modo emergencia (SOS)'),
+            subtitle: const Text('Cómo pedir ayuda, sacudida, modo protección y simulacro'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () =>
+                Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const PantallaModoEmergencia())),
+          ),
           if (estado.herramientasDemo) ...[
             const Seccion('Demostración · ubicación simulada'),
             Padding(
@@ -296,7 +306,7 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
           const Seccion('Acerca de'),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('ALERTA CERCA · prototipo 1.0'),
+            title: Text('ALERTA CERCA · prototipo 1.1'),
             subtitle: Text(
               'Sistema Inteligente de Alertamiento Comunitario por Proximidad. HackaITLAC 2026 · '
               'Reto del Consejo Coordinador Empresarial de Lázaro Cárdenas.',

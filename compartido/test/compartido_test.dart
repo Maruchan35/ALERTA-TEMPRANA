@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:alerta_compartido/alerta_compartido.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -355,6 +357,164 @@ void main() {
       expect(mios.map((a) => a.tipo), ['nueva']);
       expect(mios.single.datos['estado'], 'verificada');
       app.cerrar();
+    });
+  });
+
+  group('modo emergencia (SOS)', () {
+    test('detector de sacudidas: 4 golpes fuertes en 1 s disparan; caminar, correr o un golpe aislado no', () {
+      final d = DetectorSacudida();
+      final t0 = DateTime(2026, 10, 8, 22);
+      DateTime t(int ms) => t0.add(Duration(milliseconds: ms));
+      // Caminar / ir en un auto: ~1–1.5 g
+      for (var i = 0; i < 100; i++) {
+        expect(d.agregar(3, 9.8, 4, t(i * 20)), isFalse);
+      }
+      // Correr con el teléfono en el bolsillo: golpes de ~3 g, pero ~2.8 por segundo
+      for (var i = 0; i < 20; i++) {
+        expect(d.agregar(5, 28, 6, t(3000 + i * 357)), isFalse, reason: 'paso $i');
+      }
+      // Un golpe aislado (se cayó a la cama) y otro 3 s después: no
+      expect(d.agregar(30, 5, 5, t(12000)), isFalse);
+      expect(d.agregar(30, 5, 5, t(15000)), isFalse);
+      // Lecturas del MISMO golpe (más juntas que 100 ms) cuentan una sola vez
+      expect(d.agregar(30, 5, 5, t(15050)), isFalse);
+      expect(d.agregar(-28, 4, 9, t(15250)), isFalse);
+      expect(d.agregar(29, -6, 3, t(15500)), isFalse);
+      expect(d.agregar(-30, 2, 4, t(15750)), isTrue, reason: '4.º golpe dentro de 1 s');
+      // Después de disparar espera 10 s antes de volver a disparar
+      for (final ms in [16000, 16200, 16400, 16600]) {
+        expect(d.agregar(30, 5, 5, t(ms)), isFalse);
+      }
+      for (final ms in [26000, 26200, 26400]) {
+        expect(d.agregar(30, 5, 5, t(ms)), isFalse);
+      }
+      expect(d.agregar(30, 5, 5, t(26600)), isTrue);
+    });
+
+    test('modelos: la vista del panel y lo que ve la persona', () {
+      final e = Emergencia.desdeMapa({
+        'id': 'e1',
+        'estado': 'en_seguimiento',
+        'tipo': 'secuestro',
+        'origen': 'movimiento',
+        'lat': 17.96,
+        'lon': -102.19,
+        'precision_m': 8,
+        'velocidad_ms': 12.5,
+        'bateria': 14,
+        'ultima_senal_en': '2026-10-08T22:00:00Z',
+        'creada_en': '2026-10-08T21:50:00Z',
+        'telefono': '525512345678',
+        'atendida_por_institucion': 'Protección Civil Municipal',
+        'n_puntos': 120,
+      });
+      expect(e.tipo, TipoEmergencia.secuestro);
+      expect(e.velocidadKmh, 45);
+      expect(e.enVehiculo, isTrue);
+      expect(e.telefonoParaLlamar, '+525512345678');
+      expect(e.atendidaPor, 'Protección Civil Municipal');
+      final ahora = DateTime.utc(2026, 10, 8, 22, 3);
+      expect(e.sinSenalDesde(ahora), isTrue, reason: '3 min sin señal');
+      expect(e.sinSenalDesde(DateTime.utc(2026, 10, 8, 22, 1)), isFalse);
+
+      final mia = EstadoMiEmergencia.desdeMapa({
+        'emergencia_id': 'e1',
+        'estado': 'cerrada',
+        'tipo': 'sos',
+        'cierre': 'localizada',
+        'atendida_por': 'Protección Civil Municipal',
+        'policia_avisada': true,
+      });
+      expect(mia.estado.abierta, isFalse);
+      expect(mia.cierre, CierreEmergencia.localizada);
+      expect(mia.policiaAvisada, isTrue);
+    });
+
+    test('demo: la persona pide ayuda, el validador la sigue en vivo y la cierra', () async {
+      var ahora = DateTime(2026, 10, 8, 22);
+      final s = ServicioDemo(escenario: EscenarioDemo.panel, reloj: () => ahora, iniciarReloj: false, sembrar: false);
+      final listas = <List<Emergencia>>[];
+      final sub = s.flujoEmergencias().listen(listas.add);
+
+      final r = await s.iniciarEmergencia(lat: 17.9581, lon: -102.1942, origen: OrigenEmergencia.boton, bateria: 70);
+      expect(r.estado, EstadoEmergencia.activa);
+      final otra = await s.iniciarEmergencia(lat: 17.96, lon: -102.19, origen: OrigenEmergencia.movimiento);
+      expect(otra.id, r.id, reason: 'otra sacudida no duplica la emergencia');
+
+      ahora = ahora.add(const Duration(seconds: 5));
+      await s.senalEmergencia(r.id, lat: 17.97, lon: -102.18, velocidadMs: 12, bateria: 69);
+      await s.tipoEmergencia(r.id, TipoEmergencia.secuestro);
+      await Future<void>.delayed(Duration.zero);
+      final vista = listas.last.single;
+      expect(vista.tipo, TipoEmergencia.secuestro);
+      expect(vista.nPuntos, 2, reason: 'inicio + la señal de 5 s después (la 2.ª activación fue en el mismo segundo)');
+      expect(vista.enVehiculo, isTrue);
+
+      // Sin ser validador no se puede atender
+      await expectLater(s.atenderEmergencia(r.id, AccionEmergencia.tomar), throwsA(isA<ErrorServicio>()));
+      await s.iniciarSesionCorreo('validador1@example.com', 'demo');
+      await s.atenderEmergencia(r.id, AccionEmergencia.tomar);
+      await s.atenderEmergencia(r.id, AccionEmergencia.policia, folio: 'F-1');
+      final paraLaPersona = await s.senalEmergencia(r.id);
+      expect(paraLaPersona.atendidaPor, 'Protección Civil (demo)');
+      expect(paraLaPersona.policiaAvisada, isTrue);
+
+      await s.subirEvidencia(r.id, '0001.mp4', Uint8List(4), duracionS: 20);
+      await s.subirEvidencia(r.id, '0001.mp4', Uint8List(4), duracionS: 20);
+      expect(await s.evidenciasEmergencia(r.id), hasLength(1), reason: 'un reintento no duplica');
+      expect((await s.metricas()).emergenciasAbiertas, 1);
+
+      await s.atenderEmergencia(r.id, AccionEmergencia.localizada, nota: 'Patrulla 12 la encontró');
+      final cerrada = await s.senalEmergencia(r.id, lat: 18, lon: -102);
+      expect(cerrada.cierre, CierreEmergencia.localizada);
+      await expectLater(s.atenderEmergencia(r.id, AccionEmergencia.tomar), throwsA(isA<ErrorServicio>()));
+      expect((await s.metricas()).emergenciasAbiertas, 0);
+      await sub.cancel();
+      s.cerrar();
+    });
+
+    test('demo de la app: "Protección Civil (demo)" toma el caso y avisa al 911 sola', () async {
+      var ahora = DateTime(2026, 10, 8, 22);
+      final s = ServicioDemo(reloj: () => ahora, iniciarReloj: false, sembrar: false);
+      await s.iniciarSesionAnonima();
+      final r = await s.iniciarEmergencia(lat: 17.9581, lon: -102.1942, origen: OrigenEmergencia.atajo);
+      expect((await s.miEmergenciaAbierta())?.id, r.id);
+      ahora = ahora.add(const Duration(seconds: 9));
+      s.avanzar();
+      expect((await s.senalEmergencia(r.id)).atendidaPor, 'Protección Civil (demo)');
+      ahora = ahora.add(const Duration(seconds: 8));
+      s.avanzar();
+      expect((await s.senalEmergencia(r.id)).policiaAvisada, isTrue);
+      final fin = await s.terminarEmergencia(r.id, CierreEmergencia.aSalvo);
+      expect(fin.estado, EstadoEmergencia.cerrada);
+      expect(await s.miEmergenciaAbierta(), isNull);
+      s.cerrar();
+    });
+
+    test('simulador del panel: la persona simulada se mueve en vehículo y luego indica "Me llevan"', () async {
+      var ahora = DateTime(2026, 10, 8, 22);
+      final s = ServicioDemo(escenario: EscenarioDemo.panel, reloj: () => ahora, iniciarReloj: false, sembrar: false);
+      final id = s.simularEmergencia();
+      final puntos = <List<PuntoEmergencia>>[];
+      final sub = s.flujoRecorrido(id).listen(puntos.add);
+      for (var i = 0; i < 4; i++) {
+        ahora = ahora.add(const Duration(seconds: 3));
+        s.avanzar();
+      }
+      await Future<void>.delayed(Duration.zero);
+      expect(puntos.last, hasLength(5));
+      final recorrido = distanciaMetros(
+        puntos.last.first.lat,
+        puntos.last.first.lon,
+        puntos.last.last.lat,
+        puntos.last.last.lon,
+      );
+      expect(recorrido, closeTo(4 * 3 * 11.1, 5), reason: '~40 km/h durante 12 s');
+      final e = (await s.flujoEmergencias().first).single;
+      expect(e.tipo, TipoEmergencia.secuestro);
+      expect(e.velocidadKmh, 40);
+      await sub.cancel();
+      s.cerrar();
     });
   });
 }

@@ -23,6 +23,19 @@ abstract final class Claves {
 
   /// El último registro se hizo sin ubicación (permiso negado o GPS apagado).
   static const sinUbicacion = 'sin_ubicacion';
+
+  // ─── Modo emergencia (SOS) ─────────────────────────────────────────────────
+  /// Emergencia abierta (para retomarla si la app se cierra).
+  static const sosId = 'sos_id';
+
+  /// "Estoy a salvo" que no alcanzó a llegar al servidor: `id|cierre`.
+  static const sosCierrePendiente = 'sos_cierre_pendiente';
+
+  /// Fragmentos de video que faltan por subir.
+  static const sosCola = 'sos_cola';
+
+  /// Pedir ayuda con una sacudida fuerte (con la app abierta).
+  static const sosSacudida = 'sos_sacudida';
 }
 
 /// Una zona guardada: el servidor conoce su celda; el teléfono, su punto exacto.

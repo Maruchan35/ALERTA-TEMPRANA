@@ -10,15 +10,21 @@ Una alerta (menor desaparecido, incendio, robo de vehículo…) llega **primero 
 **crece con el tiempo** (anillos 1 → 3 → 10 → 25 km). Privacidad por diseño: el servidor solo conoce una
 **celda de ~1 km** de cada teléfono, nunca su ubicación exacta. ALERTA CERCA **no sustituye al 911**.
 
+Y para la persona a la que le está pasando (asalto, secuestro, la siguen): **modo emergencia (SOS)**. Con el botón
+rojo, una sacudida fuerte del teléfono o el atajo del ícono, tras 5 s para cancelar avisa a los validadores de guardia,
+comparte su **ubicación en vivo** (también con la pantalla apagada), graba **video de evidencia** que se sube por
+fragmentos y deja llamar al 911 con un toque. Los validadores la siguen en el mapa hasta que la localizan
+([arquitectura](docs/arquitectura.md#modo-emergencia-sos-para-la-persona-a-la-que-le-está-pasando)).
+
 ## Qué hay en el repositorio
 
 | Carpeta | Qué es | Estado |
 |---|---|---|
-| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, verificación por WhatsApp, pg_cron, Vault | **54 pruebas automáticas** (PGlite + PostGIS reales) |
-| [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento`, `whatsapp` | **20 pruebas** Deno, tipos y lint |
-| [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push | Compila; analizada sin errores |
-| [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **simulador de 4 teléfonos** | Compila; analizado sin errores |
-| [`web/`](web) | Portal Web Comunitario y Consola CCE (React + Vite + Leaflet + Tailwind): Radar en vivo, geocercas, avistamientos y modo moderador oscuro | **Listo y Verificado (v1.0.0-mvp-cce)** |
+| [`supabase/`](supabase) | Backend: PostgreSQL + PostGIS, RLS, funciones (`crear_reporte`, `radio_permitido`, `dispositivos_objetivo`, `validar_alerta`…), colmena, verificación por WhatsApp, **modo emergencia (SOS)**, pg_cron, Vault | **62 pruebas automáticas** (PGlite + PostGIS reales) |
+| [`supabase/functions/`](supabase/functions) | Edge Functions: `notificar` (FCM + Telegram, y la alarma SOS a validadores), `telegram-webhook`, `cap` (feed CAP 1.2/Atom), `mantenimiento`, `whatsapp` | **22 pruebas** Deno, tipos y lint |
+| [`app/`](app) | App móvil Flutter (Android/iOS/web): mapa, detalle, reportar en 3 pasos, mis zonas, verificación por teléfono, push, **SOS** (botón, sacudida, modo protección con la app cerrada, ubicación en vivo, video de evidencia, 911) | Pruebas de widgets; analizada sin errores |
+| [`panel/`](panel) | Panel de validadores (Flutter Web): métricas, mapa, cola, verificar/ajustar radio/descartar/resolver, bitácora, emitir alerta oficial, **emergencias SOS en vivo con alarma**, **simulador de 4 teléfonos** | Pruebas de widgets; analizado sin errores |
+| [`web/`](web) | Portal Web Comunitario y Consola CCE (React + Vite + Leaflet + Tailwind): Radar en vivo, geocercas, avistamientos, modo moderador oscuro y **Emergencias SOS** | Compila con candado contra escrituras directas |
 | [`puente-whatsapp/`](puente-whatsapp) | Envía los códigos de verificación desde un WhatsApp normal vinculado como dispositivo (sin WhatsApp Business) | Pruebas de Node |
 | [`compartido/`](compartido) | Paquete Dart común: modelos, geohash, catálogo, servicio Supabase y **motor de demostración** con las mismas reglas del backend | Pruebas unitarias |
 
@@ -82,6 +88,13 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 
 ## Mejoras sobre la propuesta (detectadas al implementarla y cubiertas por pruebas)
 
+- **Modo emergencia (SOS)** ([011_emergencias.sql](supabase/migrations/011_emergencias.sql)): la propuesta solo veía lo
+  que pasa *afuera*. Ahora quien está en peligro pide ayuda (botón, sacudida, atajo; 5 s para cancelar; también sin
+  cuenta), los validadores reciben una alarma de prioridad máxima, ven su recorrido en vivo, velocidad (¿va en un
+  vehículo?), batería y video, y registran el aviso al 911; si el teléfono deja de responder, otra alarma. Es la única
+  excepción a "no guardamos tu ubicación exacta": la pide la propia persona, solo la ven los validadores (nunca los
+  vecinos) y se borra a los 30 días.
+
 - **Colmena** ([007_colmena.sql](supabase/migrations/007_colmena.sql)): la comunidad no depende de un administrador. Un
   reporte en revisión se publica solo si nadie lo revisa en 5 minutos (o al instante con un segundo testigo); 3
   confirmaciones lo llevan a 3 km y 6 a 10 km; la foto de una persona solo se muestra cuando ya está confirmada. Para
@@ -101,10 +114,13 @@ el workflow “Publicar demo web” la sube a GitHub Pages (activar antes: Setti
 ## Pruebas
 
 ```bash
-cd supabase/pruebas && npm install && npm test        # 54 pruebas: P01–P14, P19, colmena, WhatsApp, RLS, scripts
+cd supabase/pruebas && npm install && npm test        # 62 pruebas: P01–P14, P19, colmena, WhatsApp, SOS, RLS, scripts
 cd puente-whatsapp && npm install && npm test         # puente de WhatsApp
-cd supabase/functions && deno task probar             # 20 pruebas de las Edge Functions
-cd compartido && flutter test                         # motor de demo, geohash, radio, mensajes
+cd supabase/functions && deno task probar             # 22 pruebas de las Edge Functions
+cd compartido && flutter test                         # motor de demo, geohash, radio, mensajes, detector de sacudidas
+cd app && flutter test                                # pantallas de la app (incluido el SOS)
+cd panel && flutter test                              # panel de validadores (incluida la alarma SOS)
+cd web && npm install && npm run build                # portal web: sin escrituras directas, tipos y compilación
 ```
 
 Equipo (sección 7 de la propuesta): R1 base de datos · R2 nube y notificaciones · R3 pantallas · R4 sistema móvil ·

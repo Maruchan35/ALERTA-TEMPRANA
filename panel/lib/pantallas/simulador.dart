@@ -84,6 +84,17 @@ class PanelSimulador extends StatelessWidget {
                 icon: const Icon(Icons.local_fire_department),
                 label: const Text('Ciudadano reporta un incendio'),
               ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colores.marino),
+                onPressed: () {
+                  demo.simularEmergencia();
+                  mostrarMensaje(
+                    'Una persona pidió ayuda con una sacudida y va en un vehículo (SOS): mira el banner rojo y la pestaña SOS.',
+                  );
+                },
+                icon: const Icon(Icons.sos),
+                label: const Text('Persona pide ayuda (SOS)'),
+              ),
               TextButton.icon(
                 onPressed: registro.limpiar,
                 icon: const Icon(Icons.clear_all),

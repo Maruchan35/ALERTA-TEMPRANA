@@ -89,13 +89,53 @@ programar.
 Quien reporta no puede confirmar su propio reporte: en su detalle la app le muestra cuántas confirmaciones de vecinos
 lleva y cuántas faltan para el siguiente radio.
 
+## Modo emergencia (SOS): para la persona a la que le está pasando
+
+Lo demás de ALERTA CERCA mira hacia afuera (un incendio, un menor perdido). El SOS es para quien está en peligro:
+asalto, secuestro, alguien la sigue ([011_emergencias.sql](../supabase/migrations/011_emergencias.sql)).
+
+```mermaid
+sequenceDiagram
+    participant P as Teléfono de la persona
+    participant S as Supabase
+    participant N as notificar (Edge)
+    participant V as Validadores (app y paneles)
+    P->>P: Botón SOS · sacudida fuerte · atajo del ícono (5 s para cancelar)
+    P->>S: iniciar_emergencia(ubicación, batería, origen)
+    S->>N: pg_net {emergencia_id, evento: 'nueva'}
+    N->>V: push de prioridad máxima "EMERGENCIA SOS"
+    loop cada ~5 s mientras está abierta (también con la pantalla apagada)
+        P->>S: senal_emergencia(ubicación, velocidad, batería)
+        S-->>P: ¿quién la sigue?, ¿avisaron al 911?
+        S-->>V: Realtime: el punto se mueve en el mapa
+    end
+    P->>S: video en fragmentos de 15 s (bucket privado 'evidencias')
+    V->>S: atender_emergencia(tomar / policia + folio / localizada / falsa_alarma)
+    Note over S,V: Sin señal 2 min → revisar_senal_emergencias() avisa otra vez
+```
+
+| Pieza | Qué hace |
+|---|---|
+| Disparo | Botón rojo **SOS** del inicio; **sacudida fuerte** (4 golpes ≥ 2.5 g en 1 s: caminar o correr no la disparan) con la app abierta; **modo protección** (servicio de Android con notificación fija) con la app cerrada o el teléfono bloqueado, que muestra la cuenta encima de la pantalla de bloqueo; **atajo** al mantener presionado el ícono. Siempre 5 s para cancelar; hay **simulacro** para practicar |
+| Quién recibe | Solo validadores, instituciones y admin (`dispositivos_validadores()`), nunca los vecinos: avisarle a todos podría exponer a la persona. Si conviene que la colmena ayude a buscar, el validador emite una alerta normal |
+| Seguimiento | Recorrido en vivo, velocidad (> 20 km/h = probablemente en un vehículo), batería, precisión, teléfono verificado (si lo hay), línea de tiempo y video. Acciones: tomar el caso, registrar el aviso al 911 con folio, notas, cerrar como localizada o falsa alarma |
+| La persona ve | "Tu alerta llegó" → "Protección Civil ya te está siguiendo" → "La policía ya fue avisada"; botón **Llamar al 911**, "¿Qué está pasando?" (me asaltan / me llevan / me siguen), compartir su ubicación con alguien de confianza y **Estoy a salvo** |
+| Evidencia | Video con audio mientras la pantalla del SOS está abierta, en fragmentos de 15 s (~2 MB) que se suben en cuanto terminan: si le quitan el teléfono, lo grabado ya está a salvo. Sin conexión se reintenta; Android siempre muestra el indicador de cámara |
+| Robustez | Sin internet, el SOS se reintenta cada 5 s (mientras tanto, el 911); una emergencia abierta se retoma si la app se cierra; "Estoy a salvo" sin conexión se manda al volver. Una abierta por persona; máx. `emergencias_por_hora` (5) |
+| Sin señal | Si el teléfono deja de mandar señal `minutos_sin_senal` (2), `revisar_senal_emergencias()` (pg_cron, 30 s) avisa una vez a los validadores. Nunca se cierra sola |
+| Llamar al 911 | Abre el marcador con el 911: Android no deja que una app llame sola a emergencias, y una llamada automática por una falsa activación mandaría patrullas por nada. El validador también avisa al 911 con la ubicación en vivo |
+
+Ajustes en `config`: `emergencias_por_hora`, `minutos_sin_senal`, `dias_retencion_emergencia`.
+
 ## Privacidad: qué se guarda y qué no
 
 | Dato | ¿En el servidor? | Detalle |
 |---|---|---|
 | Ubicación exacta del teléfono | **No** | Solo en el teléfono (para calcular la distancia exacta) |
 | Celda de ~1 km del teléfono | Sí | Se sobrescribe al moverse: no hay historial |
-| Historial de recorridos | **No** | No existe en ninguna tabla |
+| Historial de recorridos | **No** | No existe en ninguna tabla (salvo durante un SOS, abajo) |
+| Ubicación exacta y recorrido **durante un SOS** | Sí, mientras está abierto | Única excepción: la persona misma pidió ayuda. Solo la ven ella y los validadores; se borra a los 30 días del cierre |
+| Video de evidencia del SOS | Sí, bucket privado | Solo la persona y los validadores (enlaces firmados de 10 min); se borra a los 30 días del cierre |
 | Zonas (casa, escuela) | Solo su celda | El punto exacto se queda en el teléfono |
 | Ubicación del suceso | Sí, exacta | Es un lugar, no una persona |
 | A quién se envió cada alerta | Sí, 30 días | Para no repetir envíos; se borra sola |

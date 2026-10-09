@@ -1,12 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import 'emergencia.dart';
 import 'modelos.dart';
 
 /// Error con un mensaje listo para mostrar a la persona.
 class ErrorServicio implements Exception {
-  const ErrorServicio(this.mensaje);
+  const ErrorServicio(this.mensaje, {this.sinConexion = false});
   final String mensaje;
+
+  /// No se pudo hablar con el servidor (vale la pena reintentar); si es false, el servidor respondió que no.
+  final bool sinConexion;
 
   @override
   String toString() => mensaje;
@@ -76,6 +80,60 @@ abstract class ServicioAlertas {
   /// Cambios de alertas en tiempo real (Realtime). Con la app abierta sirve para refrescar
   /// y, donde no hay push (web o sin Firebase), para avisar.
   Stream<Alerta> cambiosEnAlertas();
+
+  // ─── Modo emergencia (SOS): la persona que pide ayuda ─────────────────────
+  /// Pide ayuda. Funciona con cualquier sesión, incluso anónima. Si ya tiene una emergencia
+  /// abierta la devuelve (otro toque u otra sacudida no la duplican).
+  Future<EstadoMiEmergencia> iniciarEmergencia({
+    required double lat,
+    required double lon,
+    double? precisionM,
+    required OrigenEmergencia origen,
+    int? bateria,
+  });
+
+  /// Señal cada ~5 s: ubicación (si hay GPS), velocidad y batería. Devuelve lo que ve la
+  /// persona: si ya la están siguiendo, si avisaron al 911, si la cerraron.
+  Future<EstadoMiEmergencia> senalEmergencia(
+    String id, {
+    double? lat,
+    double? lon,
+    double? precisionM,
+    double? velocidadMs,
+    int? bateria,
+  });
+
+  /// "Me asaltan", "Me llevan", "Me siguen" (un toque; avisa a los validadores).
+  Future<EstadoMiEmergencia> tipoEmergencia(String id, TipoEmergencia tipo);
+
+  /// "Estoy a salvo" o "Fue sin querer".
+  Future<EstadoMiEmergencia> terminarEmergencia(String id, CierreEmergencia cierre);
+
+  /// Sube un fragmento de evidencia (video con audio) y lo registra. Devuelve su ruta.
+  /// [nombre] es estable (p. ej. `0003.mp4`): si se reintenta, no se duplica.
+  Future<String> subirEvidencia(
+    String emergenciaId,
+    String nombre,
+    Uint8List bytes, {
+    String tipo = 'video',
+    String contentType = 'video/mp4',
+    int? duracionS,
+  });
+
+  /// Mi emergencia abierta (al volver a abrir la app), o null.
+  Future<EstadoMiEmergencia?> miEmergenciaAbierta();
+
+  // ─── Modo emergencia: validadores ────────────────────────────────────────
+  /// Emergencias en vivo (abiertas primero). Se actualiza sola.
+  Stream<List<Emergencia>> flujoEmergencias();
+
+  /// Recorrido de una emergencia; crece en vivo mientras sigue abierta.
+  Stream<List<PuntoEmergencia>> flujoRecorrido(String emergenciaId);
+  Future<List<EvidenciaEmergencia>> evidenciasEmergencia(String emergenciaId);
+
+  /// Enlace temporal (10 min) para ver o descargar una evidencia.
+  Future<String?> urlEvidencia(String ruta);
+  Future<void> atenderEmergencia(String id, AccionEmergencia accion, {String? nota, String? folio});
 
   void cerrar();
 }

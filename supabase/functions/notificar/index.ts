@@ -9,13 +9,24 @@
 //   3. subió de confianza  → avisa "AHORA VERIFICADA/CORROBORADA" a quienes la tenían
 //   4. anillo nuevo        → envía a los teléfonos dentro del radio que aún no la reciben
 //
+// Modo emergencia (SOS, 011_emergencias.sql): con `emergencia_id` en lugar de `alerta_id`
+// avisa SOLO a los validadores (nunca a los vecinos): 'nueva', 'tipo', 'sin_senal', 'cerrada'.
+//
 // Secretos: SECRETO_FUNCIONES, FIREBASE_SERVICE_ACCOUNT (opcional), TELEGRAM_BOT_TOKEN (opcional).
 // Desplegar:  supabase functions deploy notificar --no-verify-jwt
 // =============================================================================
 import { clienteServicio } from '../_compartido/supabase.ts';
 import { autorizado } from '../_compartido/seguridad.ts';
 import { ClienteFcm, type Destino } from '../_compartido/fcm.ts';
-import { type AlertaAviso, datosPush, textoTelegramCierre, textoTelegramNueva } from '../_compartido/mensajes.ts';
+import {
+  type AlertaAviso,
+  datosEmergencia,
+  datosPush,
+  type EmergenciaAviso,
+  type EventoEmergencia,
+  textoTelegramCierre,
+  textoTelegramNueva,
+} from '../_compartido/mensajes.ts';
 
 const sb = clienteServicio();
 const fcm = ClienteFcm.desdeEntorno();
@@ -94,12 +105,27 @@ async function telegramCierre(a: Alerta) {
   return resultados.filter(Boolean).length;
 }
 
+/** SOS: aviso de prioridad máxima a los teléfonos de validadores, instituciones y admin. */
+async function avisarEmergencia(id: string, evento: EventoEmergencia) {
+  const { data: e, error } = await sb.from('emergencias')
+    .select('id, estado, tipo, origen, lat, lon, velocidad_ms, bateria, cierre')
+    .eq('id', id)
+    .maybeSingle<EmergenciaAviso>();
+  if (error) throw error;
+  if (!e) return json({ error: 'La emergencia no existe' }, 404);
+  const { data: val, error: e2 } = await sb.rpc('dispositivos_validadores');
+  if (e2) throw e2;
+  return json({ validadores: await enviarPush(val ?? [], datosEmergencia(e, evento)) });
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Usa POST' }, 405);
   if (!autorizado(req)) return json({ error: 'No autorizado' }, 401);
 
   try {
-    const { alerta_id, evento, anterior } = await req.json();
+    const cuerpo = await req.json();
+    if (cuerpo.emergencia_id) return await avisarEmergencia(cuerpo.emergencia_id, cuerpo.evento ?? 'nueva');
+    const { alerta_id, evento, anterior } = cuerpo;
     const { data: a, error } = await sb.from('alertas')
       .select(
         '*, categorias(nombre, nombre_corto, nivel, instrucciones), validador:perfiles!alertas_verificada_por_fkey(institucion, nombre)',

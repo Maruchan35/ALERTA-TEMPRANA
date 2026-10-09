@@ -449,6 +449,7 @@ class Metricas {
     this.segundosValidacion,
     this.entregasHoy = 0,
     this.dispositivosActivos,
+    this.emergenciasAbiertas = 0,
   });
 
   factory Metricas.desdeMapa(Map<String, dynamic> m) => Metricas(
@@ -457,6 +458,7 @@ class Metricas {
     segundosValidacion: (m['segundos_validacion'] as num?)?.toInt(),
     entregasHoy: (m['entregas_hoy'] as num?)?.toInt() ?? 0,
     dispositivosActivos: (m['dispositivos_activos'] as num?)?.toInt(),
+    emergenciasAbiertas: (m['emergencias_abiertas'] as num?)?.toInt() ?? 0,
   );
 
   final int activas;
@@ -466,6 +468,9 @@ class Metricas {
 
   /// Teléfonos registrados para recibir push: si son pocos, las alertas no tienen a quién llegar.
   final int? dispositivosActivos;
+
+  /// Emergencias SOS abiertas (activas o en seguimiento).
+  final int emergenciasAbiertas;
 }
 
 class EntradaBitacora {

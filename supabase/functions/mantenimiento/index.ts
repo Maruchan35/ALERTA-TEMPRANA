@@ -2,7 +2,8 @@
 // ALERTA CERCA · Edge Function `mantenimiento`: retención de fotos (sección 12).
 // La llama pg_cron una vez al día. Las fotos se borran con la API de Storage (no con
 // SQL directo sobre storage.objects): las de alertas cerradas hace más de 90 días y los
-// archivos huérfanos (subidos pero sin alerta) de más de 24 h.
+// archivos huérfanos (subidos pero sin alerta) de más de 24 h. También la evidencia del modo
+// emergencia (bucket 'evidencias') de emergencias que ya no existen (retención de 30 días).
 //
 // Desplegar:  supabase functions deploy mantenimiento --no-verify-jwt
 // =============================================================================
@@ -26,7 +27,17 @@ Deno.serve(async (req) => {
       const { error: e2 } = await sb.rpc('olvidar_fotos', { p_rutas: lote });
       if (e2) throw e2;
     }
-    return Response.json({ revisadas: rutas.length, borradas });
+    // Evidencia de emergencias SOS borradas por retención (la de una emergencia viva nunca se toca)
+    const { data: ev, error: e3 } = await sb.rpc('evidencias_por_borrar');
+    if (e3) throw e3;
+    const evidencias: string[] = (ev ?? []).map((f: { ruta: string }) => f.ruta);
+    let evidenciasBorradas = 0;
+    for (let i = 0; i < evidencias.length; i += 100) {
+      const { data: quitadas, error: e } = await sb.storage.from('evidencias').remove(evidencias.slice(i, i + 100));
+      if (e) throw e;
+      evidenciasBorradas += quitadas?.length ?? 0;
+    }
+    return Response.json({ revisadas: rutas.length, borradas, evidencias: evidenciasBorradas });
   } catch (e) {
     console.error('mantenimiento:', e);
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

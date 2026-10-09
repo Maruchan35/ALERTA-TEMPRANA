@@ -24,6 +24,14 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
 | P17 | CAP | `cap_test.ts`: XML válido, elementos obligatorios, `Cancel` al resolverse | Abrir la URL del feed → XML con la alerta verificada |
 | P18 | Token inválido | `fcm_test.ts`: 404/UNREGISTERED y token mal formado → `token_invalido` | Desinstalar la app y publicar una alerta → el dispositivo queda inactivo |
 | P19 | Carga | *P19*: 5,000 dispositivos, usa `dispositivos_centro_idx`, ~2–3 ms | `supabase/demo/prueba_carga.sql` |
+| P20 | SOS: pedir ayuda | *SOS: cualquier persona con sesión…* (SQL) y *SOS: pide ayuda…* (app) | Botón **SOS** → 5 s → en el panel suena la alarma y aparece la persona con su ubicación |
+| P21 | SOS: cancelar y simulacro | *SOS: el botón rojo abre una cuenta regresiva…* y *el simulacro…* (app) | **CANCELAR** en la cuenta → no llega nada; *Ajustes → Modo emergencia → Simulacro* → no llega nada |
+| P22 | SOS: ubicación en vivo | *SOS: la señal guarda el recorrido…* (SQL) y *simulador del panel* (`compartido`) | Caminar o ir en auto con el SOS activo y la pantalla apagada → el punto se mueve en el panel; la velocidad dice “en vehículo” |
+| P23 | SOS: seguimiento | *SOS: el validador toma el caso…* (SQL), *validador: seguimiento en vivo* (app) y *SOS: alarma con banner rojo* (panel) | *Tomar el caso* y *Avisé al 911* → el teléfono dice “… ya te está siguiendo” y “La policía ya fue avisada” |
+| P24 | SOS: privacidad | *SOS: nadie más ve la emergencia…* y *retención: las emergencias cerradas…* (SQL) | Con una cuenta ciudadana, `emergencias_panel` sale vacía; a los 30 días del cierre ya no hay recorrido ni video |
+| P25 | SOS: evidencia | *SOS: la evidencia solo se sube…* (SQL) | Con el SOS abierto 30 s → en el panel aparecen 2 videos y se pueden ver |
+| P26 | SOS: sin señal | *SOS: si el teléfono deja de mandar señal…* (SQL) | Activar el modo avión con el SOS abierto → a los 2 min llega “SOS · SIN SEÑAL” |
+| P27 | SOS: sacudida | *detector de sacudidas* (`compartido`): caminar y correr no la disparan | Con *Sacudir el teléfono* activado, 4 sacudidas fuertes → cuenta regresiva; con el modo protección, también con la app cerrada y el teléfono bloqueado |
 
 ## Además de la propuesta
 
@@ -51,17 +59,24 @@ aplica, su versión **manual** para el ensayo con teléfonos reales.
   paralelo; autorización por secreto en tiempo constante; textos de push (contrato de la sección 7.2).
 - **Interfaz**: bienvenida, inicio con alertas ordenadas y aviso del 911, detalle con acciones (app); acceso, cola de
   validación y verificación (panel), en modo demostración.
+- **Modo emergencia (SOS)** (`011_emergencias.sql`, P20–P27): una emergencia abierta por persona y límite por hora;
+  máximo un punto cada 3 s; solo su dueño manda señal; RLS (la persona ve la suya, los validadores todas, nadie
+  escribe directo); evidencia solo en la carpeta de la emergencia propia y abierta (15 min de margen al cerrar); aviso
+  único de “sin señal” que se rearma; retención de 30 días que nunca toca una emergencia abierta; textos de la alarma
+  (`mensajes_test.ts`); detector de sacudidas, flujo completo y simulador en el motor de demostración; cuenta
+  regresiva, cancelar, simulacro y “Estoy a salvo” (app); alarma, banner, recorrido y “Tomar el caso” (panel).
 
 ## Cómo ejecutarlas
 
 ```bash
-cd supabase/pruebas && npm install && npm test     # 54 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
+cd supabase/pruebas && npm install && npm test     # 62 pruebas · PostgreSQL 17 + PostGIS reales (PGlite), sin Docker
 cd puente-whatsapp && npm install && npm test      # puente de WhatsApp
-cd supabase/functions && deno task probar          # 20 pruebas
+cd supabase/functions && deno task probar          # 22 pruebas
 cd supabase/functions && deno task revisar         # tipos, lint y formato
 cd compartido && flutter test                      # geohash, radio, mensajes y motor de demostración
 cd app && flutter test                             # pantallas (modo demostración)
 cd panel && flutter test                           # panel (modo demostración)
+cd web && npm install && npm run build             # portal web: sin escrituras directas, tipos y compilación
 ```
 
 > En Windows con **Smart App Control** activado, `flutter test` puede fallar con “una directiva de Control de

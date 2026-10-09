@@ -19,6 +19,7 @@ Tabla para los jueces (sección 6 de la propuesta), con el lugar del código don
 | 11 | Privacidad y protección de datos | Celdas de ~1 km, RLS en todas las tablas, fotos sin metadatos y privadas, retención 30/60/90 días, aviso de privacidad, borrar mi cuenta | `003_seguridad.sql`, [aviso-de-privacidad.md](aviso-de-privacidad.md) |
 | 12 | Escalar e integrarse con autoridades | Roles de validador e institución, feed CAP 1.2 / Atom, índices espaciales | `cap/`, `perfiles.rol` |
 | 13 | Llegar a más dispositivos sin depender de un operador | Push por internet (FCM), Telegram, app web; análisis de canales (Cell Broadcast, SMS, WhatsApp) | Sección 5 de la propuesta; `notificar` |
+| + | Prevención para quien está en peligro (más allá del reto) | **Modo emergencia (SOS)**: botón, sacudida fuerte o atajo (5 s para cancelar); alarma a validadores, ubicación en vivo aunque se apague la pantalla, video de evidencia por fragmentos, 911 a un toque, aviso si el teléfono deja de responder | `011_emergencias.sql`, `app/lib/nucleo/emergencia.dart`, pestaña SOS del panel |
 
 ## Restricciones (sección 13 del reto)
 
@@ -28,7 +29,7 @@ Tabla para los jueces (sección 6 de la propuesta), con el lugar del código don
 | Independencia del operador | Todo viaja por internet; no se usan SMS para alertar |
 | Compatibilidad | Android, iOS (mismo código), web y Telegram |
 | Consentimiento | Cada permiso se explica antes de pedirlo; ubicación en segundo plano opcional |
-| Uso responsable de la geolocalización | Celdas de ~1 km, sin historial, distancia calculada en el teléfono |
+| Uso responsable de la geolocalización | Celdas de ~1 km, sin historial, distancia calculada en el teléfono. Única excepción: el SOS que la propia persona activa (solo validadores, 30 días) |
 | Protección de datos personales | Aviso de privacidad, derechos ARCO (borrar mi cuenta), retención limitada |
 | Seguridad de la información | RLS, funciones del servidor, HTTPS, secretos fuera del código (Vault y secretos de Supabase) |
 | Validación de alertas | Estados, validadores, bitácora |

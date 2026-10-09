@@ -22,7 +22,17 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
           '• Las celdas de tus zonas guardadas (casa, escuela, trabajo), si las agregas.\n'
           '• Solo si quieres reportar o confirmar: tu número de teléfono verificado.\n'
           '• En los reportes: la ubicación del suceso (un lugar, no una persona), la descripción y, si la '
-          'agregas, una foto sin metadatos.',
+          'agregas, una foto sin metadatos.\n'
+          '• Solo si TÚ activas el modo emergencia (SOS): ver la sección siguiente.',
+    ),
+    (
+      'Modo emergencia (SOS)',
+      'Es la única excepción y solo ocurre si tú pides ayuda. Mientras la emergencia está abierta compartimos tu '
+          'ubicación exacta (con su recorrido), tu velocidad, el nivel de batería y el video con audio que grabe '
+          'tu teléfono mientras la pantalla del SOS está abierta. Los ven únicamente Protección Civil y los '
+          'validadores del CCE que dan seguimiento (nunca tus vecinos), para localizarte y avisar al 911. Si '
+          'verificaste tu número, también lo ven, para poder llamarte. Al terminar se deja de compartir, y todo '
+          'se borra a los 30 días.',
     ),
     (
       'Para qué',
@@ -32,12 +42,14 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
     (
       'Qué NO guardamos',
       'Tu ubicación exacta, tu historial de recorridos ni los metadatos de tus fotos (GPS, modelo del '
-          'teléfono). Nadie puede reconstruir tus recorridos aunque lea la base de datos completa.',
+          'teléfono). Nadie puede reconstruir tus recorridos aunque lea la base de datos completa. La única '
+          'excepción es una emergencia SOS que tú actives, mientras está abierta.',
     ),
     (
       'Con quién se comparten',
       'Con nadie. Las alertas VERIFICADAS se publican en formato CAP para que Protección Civil u otras '
-          'autoridades puedan retransmitirlas; esas alertas nunca incluyen datos de quien reportó.',
+          'autoridades puedan retransmitirlas; esas alertas nunca incluyen datos de quien reportó. Durante un '
+          'SOS, los validadores pueden dar tu ubicación al 911 para que te ayuden.',
     ),
     (
       'Datos sensibles',
@@ -48,7 +60,8 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
       'Cuánto tiempo',
       '• A quién se envió cada alerta: 30 días.\n'
           '• Alertas cerradas: se anonimizan a los 90 días.\n'
-          '• Teléfonos sin actividad: se desactivan a los 60 días.',
+          '• Teléfonos sin actividad: se desactivan a los 60 días.\n'
+          '• Emergencias SOS (recorrido y video): se borran a los 30 días de cerrarse.',
     ),
     (
       'Tus derechos (ARCO)',
@@ -73,7 +86,7 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
           const Text('Aviso de privacidad simplificado', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
           Text(
-            'Prototipo · versión 1.0 · octubre de 2026',
+            'Prototipo · versión 1.1 · octubre de 2026',
             style: TextStyle(color: Colors.grey.shade700, fontSize: 12.5),
           ),
           for (final (titulo, texto) in _secciones) ...[

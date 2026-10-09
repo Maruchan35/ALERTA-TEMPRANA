@@ -7,7 +7,9 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Opcional: para avisarte de alertas cercanas aunque no abras la app. Solo enviamos una zona de ~1 km, nunca tu ubicación exacta.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Para adjuntar una foto a tu reporte. Le quitamos la ubicación y los datos del teléfono antes de subirla.</string>
+	<string>Para adjuntar una foto a tu reporte (le quitamos la ubicación y los datos del teléfono) y, en una emergencia SOS, grabar video de evidencia.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Durante una emergencia SOS, el video de evidencia se graba con audio.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Para adjuntar una foto de tu galería a un reporte. Le quitamos la ubicación y los datos del teléfono antes de subirla.</string>
 	<key>UIBackgroundModes</key>
