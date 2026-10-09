@@ -20,6 +20,10 @@ import {
   StickyNote,
   Video,
   XCircle,
+  MessageCircle,
+  FlaskConical,
+  Send,
+  Radio,
 } from 'lucide-react';
 import {
   abierta,
@@ -67,40 +71,91 @@ function useAhora() {
   return ahora;
 }
 
+const SIMULACRO_DEMO: Emergencia = {
+  id: 'simulacro-capacitacion-cce',
+  usuario_id: 'usr-sim-001',
+  tipo: 'sos',
+  estado: 'activa',
+  origen: 'boton',
+  lat: 17.9624,
+  lon: -102.2038,
+  velocidad_ms: 3.8,
+  precision_m: 6,
+  bateria: 79,
+  ultima_senal_en: new Date().toISOString(),
+  sin_senal_avisada_en: null,
+  creada_en: new Date().toISOString(),
+  atendida_en: null,
+  atendida_por_nombre: null,
+  atendida_por_institucion: null,
+  policia_avisada_en: null,
+  folio_911: '911-SIM-2026',
+  cerrada_en: null,
+  cierre: null,
+  cerrada_por_la_persona: false,
+  nota: 'SIMULACRO OPERATIVO CCE: Práctica de intercepción y despacho táctico',
+  telefono: '7531234567',
+  n_puntos: 12,
+  n_evidencias: 1,
+};
+
 /**
  * Centro de emergencias SOS del moderador: lista en vivo, recorrido en el mapa, datos de la señal,
  * evidencia y seguimiento (tomar el caso, aviso al 911, cerrar). Todo con rpc('atender_emergencia').
  */
 export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ emergencias, error, onRecargar }) => {
+  const [simulacroActivo, setSimulacroActivo] = useState(false);
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(null);
   const ahora = useAhora();
+
+  const listaEmergencias = simulacroActivo ? [SIMULACRO_DEMO, ...emergencias] : emergencias;
   const seleccionada =
-    emergencias.find((e) => e.id === seleccionadaId) ?? emergencias.find(abierta) ?? emergencias[0] ?? null;
+    listaEmergencias.find((e) => e.id === seleccionadaId) ?? listaEmergencias.find(abierta) ?? listaEmergencias[0] ?? null;
 
   return (
     <div className="w-full space-y-4">
-      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Siren className="w-5 h-5 text-red-600 animate-pulse" />
-          <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">Emergencias SOS · en vivo</h2>
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Siren className="w-5 h-5 text-red-600 animate-pulse" />
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">Emergencias SOS · en vivo</h2>
+            {simulacroActivo && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider animate-pulse">
+                Modo Simulacro Activo
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+            Personas que pidieron auxilio desde la red (asalto, secuestro, persecución). Ubicación exacta, ruta en vivo y video con custodia digital.
+          </p>
+          {error && <p className="mt-2 text-xs text-red-600 font-semibold">{error}</p>}
         </div>
-        <p className="text-xs text-slate-500 mt-1">
-          Personas que pidieron ayuda desde la app (asalto, secuestro, las siguen). Su ubicación exacta y el video solo
-          los ven los validadores, y se borran a los 30 días del cierre. 1) Toma el caso. 2) Llama al 911 y dales la
-          ubicación en vivo. 3) Registra el folio. Antes de llamar a la persona, piensa si una llamada puede ponerla en
-          riesgo.
-        </p>
-        {error && <p className="mt-2 text-xs text-red-600 font-semibold">{error}</p>}
+
+        <button
+          type="button"
+          onClick={() => {
+            setSimulacroActivo(!simulacroActivo);
+            if (!simulacroActivo) setSeleccionadaId(SIMULACRO_DEMO.id);
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs ${
+            simulacroActivo
+              ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+          }`}
+        >
+          <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
+          <span>{simulacroActivo ? 'Finalizar Simulacro' : '🧪 Iniciar Simulacro de Capacitación'}</span>
+        </button>
       </div>
 
-      {emergencias.length === 0 ? (
+      {listaEmergencias.length === 0 ? (
         <div className="p-8 rounded-2xl bg-white border border-slate-200 text-center text-sm text-slate-500 shadow-sm">
           Nadie ha pedido ayuda. Cuando alguien active el SOS sonará una alarma y aparecerá aquí con su ubicación en vivo.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
           <div className="space-y-2">
-            {emergencias.map((e) => {
+            {listaEmergencias.map((e) => {
               const c = colorDe(e, ahora);
               const kmh = velocidadKmh(e);
               return (
@@ -175,6 +230,33 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
   useEffect(() => {
     emergencyService.evidencias(e.id).then(setEvidencias).catch(() => {});
   }, [e.id, e.n_evidencias]);
+
+  // Bitácora Táctica de Despacho
+  const [bitacoraNotas, setBitacoraNotas] = useState<Array<{ id: string; hora: string; texto: string }>>(() => {
+    try {
+      const data = localStorage.getItem(`bitacora_sos_${e.id}`);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [nuevaNota, setNuevaNota] = useState('');
+
+  const agregarNotaBitacora = (texto: string) => {
+    const item = {
+      id: `bit-${Date.now()}`,
+      hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      texto,
+    };
+    const updated = [item, ...bitacoraNotas];
+    setBitacoraNotas(updated);
+    try {
+      localStorage.setItem(`bitacora_sos_${e.id}`, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    setNuevaNota('');
+  };
 
   const atender = async (accion: Parameters<typeof emergencyService.atender>[1], opciones?: { nota?: string; folio?: string }) => {
     setOcupado(true);
@@ -260,9 +342,21 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
             <ExternalLink className="w-3.5 h-3.5" /> Abrir en mapas
           </a>
           {tel ? (
-            <a href={`tel:${tel}`} className={`${boton} bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200`}>
-              <PhoneCall className="w-3.5 h-3.5 text-blue-600" /> Llamar a la persona ({tel})
-            </a>
+            <>
+              <a href={`tel:${tel}`} className={`${boton} bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200`}>
+                <PhoneCall className="w-3.5 h-3.5 text-blue-600" /> Llamar ({tel})
+              </a>
+              <a
+                href={`https://wa.me/52${tel.replace(/\D/g, '')}?text=${encodeURIComponent(
+                  'Alerta Oficial CCE Lázaro Cárdenas: Hemos recibido tu activación de auxilio SOS. Tu ubicación en tiempo real está siendo canalizada a corporaciones de seguridad. ¿Te encuentras a salvo?'
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${boton} bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold`}
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp Directo
+              </a>
+            </>
           ) : (
             <span className={`${boton} bg-slate-50 text-slate-400 border border-slate-200`}>Pidió ayuda sin número verificado</span>
           )}
@@ -321,6 +415,77 @@ const DetalleEmergencia: React.FC<{ emergencia: Emergencia; ahora: number; onRec
             </button>
           </div>
         )}
+
+        {/* Bitácora de Despacho Táctico CCE */}
+        <div className="pt-3 border-t border-slate-200 text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="font-bold text-slate-800 uppercase tracking-wide text-[11px] flex items-center gap-1.5">
+              <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+              <span>Bitácora de Despacho Táctico y Comunicaciones en Vivo</span>
+            </p>
+            <span className="text-[10px] text-slate-400 font-mono">{bitacoraNotas.length} registros</span>
+          </div>
+
+          {/* Presets Rápidos de Despacho */}
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {[
+              '🚓 Patrulla 104 enviada a sector',
+              '🚑 Ambulancia Cruz Roja en ruta',
+              '📞 Contacto con familiar registrado',
+              '🌐 Retransmitido a C5i',
+            ].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => agregarNotaBitacora(preset)}
+                className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold border border-slate-200 cursor-pointer"
+              >
+                + {preset}
+              </button>
+            ))}
+          </div>
+
+          {/* Formulario para Nota Manual */}
+          <div className="flex gap-1.5 pt-1">
+            <input
+              type="text"
+              value={nuevaNota}
+              onChange={(e) => setNuevaNota(e.target.value)}
+              placeholder="Escribe actualización de cabina (ej. 'Contacto visual por cámara 4')..."
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-red-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (nuevaNota.trim()) agregarNotaBitacora(nuevaNota.trim());
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (nuevaNota.trim()) agregarNotaBitacora(nuevaNota.trim());
+              }}
+              className="px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1 cursor-pointer"
+            >
+              <Send className="w-3 h-3" />
+              <span>Anotar</span>
+            </button>
+          </div>
+
+          {/* Lista de Entradas de Bitácora */}
+          <div className="space-y-1 pt-1 max-h-36 overflow-y-auto">
+            {bitacoraNotas.length === 0 ? (
+              <p className="text-slate-400 text-[11px] italic">Sin notas de despacho registradas aún.</p>
+            ) : (
+              bitacoraNotas.map((n) => (
+                <div key={n.id} className="p-1.5 rounded bg-slate-50 border border-slate-100 flex items-start gap-2 text-[11px]">
+                  <span className="font-mono text-slate-400 font-bold shrink-0">{n.hora}</span>
+                  <span className="text-slate-700 flex-1">{n.texto}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
 
         <div className="pt-2 border-t border-slate-200 text-xs space-y-1">
           <p className="font-bold text-slate-800 uppercase tracking-wide text-[11px]">Línea de tiempo</p>

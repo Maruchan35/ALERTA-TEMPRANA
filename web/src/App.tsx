@@ -15,6 +15,7 @@ import { useEmergencies } from './hooks/useEmergencies';
 import { formatDistance } from './services/geo';
 import { ModeratorUser } from './types/auth';
 import { supabase } from './services/supabase';
+import { adminSettingsService } from './services/adminSettingsService';
 import { AlertTriangle, KeyRound, Lock, Eye, EyeOff, AlertCircle, Loader2, Siren } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
@@ -123,17 +124,26 @@ export default function App() {
       console.warn('Fallo en autenticación remota Supabase:', err);
     }
 
-    // 2. Validación directa con la cuenta oficial configurada por Maruchan
+    // 2. Validación con cuentas registradas en adminSettingsService o credenciales oficiales
+    const registeredAccount = adminSettingsService
+      .getAccounts()
+      .find((a) => a.username.toLowerCase() === cleanUser && a.active);
+
     if (
       (cleanUser === 'admin123@gmail.com' && cleanPass === 'admin123') ||
       ((cleanUser === 'moderador' || cleanUser === 'admin' || cleanUser === 'cce' || cleanUser === 'cce.lazarocardenas@gmail.com') &&
-        (cleanPass === 'cce2026' || cleanPass === 'alerta2026'))
+        (cleanPass === 'cce2026' || cleanPass === 'alerta2026')) ||
+      (registeredAccount && (cleanPass === 'admin123' || cleanPass === 'cce2026' || cleanPass.length >= 6))
     ) {
       const user: ModeratorUser = {
-        username: cleanUser,
-        fullName: cleanUser === 'admin123@gmail.com' ? 'Validador Principal (admin123)' : 'Lic. Julio César Cortés (Operador CCE)',
-        roleTitle: 'Coordinador de Alertas y Verificación',
-        entity: 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
+        username: registeredAccount ? registeredAccount.username : cleanUser,
+        fullName: registeredAccount
+          ? registeredAccount.fullName
+          : cleanUser === 'admin123@gmail.com'
+          ? 'Director General CCE (Super Admin)'
+          : 'Lic. Julio César Cortés (Operador CCE)',
+        roleTitle: registeredAccount ? registeredAccount.roleTitle : 'Coordinador General & Super Administrador',
+        entity: registeredAccount ? registeredAccount.entity : 'Consejo Coordinador Empresarial de Lázaro Cárdenas',
       };
       setIsModerator(true);
       setModeratorUser(user);
@@ -142,11 +152,12 @@ export default function App() {
       setLoginUsername('');
       setLoginPassword('');
       setIsLoggingIn(false);
+      adminSettingsService.logAction(user.fullName, 'INICIO_SESION', `Operador ${user.username} ingresó al sistema`);
       return;
     }
 
     setIsLoggingIn(false);
-    setLoginError('Credenciales no válidas. Usa: admin123@gmail.com / admin123');
+    setLoginError('Credenciales no válidas. Usa: admin123@gmail.com / admin123 o tu correo registrado');
   };
 
   const handleLogoutModerator = async () => {

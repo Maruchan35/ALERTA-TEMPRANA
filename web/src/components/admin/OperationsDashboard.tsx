@@ -22,7 +22,9 @@ import {
   X,
   AlertTriangle,
   Check,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Printer,
+  TrendingUp
 } from 'lucide-react';
 
 interface OperationsDashboardProps {
@@ -49,6 +51,9 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
   // Filtros y Búsqueda en vivo
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pendientes' | 'verificadas' | 'resueltas'>('all');
+  const [timeFilter, setTimeFilter] = useState<'all' | '24h' | '7d' | '30d'>('all');
+  const [showKPIs, setShowKPIs] = useState<boolean>(true);
+  const [alertForDossier, setAlertForDossier] = useState<AlertWithDistance | null>(null);
 
   // Estados de Modales y Selección Interactiva
   const [selectedAlertForDetail, setSelectedAlertForDetail] = useState<AlertWithDistance | null>(null);
@@ -93,14 +98,21 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
     if (!matchesSearch) return false;
 
     if (filterStatus === 'pendientes') {
-      return alert.status === 'pendiente' || alert.status === 'no_confirmada';
+      if (alert.status !== 'pendiente' && alert.status !== 'no_confirmada') return false;
+    } else if (filterStatus === 'verificadas') {
+      if (alert.status !== 'verificada' && alert.status !== 'corroborada') return false;
+    } else if (filterStatus === 'resueltas') {
+      if (alert.status !== 'resuelta') return false;
     }
-    if (filterStatus === 'verificadas') {
-      return alert.status === 'verificada' || alert.status === 'corroborada';
+
+    if (timeFilter !== 'all') {
+      const alertTime = new Date(alert.createdAt).getTime();
+      const hoursDiff = (Date.now() - alertTime) / (1000 * 60 * 60);
+      if (timeFilter === '24h' && hoursDiff > 24) return false;
+      if (timeFilter === '7d' && hoursDiff > 24 * 7) return false;
+      if (timeFilter === '30d' && hoursDiff > 24 * 30) return false;
     }
-    if (filterStatus === 'resueltas') {
-      return alert.status === 'resuelta';
-    }
+
     return true;
   });
 
@@ -331,8 +343,20 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
             </button>
           </div>
 
-          {activeTab === 'archive' && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {activeTab === 'live' && (
+              <button
+                type="button"
+                onClick={() => setShowKPIs(!showKPIs)}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Mostrar u ocultar bloque de métricas y KPIs"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{showKPIs ? 'Ocultar KPIs' : 'Ver KPIs'}</span>
+              </button>
+            )}
+
+            {activeTab === 'archive' && (
               <button
                 type="button"
                 onClick={handleDownloadArchiveJSON}
@@ -342,8 +366,8 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 <Download className="w-3.5 h-3.5 text-purple-600" />
                 <span>Exportar JSON Forense</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -352,6 +376,55 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
       ======================================================== */}
       {activeTab === 'live' && (
         <div className="space-y-4">
+          {/* Métricas y KPIs de Desempeño Operativo CCE */}
+          {showKPIs && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm animate-fade-in">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between text-slate-500 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Eficacia Operativa</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                </div>
+                <div className="text-lg font-black text-slate-900 tabular-nums">
+                  {alerts.length > 0 ? Math.round((alerts.filter((a) => a.status === 'resuelta').length / alerts.length) * 100) : 0}%
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium">Tasa de resolución municipal</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between text-slate-500 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Código Rojo / Prioridad</span>
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+                </div>
+                <div className="text-lg font-black text-red-600 tabular-nums">
+                  {alerts.filter((a) => a.level >= 3 && a.status !== 'resuelta' && a.status !== 'descartada').length}
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium">Casos Nivel 3 y 4 activos</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between text-slate-500 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Avistamientos en Red</span>
+                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                </div>
+                <div className="text-lg font-black text-blue-700 tabular-nums">
+                  {alerts.reduce((acc, a) => acc + (a.confirmedCount || 0), 0)}
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium">Corroboraciones comunitarias</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between text-slate-500 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Expedientes MP</span>
+                  <FolderArchive className="w-3.5 h-3.5 text-purple-600" />
+                </div>
+                <div className="text-lg font-black text-purple-800 tabular-nums">
+                  {carpetas.length}
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium">Carpetas con custodia digital</div>
+              </div>
+            </div>
+          )}
+
           {/* Filtros de la tabla en vivo */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
             <div className="relative flex-1 max-w-md">
@@ -365,26 +438,53 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               />
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-              {[
-                { id: 'all', label: 'Todas' },
-                { id: 'pendientes', label: 'Por Validar' },
-                { id: 'verificadas', label: 'Verificadas CCE' },
-                { id: 'resueltas', label: 'Resueltas' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFilterStatus(f.id as typeof filterStatus)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all select-none cursor-pointer ${
-                    filterStatus === f.id
-                      ? 'bg-slate-900 text-white font-bold shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Filtro por Tiempo */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
+                <span className="text-[10px] font-bold text-slate-500 px-1 uppercase">Periodo:</span>
+                {[
+                  { id: 'all', label: 'Todo' },
+                  { id: '24h', label: '24h' },
+                  { id: '7d', label: '7 Días' },
+                  { id: '30d', label: 'Mes' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTimeFilter(t.id as typeof timeFilter)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                      timeFilter === t.id
+                        ? 'bg-white text-red-600 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Filtro por Estado */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {[
+                  { id: 'all', label: 'Todas' },
+                  { id: 'pendientes', label: 'Por Validar' },
+                  { id: 'verificadas', label: 'Verificadas CCE' },
+                  { id: 'resueltas', label: 'Resueltas' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFilterStatus(f.id as typeof filterStatus)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all select-none cursor-pointer ${
+                      filterStatus === f.id
+                        ? 'bg-slate-900 text-white font-bold shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -526,6 +626,16 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                                 title="Ver ficha técnica completa y fotografía"
                               >
                                 <Eye className="w-3.5 h-3.5 text-slate-700" />
+                              </button>
+
+                              {/* Botón Generar Oficio Formal para Imprimir / PDF */}
+                              <button
+                                type="button"
+                                onClick={() => setAlertForDossier(alert)}
+                                className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors cursor-pointer"
+                                title="Generar Expediente / Oficio Judicial CCE e Imprimir"
+                              >
+                                <Printer className="w-3.5 h-3.5 text-purple-700" />
                               </button>
 
                               {/* Botón Ver en Mapa */}
@@ -985,7 +1095,18 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 Cerrar Ficha
               </Button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Botón Imprimir Oficio Formal */}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100 font-bold"
+                  onClick={() => setAlertForDossier(selectedAlertForDetail)}
+                >
+                  <Printer className="w-3.5 h-3.5 mr-1 text-purple-700" />
+                  Imprimir Oficio Formal CCE
+                </Button>
+
                 {selectedAlertForDetail.status === 'pendiente' && (
                   <Button
                     variant="primary"
@@ -1312,6 +1433,167 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                 onClick={handleConfirmResolve}
               >
                 Confirmar y Archivar Expediente
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL 5: EXPEDIENTE U OFICIO JUDICIAL FORMAL PARA IMPRESIÓN (PDF)
+      ======================================================== */}
+      {alertForDossier && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static">
+          <div className="w-full max-w-3xl max-h-[92vh] bg-white border-2 border-slate-300 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-900 print:max-h-none print:border-none print:shadow-none print:rounded-none">
+            {/* Cabecera Membretada */}
+            <div className="p-5 border-b-2 border-slate-200 bg-slate-50 flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 border border-purple-300 flex items-center justify-center text-purple-800 font-black text-xl">
+                  CCE
+                </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Consejo Coordinador Empresarial de Lázaro Cárdenas, Michoacán
+                  </h3>
+                  <h2 className="text-base sm:text-lg font-black text-slate-950 tracking-tight">
+                    Expediente Técnico de Incidente Territorial
+                  </h2>
+                  <p className="text-[11px] text-slate-600 font-mono">
+                    Folio Interno: {alertForDossier.folio} | 911: {alertForDossier.folio911 || 'EN TRÁMITE'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 print:hidden">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => window.print()}
+                  icon={<Printer className="w-3.5 h-3.5" />}
+                  className="bg-purple-700 hover:bg-purple-800 text-white font-bold cursor-pointer"
+                >
+                  Imprimir / Guardar PDF
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setAlertForDossier(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Cuerpo del Oficio */}
+            <div className="p-6 overflow-y-auto space-y-5 text-xs">
+              {/* Metadatos Oficiales */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Nivel de Alerta</span>
+                  <span className="font-black text-slate-900">
+                    Nivel {alertForDossier.level} · {alertForDossier.level >= 4 ? 'Crítico' : 'Prioritario'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Categoría</span>
+                  <span className="font-bold text-slate-900">{alertForDossier.categoryName}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Fecha / Hora Registro</span>
+                  <span className="font-semibold text-slate-900">
+                    {new Date(alertForDossier.createdAt).toLocaleString('es-MX')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Verificación</span>
+                  <span className="font-bold text-emerald-800">
+                    {alertForDossier.verifiedBy || 'Mando Central CCE'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Hechos y Descripción */}
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wider border-b pb-1">
+                  I. Síntesis del Incidente y Declaración de Hechos
+                </h4>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-slate-800">
+                  <div className="font-bold text-sm mb-1">{alertForDossier.title}</div>
+                  <p>{alertForDossier.description || 'Sin descripción adicional registrada por el reportante.'}</p>
+                </div>
+              </div>
+
+              {/* Datos Geográficos y Geocerca */}
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wider border-b pb-1">
+                  II. Parámetros Geodésicos y Radio de Expansión
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block">Dirección / Referencia:</span>
+                    <span className="font-semibold text-slate-900">
+                      {alertForDossier.coordinates.address || 'Lázaro Cárdenas, Mich.'}
+                    </span>
+                    {alertForDossier.coordinates.referencePoint && (
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        Ref: {alertForDossier.coordinates.referencePoint}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block">Coordenadas y Radio:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {alertForDossier.coordinates.lat.toFixed(5)}, {alertForDossier.coordinates.lng.toFixed(5)}
+                    </span>
+                    <div className="text-[11px] font-bold text-red-600 mt-0.5">
+                      Radio Táctico: {alertForDossier.currentRadiusKm} km ({alertForDossier.currentRadiusMeters.toLocaleString()} m)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fotografía de Evidencia si existe */}
+              {alertForDossier.photoUrl && (
+                <div className="space-y-1.5">
+                  <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wider border-b pb-1">
+                    III. Evidencia Fotográfica Registrada
+                  </h4>
+                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+                    <img
+                      src={alertForDossier.photoUrl}
+                      alt={alertForDossier.title}
+                      className="max-h-60 rounded-lg object-contain border border-slate-200"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Firmas y Sellos Institucionales */}
+              <div className="pt-6 border-t-2 border-slate-200 grid grid-cols-2 gap-8 text-center">
+                <div className="space-y-1">
+                  <div className="border-b border-slate-400 pb-8"></div>
+                  <div className="font-bold text-slate-900">Lic. Julio César Cortés</div>
+                  <div className="text-[10px] text-slate-500">Coordinador Operativo CCE Lázaro Cárdenas</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="border-b border-slate-400 pb-8"></div>
+                  <div className="font-bold text-slate-900">Enlace C5i / 911 Michoacán</div>
+                  <div className="text-[10px] text-slate-500">Receptor Oficial de Carpeta Técnica</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 print:hidden">
+              <span className="font-mono text-[10px]">
+                Desafío HACKAITLAC 2026 · Certificación de Cadena de Custodia CCE
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAlertForDossier(null)}
+              >
+                Cerrar
               </Button>
             </div>
           </div>

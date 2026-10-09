@@ -3,7 +3,7 @@ import L from 'leaflet';
 import { AlertWithDistance } from '../../hooks/useNearbyAlerts';
 import { Coordinates, CATEGORIAS_OFICIALES } from '../../types/alert';
 import { formatDistance, getAdaptiveCoverageInfo } from '../../services/geo';
-import { Navigation, Crosshair, Radio, ChevronDown, ChevronUp } from 'lucide-react';
+import { Navigation, Crosshair, Radio, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 
 interface RadarMapProps {
   userCoords: Coordinates;
@@ -25,9 +25,13 @@ export const RadarMap: React.FC<RadarMapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layersGroupRef = useRef<L.LayerGroup | null>(null);
+  const poiLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const hasAutoFittedRef = useRef(false);
   const [showGeofences, setShowGeofences] = useState(true);
+  const [showPOIs, setShowPOIs] = useState(true);
+  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite' | 'dark'>('streets');
 
   // Inicializar mapa de Leaflet
   useEffect(() => {
@@ -42,14 +46,19 @@ export const RadarMap: React.FC<RadarMapProps> = ({
       attributionControl: false,
     });
 
-    // Capa oficial de OpenStreetMap (100% gratuita, libre, sin requerir API keys ni marcas de agua)
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Capa base inicial
+    const baseTile = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: '&copy; OpenStreetMap',
     }).addTo(map);
+    tileLayerRef.current = baseTile;
 
     const layerGroup = L.layerGroup().addTo(map);
     layersGroupRef.current = layerGroup;
+
+    const poiLayerGroup = L.layerGroup().addTo(map);
+    poiLayerGroupRef.current = poiLayerGroup;
+
     mapInstanceRef.current = map;
 
     // Listener de clic en el mapa para situar pines
@@ -66,6 +75,70 @@ export const RadarMap: React.FC<RadarMapProps> = ({
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Cambiar estilo de la capa del mapa (Calles, Satelital, Contraste Nocturno)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    if (tileLayerRef.current) {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current);
+    }
+
+    let url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    let options: L.TileLayerOptions = { maxZoom: 19 };
+
+    if (mapStyle === 'satellite') {
+      url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      options = { maxZoom: 18 };
+    } else if (mapStyle === 'dark') {
+      url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      options = { maxZoom: 19, subdomains: 'abcd' };
+    }
+
+    tileLayerRef.current = L.tileLayer(url, options).addTo(mapInstanceRef.current);
+  }, [mapStyle]);
+
+  // Renderizar Puntos de Interés Seguros (Hospitales, Comandancias, Bomberos, CCE)
+  useEffect(() => {
+    if (!poiLayerGroupRef.current) return;
+    poiLayerGroupRef.current.clearLayers();
+    if (!showPOIs) return;
+
+    const POIS_SEGURIDAD = [
+      { nombre: 'Hospital General de Lázaro Cárdenas', tipo: 'Hospital General', lat: 17.9654, lng: -102.2012, tel: '753-532-0118', emoji: '🏥', color: '#DC2626' },
+      { nombre: 'Cruz Roja Delegación Lázaro Cárdenas', tipo: 'Servicio de Paramédicos', lat: 17.9602, lng: -102.1985, tel: '753-537-2244', emoji: '🚑', color: '#EF4444' },
+      { nombre: 'Comandancia de Policía Municipal', tipo: 'Seguridad Pública', lat: 17.9712, lng: -102.2140, tel: '753-537-4004', emoji: '🚓', color: '#2563EB' },
+      { nombre: 'Protección Civil & Bomberos Municipales', tipo: 'Bomberos & Rescate', lat: 17.9678, lng: -102.2085, tel: '753-532-1925', emoji: '🚒', color: '#D97706' },
+      { nombre: 'SEMAR / Décima Cuarta Zona Naval', tipo: 'Armada de México', lat: 17.9350, lng: -102.1790, tel: '753-532-0158', emoji: '⚓', color: '#1E3A8A' },
+      { nombre: 'Consejo Coordinador Empresarial (CCE)', tipo: 'Sede Operativa CCE', lat: 17.9641, lng: -102.2045, tel: '753-532-1200', emoji: '🏢', color: '#7C3AED' },
+    ];
+
+    POIS_SEGURIDAD.forEach((poi) => {
+      const poiIcon = L.divIcon({
+        className: 'poi-custom-marker',
+        html: `
+          <div style="background-color: ${poi.color}; width: 32px; height: 32px; border-radius: 10px; border: 2px solid white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer;">
+            ${poi.emoji}
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -18],
+      });
+
+      const marker = L.marker([poi.lat, poi.lng], { icon: poiIcon });
+      marker.bindPopup(`
+        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #0f172a; padding: 4px; min-width: 190px;">
+          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b;">${poi.tipo}</div>
+          <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-top: 2px;">${poi.nombre}</div>
+          <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-weight: 700; font-family: monospace; color: #dc2626;">${poi.tel}</span>
+            <a href="tel:${poi.tel.replace(/[^0-9]/g, '')}" style="background: #2563eb; color: white; padding: 2px 8px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 10px;">Llamar</a>
+          </div>
+        </div>
+      `);
+      poiLayerGroupRef.current?.addLayer(marker);
+    });
+  }, [showPOIs]);
 
   // Centrar suavemente en el usuario al cambiar sus coordenadas
   const handleRecenterUser = () => {
@@ -460,6 +533,55 @@ export const RadarMap: React.FC<RadarMapProps> = ({
         >
           <Navigation className="w-4 h-4 text-emerald-600" />
           <span className="hidden sm:inline">Ver Todas ({alerts.length})</span>
+        </button>
+
+        {/* Selector de Capa de Mapa */}
+        <div className="flex items-center bg-white/95 backdrop-blur-md rounded-xl p-1 border border-slate-200 shadow-md text-xs">
+          <button
+            type="button"
+            onClick={() => setMapStyle('streets')}
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              mapStyle === 'streets' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Mapa de calles OpenStreetMap"
+          >
+            Calles
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapStyle('satellite')}
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              mapStyle === 'satellite' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Fotografía satelital Esri World Imagery"
+          >
+            Satélite
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapStyle('dark')}
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              mapStyle === 'dark' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Modo táctico de contraste nocturno"
+          >
+            Noche
+          </button>
+        </div>
+
+        {/* Toggle Puntos Seguros (Hospitales, Comandancia, Bomberos) */}
+        <button
+          type="button"
+          onClick={() => setShowPOIs(!showPOIs)}
+          className={`p-2.5 rounded-xl shadow-md border backdrop-blur-sm transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+            showPOIs
+              ? 'bg-emerald-50/95 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+              : 'bg-white/95 border-slate-200 text-slate-600 hover:bg-white'
+          }`}
+          title="Hospitales, Policía, Bomberos y Puestos de auxilio en Lázaro Cárdenas"
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span className="hidden sm:inline">Puntos Seguros: {showPOIs ? 'ON' : 'OFF'}</span>
         </button>
 
         <button

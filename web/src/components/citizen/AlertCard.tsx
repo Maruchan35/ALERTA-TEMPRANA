@@ -16,7 +16,9 @@ import {
   Flame, 
   ShieldAlert,
   MessageSquarePlus, 
-  Maximize2 
+  Maximize2,
+  Share2,
+  Check
 } from 'lucide-react';
 
 interface AlertCardProps {
@@ -62,6 +64,32 @@ export const AlertCard: React.FC<AlertCardProps> = ({
       console.warn('Error al registrar voto:', err);
     } finally {
       setIsVoting(false);
+    }
+  };
+
+  const [copiedShare, setCopiedShare] = useState(false);
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareText = `🚨 ALERTA CERCA (CCE Lázaro Cárdenas):\n*${alert.title}*\n📍 Ubicación: ${alert.coordinates.address || 'Lázaro Cárdenas'}\n📡 Radio activo: ${alert.currentRadiusKm.toFixed(1)} km\nFolio: ${alert.folio}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Alerta Cerca: ${alert.title}`,
+          text: shareText,
+          url: window.location.href,
+        });
+        return;
+      } catch {
+        // fallback to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${window.location.href}`);
+      setCopiedShare(true);
+      setTimeout(() => setCopiedShare(false), 2500);
+    } catch {
+      // ignore
     }
   };
 
@@ -350,6 +378,27 @@ export const AlertCard: React.FC<AlertCardProps> = ({
               <span>Ver Radar</span>
             </button>
           )}
+
+          {/* Botón Compartir Alerta */}
+          <button
+            type="button"
+            onClick={handleShare}
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+              copiedShare
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+            }`}
+            title="Compartir alerta en WhatsApp o redes sociales"
+          >
+            {copiedShare ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-[10px] font-bold">¡Copiado!</span>
+              </>
+            ) : (
+              <Share2 className="w-3.5 h-3.5 text-slate-600" />
+            )}
+          </button>
         </div>
       </div>
 
